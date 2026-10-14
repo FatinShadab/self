@@ -501,7 +501,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--token-budget",
         type=int,
-        default=int(os.getenv("SELF_TOKEN_BUDGET", "50000")),
+        default=None,
+        help="Maximum tokens for this run; defaults to the configured daily cap.",
     )
     parser.add_argument(
         "--max-tokens-per-call",
@@ -517,10 +518,13 @@ def main() -> int:
     logger = EventLogger(workspace / "logs" / "actions.jsonl")
     try:
         llm = LLMClient(logger)
+        configured_budget = args.token_budget if args.token_budget is not None else int(os.getenv("SELF_TOKEN_BUDGET", "0"))
+        if configured_budget <= 0:
+            configured_budget = int(os.getenv("SELF_MAX_TOKENS_PER_DAY", "200000"))
         config = AgentConfig(
             workspace=workspace,
             max_iterations=max(1, args.max_iterations),
-            token_budget=max(1, args.token_budget),
+            token_budget=max(1, configured_budget),
             max_tokens_per_call=max(64, args.max_tokens_per_call),
             task=args.task,
             top_k_tools=max(0, args.top_k_tools),

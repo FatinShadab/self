@@ -80,7 +80,10 @@ class WakeCoordinator:
         self.inbox = HumanInbox(self.workspace, self.logger)
         self.identity = IdentityStore(self.workspace, self.logger)
         self.max_iterations = max_iterations or int(os.getenv("SELF_MAX_ITERATIONS", "20"))
-        self.token_budget = token_budget or int(os.getenv("SELF_TOKEN_BUDGET", "50000"))
+        configured_budget = token_budget if token_budget is not None else int(os.getenv("SELF_TOKEN_BUDGET", "0"))
+        if configured_budget <= 0:
+            configured_budget = int(os.getenv("SELF_MAX_TOKENS_PER_DAY", "200000"))
+        self.token_budget = max(1, configured_budget)
         self.max_wall_clock_seconds = max_wall_clock_seconds or int(os.getenv("SELF_MAX_WALL_CLOCK_SECONDS", "1800"))
         self.paused = threading.Event()
         self.stop_requested = False
@@ -139,7 +142,11 @@ class WakeCoordinator:
                 self.telemetry.state = "WORKING"
             elif event == "token_spend":
                 self.telemetry.run_tokens_used = int(record.get("run_tokens_used", self.telemetry.run_tokens_used) or 0)
-                self.telemetry.run_budget = int(record.get("run_token_budget", self.telemetry.run_budget) or 0)
+                reported_budget = int(record.get("run_token_budget", self.telemetry.run_budget) or 0)
+                # Wake-up/shutdown reflections use a small private budget;
+                # do not let them overwrite the main run budget in the TUI.
+                if self.telemetry.run_budget <= reported_budget:
+                    self.telemetry.run_budget = reported_budget
             elif event == "run_token_budget_adapted":
                 self.telemetry.run_budget = int(record.get("new_budget", self.telemetry.run_budget) or 0)
             elif event == "daily_token_budget_updated":
@@ -414,6 +421,15 @@ class WakeCoordinator:
         if (self.workspace / "STOP").exists():
             return None
         self.revise_plan()  # The required wake-up reflection occurs before exploration.
+        package_entry = self.learning._load_map().get("entries", {}).get("packages", {})
+        startup_task = ""
+        if package_entry.get("value") in {None, "not yet inventoried"}:
+            self.logger.narrate("Startup priority: I will immediately inventory installed Python packages before broader exploration.")
+            startup_task = (
+                "Immediately inventory the installed Python packages in this container. "
+                "Use the relevant shell/tool action now, record the result with update_environment_map, "
+                "and do not spend this cycle only planning."
+            )
         runner = ToolRunner(self.logger, self.workspace)
         runner.identity = self.identity
         loop = AgentLoop(
@@ -422,6 +438,7 @@ class WakeCoordinator:
                 max_iterations=max(1, self.max_iterations),
                 token_budget=max(1, self.token_budget),
                 max_wall_clock_seconds=max(1, self.max_wall_clock_seconds),
+                task=startup_task,
                 input_provider=self.inbox.consume,
                 pause_provider=self.paused.is_set,
                 on_cycle=self._checkpoint_cycle,

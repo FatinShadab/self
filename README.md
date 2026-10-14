@@ -173,6 +173,8 @@ By default, `SELF_ADAPTIVE_TOKEN_BUDGET=1` lets a run expand its initial
 capacity. It never exceeds `SELF_MAX_TOKENS_PER_DAY` (or the optional
 `SELF_MAX_ADAPTIVE_TOKEN_BUDGET`) and never edits the host `.env`. Set the
 adaptive flag to `0` to restore a fixed per-run ceiling.
+Set `SELF_TOKEN_BUDGET=0` to make one chat use the configured daily cap as its
+default ceiling; an explicit `--token-budget` still overrides it for one run.
 
 ### Capability and key review
 
