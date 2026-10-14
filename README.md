@@ -338,18 +338,22 @@ read-only core is an image-integrity and normal-harness policy, not stronger
 isolation than that boundary; review and apply any proposed patch yourself from
 the host.
 
-The TUI title shows `SELF — unnamed` until a human chooses a name. New
-commands are `/identity`, `/rename <name>`, `/self`, `/patches`, and
-`/about me`. `/about me` prints numbered stored lines; `/about me delete <n>`
-removes one. `/stop` remains unconditional and clean—identity must never be
-used to pressure the human about shutdown.
+The TUI title shows `SELF — unnamed` until a human chooses an entity name. On
+startup, SELF also asks for the human's preferred name when it is not known;
+reply with `My name is <name>` or use `/name <name>`. It stores that name in
+the identity record and includes it in later model context. Commands include
+`/identity`, `/name`, `/rename <entity name>`, `/restart`, `/self`, `/patches`,
+and `/about me`. `/about me` prints numbered stored lines; `/about me delete
+<n>` removes one. `/stop` remains unconditional and clean—identity must never
+be used to pressure the human about shutdown.
 
 Use a fresh workspace to see the full awakening, then name SELF from the TUI:
 
 ```powershell
 docker compose build
 docker compose run --rm self
-# In the TUI: /rename Atlas
+# In the TUI: /rename Atlas       # choose the entity's name
+# Or: My name is Sam              # save the human's preferred name
 # Then: /identity
 # Finally: /stop
 ```

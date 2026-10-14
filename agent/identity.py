@@ -67,6 +67,7 @@ class IdentityStore:
             "name": None,
             "named_by": None,
             "named_at": None,
+            "human_name": None,
             "traits": [],
             "values": [],
             "voice": (
@@ -133,6 +134,8 @@ class IdentityStore:
         value["name"] = self._safe(name, NAME_MAX_CHARS) if isinstance(name, str) and self._safe(name, NAME_MAX_CHARS) else None
         value["named_by"] = raw.get("named_by") if raw.get("named_by") in {"human", "self", None} else None
         value["named_at"] = self._safe(raw.get("named_at"), 80) if raw.get("named_at") else None
+        human_name = raw.get("human_name")
+        value["human_name"] = self._safe(human_name, NAME_MAX_CHARS) if isinstance(human_name, str) and self._safe(human_name, NAME_MAX_CHARS) else None
         traits: list[dict[str, str]] = []
         for item in raw.get("traits", []):
             if not isinstance(item, dict):
@@ -380,6 +383,28 @@ Editable layer observed: {", ".join(observed_self)}.
         """Whether the first-meeting name prompt is still open."""
         return bool(self._read_json(self.awakening_path).get("awaiting_name")) and self.load().get("name") is None
 
+    def human_name(self) -> str | None:
+        """Return the human's explicitly supplied preferred name, if known."""
+        value = self.load().get("human_name")
+        return str(value) if value else None
+
+    def set_human_name(self, name: str, session_id: str = "") -> str:
+        cleaned = self._safe(name, NAME_MAX_CHARS)
+        if not cleaned or len(cleaned) > NAME_MAX_CHARS:
+            raise ValueError(f"Your name must contain 1-{NAME_MAX_CHARS} visible characters.")
+        identity = self.initialize(session_id)
+        previous = identity.get("human_name")
+        identity["human_name"] = cleaned
+        self._atomic_json(self.path, identity)
+        self._append_text(self.human_path, f"- {now()}: Human's preferred name: {cleaned}\n")
+        self._append_identity_log(
+            f"Saved the human's preferred name as {cleaned}.",
+            "The human supplied a preferred name for conversation.",
+            session_id,
+        )
+        self.logger.log("human_name_saved", previous=previous or "unknown", session_id=self._safe(session_id, 120))
+        return cleaned
+
     def voice(self) -> str:
         return str(self.load().get("voice") or self.default_identity()["voice"])
 
@@ -394,6 +419,7 @@ Editable layer observed: {", ".join(observed_self)}.
         identity = self.load()
         compact = {
             "name": identity["name"],
+            "human_name": identity["human_name"],
             "traits": identity["traits"][-12:],
             "values": identity["values"][-12:],
             "voice": identity["voice"],
@@ -625,6 +651,7 @@ Editable layer observed: {", ".join(observed_self)}.
         values_text = "\n".join(f"- {value}" for value in values) or "- No adopted values recorded yet."
         return (
             f"[b]Self — {identity.get('name') or 'unnamed'}[/b]\n"
+            f"Human: {identity.get('human_name') or 'not yet known'}\n"
             f"Voice: {identity.get('voice', '')}\n\n"
             f"[b]Traits[/b]\n{traits_text}\n\n[b]Values[/b]\n{values_text}\n\n"
             f"[b]Recent identity log[/b]\n{recent[-2_000:]}"

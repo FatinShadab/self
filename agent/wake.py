@@ -6,6 +6,7 @@ import asyncio
 import json
 import os
 import platform
+import re
 import shutil
 import signal
 import threading
@@ -267,7 +268,9 @@ class WakeCoordinator:
             self.telemetry.daily_reserved = int(daily.get("reserved_tokens", 0) or 0)
             self.telemetry.daily_cap = ledger.cap
         if (self.workspace / "STOP").exists():
-            return "STOP file is present. I will not wake until it is removed."
+            message = "I am paused because STOP was requested earlier. Remove workspace/STOP or use /restart, then I can wake again."
+            self.logger.narrate(message)
+            return message
         self._session_info = self.sessions.start()
         self.status.session_id = self._session_info["session_id"]
         self._session_start = now_utc()
@@ -307,6 +310,10 @@ class WakeCoordinator:
             )
         if identity.get("name") is None:
             greeting += " I am still unnamed; use /rename <name> whenever you want to choose one."
+        if identity.get("human_name"):
+            greeting += f" I remember that you prefer to be called {identity.get('human_name')}."
+        else:
+            greeting += " I do not know your name yet. What should I call you? Say `My name is ...` or use `/name <name>` and I will save it for future conversations."
         if pending:
             greeting = "Pending human requests: " + " | ".join(pending) + "\n" + greeting
         self.logger.narrate(greeting)
@@ -374,7 +381,33 @@ class WakeCoordinator:
         self.status.last_human_input = time.monotonic()
         if self.identity.awaiting_name():
             self.identity.record_human_answer(text, self.status.session_id)
+        if not self.identity.human_name():
+            candidate = self._human_name_candidate(text)
+            if candidate:
+                try:
+                    saved = self.identity.set_human_name(candidate, self.status.session_id)
+                    self.logger.narrate(f"Thank you, {saved}. I saved your name and will use it in future conversations.")
+                except ValueError:
+                    pass
         self.logger.narrate(f"Human: {text}")
+
+    @staticmethod
+    def _human_name_candidate(text: str) -> str | None:
+        clean = " ".join(text.strip().split())
+        if not clean or clean.startswith("/"):
+            return None
+        lower = clean.lower()
+        for prefix in ("my name is ", "i am ", "i'm "):
+            if lower.startswith(prefix):
+                clean = clean[len(prefix):].strip(" .,!?:;")
+                break
+        if not clean or len(clean) > 80 or len(clean.split()) > 3:
+            return None
+        if lower in {"hi", "hello", "help", "yes", "no", "are you there", "what", "thanks", "thank you"}:
+            return None
+        if not re.fullmatch(r"[A-Za-z][A-Za-z .'-]*", clean):
+            return None
+        return clean
 
     def run(self) -> Any:
         greeting = self.boot()
@@ -473,6 +506,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             self.typing_delay = max(0.001, min(float(os.getenv("SELF_TUI_TYPING_DELAY", "0.018")), 0.2))
             self._pending_messages: list[tuple[str, str, str]] = []
             self._draining_messages = False
+            self._agent_running = False
 
         def compose(self) -> ComposeResult:
             yield Header(show_clock=True)
@@ -486,7 +520,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                     yield Static("Status loading...", id="status")
                     yield Static("Stats loading...", id="stats", markup=False)
                     yield Static("Self loading...", id="self")
-            yield Input(placeholder="Talk to SELF; /identity /rename <name> /self /patches /about me; /stop always halts cleanly", id="chat")
+            yield Input(placeholder="Talk to SELF; /name <your name> /restart /identity /rename <entity name>; /stop pauses safely", id="chat")
             yield Footer()
 
         def on_mount(self) -> None:
@@ -547,12 +581,24 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             self._write_narration(message or self.voice.status_text(), "lesson")
 
         def _run_agent(self) -> None:
+            self._agent_running = True
+            final_message: str | None = None
             try:
-                coordinator.run()
+                result = coordinator.run()
+                if not (result is None and (coordinator.workspace / "STOP").exists()):
+                    if (coordinator.workspace / "STOP").exists():
+                        final_message = "I am paused because STOP was requested. Use /restart here, or remove workspace/STOP and launch SELF again."
+                    elif (coordinator.workspace / "HUMAN_REQUEST.md").exists():
+                        final_message = "I am waiting for your decision in HUMAN_REQUEST.md. Resolve it, remove the file, then use /restart."
+                    else:
+                        final_message = "This session ended cleanly. Use /restart to begin another conversation with me."
             except Exception as exc:
                 coordinator.logger.narrate(f"Wake coordinator failed: {type(exc).__name__}")
+                final_message = f"I could not continue this session because of {type(exc).__name__}. Review the log, then use /restart."
             finally:
-                self.call_from_thread(self._write_narration, "Session ended. Review the handoff or restart SELF when ready.", "lesson")
+                self._agent_running = False
+                if final_message:
+                    self.call_from_thread(self._write_narration, final_message, "request" if "paused" in final_message or "waiting" in final_message else "lesson")
 
         def _refresh(self) -> None:
             telemetry = coordinator.runtime_snapshot()
@@ -601,6 +647,23 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                 self._write_narration("Listening for one microphone phrase...", "request")
                 self.run_worker(self._listen_for_human, thread=True)
                 return
+            if text == "/restart":
+                self._write_human_command(text)
+                if self._agent_running:
+                    self._write_narration("I am already running; use /stop first if you want a fresh session.", "lesson")
+                    return
+                stop_path = coordinator.workspace / "STOP"
+                try:
+                    if stop_path.exists():
+                        stop_path.unlink()
+                except OSError as exc:
+                    self._write_narration(f"I could not remove STOP: {type(exc).__name__}.", "error")
+                    return
+                coordinator.stop_requested = False
+                coordinator.paused.clear()
+                self._write_narration("I removed the previous stop request and am waking now.", "request")
+                self.run_worker(self._run_agent, thread=True)
+                return
             if text == "/pause":
                 self._write_human_command(text)
                 coordinator.paused.set(); self._write_narration("Paused. I will stop at the next safe boundary.", "lesson"); return
@@ -624,6 +687,19 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                     self._write_narration(f"Name saved as {identity.get('name')}.", "lesson")
                 except ValueError as exc:
                     self._write_narration(f"Could not rename: {exc}", "error")
+                return
+            if text == "/name":
+                self._write_human_command(text)
+                current = coordinator.identity.human_name()
+                self._write_narration(f"I currently know your name as {current}." if current else "I do not know your name yet. Use `/name <your name>` or say `My name is ...`.", "lesson")
+                return
+            if text.startswith("/name "):
+                self._write_human_command(text)
+                try:
+                    saved = coordinator.identity.set_human_name(text[6:].strip(), coordinator.status.session_id)
+                    self._write_narration(f"Thank you, {saved}. I saved your name for future conversations.", "lesson")
+                except ValueError as exc:
+                    self._write_narration(f"Could not save your name: {exc}", "error")
                 return
             if text == "/self":
                 self._write_human_command(text)
