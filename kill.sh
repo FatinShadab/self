@@ -1,6 +1,10 @@
 #!/usr/bin/env bash
 set -euo pipefail
 
+# `docker compose run --rm self ...` creates a one-off container.  `down`
+# does not reliably stop those containers, so remove the Compose-scoped
+# service containers first; --stop makes this the force-stop path as well.
+docker compose rm --stop --force self
 docker compose down --remove-orphans
 
 cat <<'NOTE'

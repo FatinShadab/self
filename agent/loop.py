@@ -81,6 +81,8 @@ class AgentConfig:
     curriculum: bool = False
     max_wall_clock_seconds: int = 1_800
     input_provider: Callable[[], list[str]] | None = None
+    initial_context: str = ""
+    resume_checkpoint_task: bool = True
     pause_provider: Callable[[], bool] | None = None
     on_cycle: Callable[[int, str, int], None] | None = None
     identity_context_provider: Callable[[], str] | None = None
@@ -285,7 +287,7 @@ class AgentLoop:
         prior_checkpoint = self.checkpoint.load()
         self._refresh_learning_runtime()
         active_task = self.config.task
-        if not active_task.strip() and prior_checkpoint.get("status") == "running":
+        if not active_task.strip() and self.config.resume_checkpoint_task and prior_checkpoint.get("status") == "running":
             active_task = str(prior_checkpoint.get("task", ""))
         if self.config.curriculum and not active_task.strip():
             active_task = self.learning.propose_curriculum()
@@ -330,6 +332,8 @@ class AgentLoop:
             self.logger.narrate(f"Cycle {cycle}: retrieving relevant tools and memories...")
             query = f"{STANDING_GOAL}\n{active_task}\nPrevious report: {last_report}"
             human_messages = self.config.input_provider() if self.config.input_provider else []
+            if cycle == 1 and self.config.initial_context.strip():
+                human_messages = [self.config.initial_context.strip(), *human_messages]
             human_context = "\n".join(f"- {self.logger.redactor.text(message)}" for message in human_messages)
             if self.config.retrieve_memories:
                 legacy_context = retrieve_context(self.config.workspace, query, self.logger)

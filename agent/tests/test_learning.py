@@ -52,6 +52,18 @@ class LearningStoreTests(unittest.TestCase):
                 self.assertIn("last_verified", data["entries"][key])
             self.assertEqual(data["entries"]["network_reachability"]["confidence"], "medium")
 
+    def test_python_packages_alias_is_migrated_to_canonical_key(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            logger = EventLogger(root / "logs" / "actions.jsonl")
+            store = LearningStore(root, logger)
+            store.initialize()
+            store.update_map([{"key": "python_packages", "value": [{"name": "pip", "version": "1"}], "confidence": "high", "evidence": "pip list"}])
+            store.initialize()
+            data = json.loads((root / "state" / "map.json").read_text())
+            self.assertEqual(data["entries"]["packages"]["value"][0]["name"], "pip")
+            self.assertNotIn("python_packages", data["entries"])
+
     def test_loop_persists_each_cycle_and_compact_notes(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

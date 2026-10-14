@@ -48,6 +48,24 @@ class LearningStore:
         now = utc_now()
         defaults = self._initial_entries(now)
         changed = False
+
+        # Older runs could record the Python inventory as `python_packages`,
+        # while the durable environment-map schema uses `packages`.  Migrate
+        # that alias before the wake coordinator decides whether inventory is
+        # still pending; otherwise every wake starts the same inventory task.
+        legacy_packages = entries.get("python_packages")
+        canonical_packages = entries.get("packages")
+        if isinstance(legacy_packages, dict) and isinstance(legacy_packages.get("value"), list):
+            canonical_value = canonical_packages.get("value") if isinstance(canonical_packages, dict) else None
+            if not isinstance(canonical_packages, dict) or canonical_value is None or canonical_value == "not yet inventoried":
+                entries["packages"] = {
+                    **legacy_packages,
+                    "evidence": f"migrated from python_packages; {legacy_packages.get('evidence', 'previous environment observation')}",
+                }
+                changed = True
+            if "python_packages" in entries:
+                del entries["python_packages"]
+                changed = True
         for key, entry in defaults.items():
             if key not in entries:
                 entries[key] = entry
@@ -116,6 +134,10 @@ class LearningStore:
             if not isinstance(item, dict):
                 raise ValueError("each environment entry must be an object")
             key = str(item.get("key", ""))
+            # Keep the package inventory key stable even when a model uses a
+            # more descriptive alias.
+            if key == "python_packages":
+                key = "packages"
             confidence = str(item.get("confidence", ""))
             if not re.fullmatch(r"[a-z][a-z0-9_]{0,63}", key):
                 raise ValueError("environment entry key must use lowercase letters, digits, and underscores")

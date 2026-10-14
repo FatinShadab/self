@@ -31,6 +31,20 @@ KNOWN_CREDENTIAL_ENV = (
     "CLOUDFLARE_API_TOKEN",
 )
 
+COMPLETED_PLAN_STATUSES = frozenset({
+    "done", "complete", "completed", "achieved", "finished", "closed",
+    "cancelled", "canceled", "dropped",
+})
+
+
+def visible_plan_items(plan: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Return only active plan items for the live panel."""
+    return [
+        item for item in plan
+        if isinstance(item, dict)
+        and str(item.get("status", "todo")).strip().lower() not in COMPLETED_PLAN_STATUSES
+    ]
+
 
 def _read_json(path: Path) -> dict[str, Any]:
     try:
@@ -422,14 +436,18 @@ class WakeCoordinator:
             return None
         self.revise_plan()  # The required wake-up reflection occurs before exploration.
         package_entry = self.learning._load_map().get("entries", {}).get("packages", {})
-        startup_task = ""
-        if package_entry.get("value") in {None, "not yet inventoried"}:
+        startup_context = ""
+        package_value = package_entry.get("value")
+        if package_value is None or package_value == "not yet inventoried":
             self.logger.narrate("Startup priority: I will immediately inventory installed Python packages before broader exploration.")
-            startup_task = (
+            startup_context = (
                 "Immediately inventory the installed Python packages in this container. "
                 "Use the relevant shell/tool action now, record the result with update_environment_map, "
                 "and do not spend this cycle only planning."
             )
+        checkpoint = _read_json(self.workspace / "state" / "run_checkpoint.json")
+        stale_startup_task = str(checkpoint.get("task", "")).startswith("Immediately inventory the installed Python packages")
+        resume_checkpoint_task = not stale_startup_task
         runner = ToolRunner(self.logger, self.workspace)
         runner.identity = self.identity
         loop = AgentLoop(
@@ -438,7 +456,10 @@ class WakeCoordinator:
                 max_iterations=max(1, self.max_iterations),
                 token_budget=max(1, self.token_budget),
                 max_wall_clock_seconds=max(1, self.max_wall_clock_seconds),
-                task=startup_task,
+                # Startup inventory is a one-cycle context, not the standing
+                # task.  Keeping it in `task` made every cycle repeat pip list.
+                initial_context=startup_context,
+                resume_checkpoint_task=resume_checkpoint_task,
                 input_provider=self.inbox.consume,
                 pause_provider=self.paused.is_set,
                 on_cycle=self._checkpoint_cycle,
@@ -449,7 +470,16 @@ class WakeCoordinator:
         self.status.active_model, self.status.active_provider = getattr(loop.llm.client, "model", "unknown"), getattr(loop.llm.client, "provider", "unknown")
         try:
             summary = loop.run()
-            reflection = self._reflection("shutdown reflection", f"Loop ended with reason={summary.reason}; last report={self.handoff.get('summary', '')}")
+            if self.stop_requested or summary.reason == "stop_file":
+                # A requested stop must not trigger another provider call. Use
+                # the durable state already collected and finish locally.
+                reflection = {
+                    "plan": self.plan,
+                    "summary": self.handoff.get("summary", "Run stopped at a safe boundary."),
+                    "failures_and_lessons": [],
+                }
+            else:
+                reflection = self._reflection("shutdown reflection", f"Loop ended with reason={summary.reason}; last report={self.handoff.get('summary', '')}")
             self.plan = list(reflection.get("plan") or self.plan)
             self.identity.reflect_session(
                 self.status.session_id,
@@ -548,7 +578,11 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             coordinator.on_narration = lambda message, kind: self.call_from_thread(self._write_narration, message, kind)
             self.set_interval(0.5, self._refresh)
             self.set_interval(0.16, self._animate_activity)
-            self._start_agent()
+            # on_mount can run before descendants have finished attaching.
+            # Starting the worker after the first refresh prevents narration
+            # from trying to mount conversation bubbles into an unattached
+            # VerticalScroll.
+            self.call_after_refresh(self._start_agent)
 
         def _start_agent(self) -> bool:
             """Start one wake session, including after a clean session end."""
@@ -645,7 +679,8 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             telemetry = coordinator.runtime_snapshot()
             ai_counts = telemetry["calls_by_ai"]
             calls = "\n".join(f"{name}: {count}" for name, count in sorted(ai_counts.items())) or "No AI calls yet"
-            plan = "\n".join(f"{item.get('priority', 3)}. [{item.get('status', 'todo')}] {item.get('step', '')}" for item in coordinator.plan)
+            active_plan = visible_plan_items(coordinator.plan)
+            plan = "\n".join(f"{item.get('priority', 3)}. [{item.get('status', 'todo')}] {item.get('step', '')}" for item in active_plan)
             uptime = int(time.monotonic() - coordinator.status.started_monotonic)
             since_human = int(time.monotonic() - coordinator.status.last_human_input)
             run_tokens = telemetry["run_tokens_used"] or coordinator.status.tokens_used

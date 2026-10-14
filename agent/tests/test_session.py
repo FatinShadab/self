@@ -10,7 +10,7 @@ from event_log import EventLogger
 from identity import IdentityStore
 from llm import LLMResult
 from session import HumanInbox, SessionStore
-from wake import WakeCoordinator
+from wake import WakeCoordinator, visible_plan_items
 
 
 class WakeFakeLLM:
@@ -32,6 +32,14 @@ class WakeFakeLLM:
 
 
 class SessionTests(unittest.TestCase):
+    def test_plan_panel_filters_completed_items(self) -> None:
+        visible = visible_plan_items([
+            {"step": "Finished inspection", "status": "completed"},
+            {"step": "Continue mapping", "status": "todo"},
+            {"step": "Achieved check", "status": "achieved"},
+        ])
+        self.assertEqual([item["step"] for item in visible], ["Continue mapping"])
+
     def test_inbox_is_persistent_and_consumed_once(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

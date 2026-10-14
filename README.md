@@ -199,6 +199,11 @@ docker compose exec self python /opt/agent/loop.py --max-iterations 2 --token-bu
 .\kill.sh
 ```
 
+Use `./kill.sh` even when SELF was started with `docker compose run --rm`:
+that command creates a one-off container which `docker compose down` alone may
+leave running. A forced container kill is expected to be recorded as a crash;
+the next wake reconstructs from the latest checkpoint.
+
 To make a fresh start, first stop it with `./kill.sh`, then delete only the
 contents of `workspace/` from the host after checking that no discovery or log
 data is needed. Do not delete the repository itself.
