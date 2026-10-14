@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import argparse
+import asyncio
 import json
 import os
 import platform
@@ -9,7 +10,7 @@ import shutil
 import signal
 import threading
 import time
-from dataclasses import dataclass
+from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
@@ -49,6 +50,26 @@ class WakeStatus:
     last_human_input: float = 0.0
 
 
+@dataclass
+class RuntimeTelemetry:
+    """Live, non-secret runtime facts used by the TUI's presence panel."""
+
+    state: str = "STARTING"
+    active_calls: int = 0
+    total_calls: int = 0
+    completed_calls: int = 0
+    failed_calls: int = 0
+    calls_by_ai: dict[str, int] = field(default_factory=dict)
+    current_ai: str = "-"
+    last_ai: str = "-"
+    run_tokens_used: int = 0
+    run_budget: int = 0
+    daily_used: int = 0
+    daily_reserved: int = 0
+    daily_cap: int = 0
+    daily_blocked: bool = False
+
+
 class WakeCoordinator:
     def __init__(self, workspace: str | Path = "/home/entity", *, max_iterations: int | None = None, token_budget: int | None = None, max_wall_clock_seconds: int | None = None, llm_client: Any | None = None) -> None:
         self.workspace = Path(workspace)
@@ -66,6 +87,7 @@ class WakeCoordinator:
         self.plan: list[dict[str, Any]] = default_plan()
         self.handoff: dict[str, Any] = {}
         self.status = WakeStatus(started_monotonic=time.monotonic(), last_human_input=time.monotonic())
+        self.telemetry = RuntimeTelemetry()
         self._last_checkpoint = time.monotonic()
         self._session_start = ""
         self._session_info: dict[str, Any] = {}
@@ -74,9 +96,90 @@ class WakeCoordinator:
         self.on_narration: Callable[[str, str], None] | None = None
         self.logger.add_listener(self._event_listener)
 
+    def _update_telemetry(self, record: dict[str, Any]) -> None:
+        event = str(record.get("event", ""))
+        with self.lock:
+            if event == "run_started":
+                self.telemetry.state = "THINKING"
+                self.telemetry.run_budget = int(record.get("token_budget", 0) or self.telemetry.run_budget)
+                self.telemetry.daily_cap = int(record.get("daily_token_budget", 0) or self.telemetry.daily_cap)
+            elif event == "llm_call_started":
+                ai = f"{record.get('provider', 'unknown')}/{record.get('model', 'unknown')}"
+                self.telemetry.active_calls += 1
+                self.telemetry.total_calls += 1
+                self.telemetry.current_ai = ai
+                self.telemetry.last_ai = ai
+                self.telemetry.calls_by_ai[ai] = self.telemetry.calls_by_ai.get(ai, 0) + 1
+                self.telemetry.state = "THINKING"
+            elif event == "llm_call_completed":
+                self.telemetry.active_calls = max(0, self.telemetry.active_calls - 1)
+                self.telemetry.completed_calls += 1
+                self.telemetry.state = "THINKING" if self.telemetry.active_calls else "WORKING"
+            elif event == "provider_call_completed":
+                ai = f"{record.get('provider', 'unknown')}/{record.get('model', 'unknown')}"
+                self.telemetry.total_calls += 1
+                self.telemetry.completed_calls += 1
+                self.telemetry.current_ai = ai
+                self.telemetry.last_ai = ai
+                self.telemetry.calls_by_ai[ai] = self.telemetry.calls_by_ai.get(ai, 0) + 1
+                self.telemetry.state = "WORKING"
+            elif event in {"llm_call_failed", "provider_call_failed", "provider_call_unavailable"}:
+                self.telemetry.active_calls = max(0, self.telemetry.active_calls - 1)
+                self.telemetry.failed_calls += 1
+                if event != "llm_call_failed":
+                    ai = f"{record.get('provider', 'unknown')}/{record.get('model', 'unknown')}"
+                    self.telemetry.total_calls += 1
+                    self.telemetry.last_ai = ai
+                    self.telemetry.calls_by_ai[ai] = self.telemetry.calls_by_ai.get(ai, 0) + 1
+                self.telemetry.state = "WORKING"
+            elif event == "tool_call":
+                self.telemetry.state = "USING TOOL"
+            elif event == "tool_result":
+                self.telemetry.state = "WORKING"
+            elif event == "token_spend":
+                self.telemetry.run_tokens_used = int(record.get("run_tokens_used", self.telemetry.run_tokens_used) or 0)
+                self.telemetry.run_budget = int(record.get("run_token_budget", self.telemetry.run_budget) or 0)
+            elif event == "run_token_budget_adapted":
+                self.telemetry.run_budget = int(record.get("new_budget", self.telemetry.run_budget) or 0)
+            elif event == "daily_token_budget_updated":
+                self.telemetry.daily_used = int(record.get("used", self.telemetry.daily_used) or 0)
+                self.telemetry.daily_reserved = int(record.get("reserved", self.telemetry.daily_reserved) or 0)
+                self.telemetry.daily_cap = int(record.get("cap", self.telemetry.daily_cap) or 0)
+            elif event == "daily_token_budget_blocked":
+                self.telemetry.daily_blocked = True
+                self.telemetry.daily_used = int(record.get("used", self.telemetry.daily_used) or 0)
+                self.telemetry.daily_reserved = int(record.get("reserved", self.telemetry.daily_reserved) or 0)
+                self.telemetry.daily_cap = int(record.get("cap", self.telemetry.daily_cap) or 0)
+                self.telemetry.state = "WAITING FOR HUMAN"
+            elif event == "run_completed":
+                self.telemetry.state = "IDLE" if record.get("reason") != "human_request_pending" else "WAITING FOR HUMAN"
+
+    def runtime_snapshot(self) -> dict[str, Any]:
+        with self.lock:
+            return {
+                "state": self.telemetry.state,
+                "active_calls": self.telemetry.active_calls,
+                "total_calls": self.telemetry.total_calls,
+                "completed_calls": self.telemetry.completed_calls,
+                "failed_calls": self.telemetry.failed_calls,
+                "calls_by_ai": dict(self.telemetry.calls_by_ai),
+                "current_ai": self.telemetry.current_ai,
+                "last_ai": self.telemetry.last_ai,
+                "run_tokens_used": self.telemetry.run_tokens_used,
+                "run_budget": self.telemetry.run_budget,
+                "daily_used": self.telemetry.daily_used,
+                "daily_reserved": self.telemetry.daily_reserved,
+                "daily_cap": self.telemetry.daily_cap,
+                "daily_blocked": self.telemetry.daily_blocked,
+            }
+
     def _event_listener(self, record: dict[str, Any]) -> None:
+        self._update_telemetry(record)
         if record.get("event") == "narration" and self.on_narration:
             message = str(record.get("message", ""))
+            if message.startswith("Human: "):
+                self.on_narration(message[7:], "human")
+                return
             lower = message.lower()
             kind = "request" if "request" in lower or "approval" in lower else "error" if any(word in lower for word in ("error", "failed", "stuck")) else "lesson" if "learn" in lower else "tool" if "tool" in lower or "writing" in lower else "explore"
             self.on_narration(message, kind)
@@ -158,7 +261,11 @@ class WakeCoordinator:
         self.workspace.mkdir(parents=True, exist_ok=True)
         self.learning.initialize()
         ledger = DailyTokenLedger(self.workspace, self.logger)
-        ledger._read()  # validates/reinitializes the daily persisted budget.
+        daily = ledger._read()  # validates/reinitializes the daily persisted budget.
+        with self.lock:
+            self.telemetry.daily_used = int(daily.get("used_tokens", 0) or 0)
+            self.telemetry.daily_reserved = int(daily.get("reserved_tokens", 0) or 0)
+            self.telemetry.daily_cap = ledger.cap
         if (self.workspace / "STOP").exists():
             return "STOP file is present. I will not wake until it is removed."
         self._session_info = self.sessions.start()
@@ -334,8 +441,10 @@ def run_headless(coordinator: WakeCoordinator) -> int:
 def run_tui(coordinator: WakeCoordinator) -> int:
     try:
         from textual.app import App, ComposeResult
-        from textual.containers import Horizontal, Vertical
-        from textual.widgets import Footer, Header, Input, RichLog, Static
+        from textual.containers import Horizontal, Vertical, VerticalScroll
+        from textual.widgets import Footer, Header, Input, Static
+        from rich.text import Text
+        from voice import VoiceController
     except ImportError:
         coordinator.logger.narrate("Textual is unavailable; falling back to --headless mode.")
         return run_headless(coordinator)
@@ -343,19 +452,39 @@ def run_tui(coordinator: WakeCoordinator) -> int:
     class SelfApp(App[None]):
         CSS = """
         #body { height: 1fr; }
-        #narration { width: 2fr; border: solid $primary; }
+        #conversation-pane { width: 2fr; border: solid $primary; }
+        #conversation-header { height: 3; padding: 1; color: $text-muted; }
+        #presence { height: 3; padding: 1; border: solid $accent; color: $text; }
+        #conversation { height: 1fr; padding: 0 1; scrollbar-gutter: stable; }
+        .message { width: 100%; margin: 0 0 1 0; padding: 1; }
+        .agent-message { border-left: thick $primary; background: $panel; }
+        .human-message { border-left: thick $accent; background: $boost; }
+        .typing-message { border-left: thick $secondary; background: $panel; color: $text-muted; }
         #side { width: 1fr; }
-        #plan, #status, #self { border: solid $secondary; height: 1fr; padding: 1; }
+        #plan, #status, #stats, #self { border: solid $secondary; height: 1fr; padding: 1; }
+        #stats { height: 1.4fr; }
         #chat { dock: bottom; }
         """
+
+        def __init__(self, *args: Any, **kwargs: Any) -> None:
+            super().__init__(*args, **kwargs)
+            self.voice = VoiceController()
+            self.typing_enabled = True
+            self.typing_delay = max(0.001, min(float(os.getenv("SELF_TUI_TYPING_DELAY", "0.018")), 0.2))
+            self._message_queue: list[tuple[str, str, str]] = []
+            self._draining_messages = False
 
         def compose(self) -> ComposeResult:
             yield Header(show_clock=True)
             with Horizontal(id="body"):
-                yield RichLog(id="narration", wrap=True, markup=True)
+                with Vertical(id="conversation-pane"):
+                    yield Static(f"[b]Conversation with {coordinator.identity.display_name()}[/b]   [b]YOU[/b] = human messages", id="conversation-header", markup=True)
+                    yield Static(f"● {coordinator.identity.display_name()} · presence starting", id="presence")
+                    yield VerticalScroll(id="conversation")
                 with Vertical(id="side"):
                     yield Static("Plan loading...", id="plan")
                     yield Static("Status loading...", id="status")
+                    yield Static("Stats loading...", id="stats", markup=False)
                     yield Static("Self loading...", id="self")
             yield Input(placeholder="Talk to SELF; /identity /rename <name> /self /patches /about me; /stop always halts cleanly", id="chat")
             yield Footer()
@@ -367,8 +496,55 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             self.run_worker(self._run_agent, thread=True)
 
         def _write_narration(self, message: str, kind: str) -> None:
-            color = {"explore": "cyan", "tool": "green", "error": "red", "lesson": "yellow", "request": "magenta"}.get(kind, "white")
-            self.query_one("#narration", RichLog).write(f"[{color}]{message}[/{color}]")
+            role = "human" if kind == "human" else "agent"
+            self._message_queue.append((role, message, kind))
+            if not self._draining_messages:
+                self._draining_messages = True
+                self.run_worker(self._drain_messages(), exclusive=False)
+
+        def _render_message(self, role: str, message: str, kind: str, *, typing: bool = False) -> Text:
+            if role == "human":
+                badge, badge_style, label_style = " YOU ", "bold white on dark_orange", "bold #ffbd7a"
+            else:
+                badge, badge_style, label_style = f" {coordinator.identity.display_name()} ", "bold white on dark_blue", "bold #8ed8ff"
+            text = Text()
+            text.append(badge, style=badge_style)
+            text.append("  " + ("typing..." if typing else kind.title()), style=label_style)
+            text.append("\n")
+            text.append(message)
+            return text
+
+        async def _drain_messages(self) -> None:
+            conversation = self.query_one("#conversation", VerticalScroll)
+            try:
+                while self._message_queue:
+                    role, message, kind = self._message_queue.pop(0)
+                    bubble = Static(self._render_message(role, "" if role == "agent" and self.typing_enabled else message, kind, typing=role == "agent" and self.typing_enabled), classes=f"message {'human' if role == 'human' else 'agent'}-message")
+                    await conversation.mount(bubble)
+                    conversation.scroll_end(animate=False)
+                    if role == "agent" and self.typing_enabled:
+                        step = max(1, len(message) // 90)
+                        for index in range(step, len(message) + step, step):
+                            visible = message[:index]
+                            if len(visible) >= len(message):
+                                visible = message
+                            bubble.update(self._render_message(role, visible, kind))
+                            conversation.scroll_end(animate=False)
+                            if len(visible) < len(message):
+                                await asyncio.sleep(self.typing_delay)
+                    if role == "agent" and kind in {"request", "error", "lesson"}:
+                        self.voice.speak(message)
+            finally:
+                self._draining_messages = False
+                if self._message_queue:
+                    self._draining_messages = True
+                    self.run_worker(self._drain_messages(), exclusive=False)
+
+        def _write_human_command(self, message: str) -> None:
+            self._write_narration(message, "human")
+
+        def _voice_status(self, message: str | None = None) -> None:
+            self._write_narration(message or self.voice.status_text(), "lesson")
 
         def _run_agent(self) -> None:
             try:
@@ -379,12 +555,31 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                 self.call_from_thread(self._write_narration, "Session ended. Review the handoff or restart SELF when ready.", "lesson")
 
         def _refresh(self) -> None:
+            telemetry = coordinator.runtime_snapshot()
+            ai_counts = telemetry["calls_by_ai"]
+            calls = "\n".join(f"{name}: {count}" for name, count in sorted(ai_counts.items())) or "No AI calls yet"
             plan = "\n".join(f"{item.get('priority', 3)}. [{item.get('status', 'todo')}] {item.get('step', '')}" for item in coordinator.plan)
             uptime = int(time.monotonic() - coordinator.status.started_monotonic)
             since_human = int(time.monotonic() - coordinator.status.last_human_input)
-            status = f"Session: {coordinator.status.session_id[:12]}\nIteration: {coordinator.status.iteration}\nTokens: {coordinator.status.tokens_used}/{coordinator.token_budget}\nModel: {coordinator.status.active_provider}/{coordinator.status.active_model}\nTools: {len(coordinator._tool_list())}\nUptime: {uptime}s\nSince human input: {since_human}s"
+            run_tokens = telemetry["run_tokens_used"] or coordinator.status.tokens_used
+            run_budget = telemetry["run_budget"] or coordinator.token_budget
+            status = f"Session: {coordinator.status.session_id[:12]}\nIteration: {coordinator.status.iteration}\nTokens: {run_tokens}/{run_budget}\nModel: {coordinator.status.active_provider}/{coordinator.status.active_model}\nTools: {len(coordinator._tool_list())}\nUptime: {uptime}s\nSince human input: {since_human}s"
+            daily_remaining = max(0, telemetry["daily_cap"] - telemetry["daily_used"] - telemetry["daily_reserved"]) if telemetry["daily_cap"] else "unknown"
+            stats = (
+                f"Presence: {telemetry['state']}\n"
+                f"Current AI: {telemetry['current_ai']}\n"
+                f"Calls: {telemetry['total_calls']} total | {telemetry['completed_calls']} completed | {telemetry['failed_calls']} failed\n"
+                f"Run budget: {run_budget}\n"
+                f"Daily tokens: {telemetry['daily_used']}/{telemetry['daily_cap'] or '?'} (remaining {daily_remaining})\n"
+                f"AI call counts:\n{calls}"
+            )
+            if telemetry["daily_blocked"]:
+                stats += "\n\nACTION NEEDED: daily limit reached; see HUMAN_REQUEST.md"
+            presence = f"● {coordinator.identity.display_name()} · {telemetry['state']} · {telemetry['current_ai']}"
+            self.query_one("#presence", Static).update(presence)
             self.query_one("#plan", Static).update("[b]Plan[/b]\n" + (plan or "No plan"))
-            self.query_one("#status", Static).update("[b]Status[/b]\n" + status)
+            self.query_one("#status", Static).update("[b]Status[/b]\n" + status + "\n" + self.voice.status_text())
+            self.query_one("#stats", Static).update(stats)
             self.query_one("#self", Static).update(coordinator.identity.self_panel_text())
             self.title = f"SELF — {coordinator.identity.display_name()}"
 
@@ -393,17 +588,36 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             event.input.value = ""
             if not text:
                 return
+            if text == "/voice":
+                self._write_human_command(text); self._voice_status(); return
+            if text in {"/voice on", "/voice off"}:
+                self._write_human_command(text); self._voice_status(self.voice.set_enabled(text.endswith(" on"))); return
+            if text == "/typing":
+                self._write_human_command(text); self._write_narration(f"Typing effect {'enabled' if self.typing_enabled else 'disabled'}.", "lesson"); return
+            if text in {"/typing on", "/typing off"}:
+                self._write_human_command(text); self.typing_enabled = text.endswith(" on"); self._write_narration(f"Typing effect {'enabled' if self.typing_enabled else 'disabled'}.", "lesson"); return
+            if text == "/listen":
+                self._write_human_command(text)
+                self._write_narration("Listening for one microphone phrase...", "request")
+                self.run_worker(self._listen_for_human, thread=True)
+                return
             if text == "/pause":
+                self._write_human_command(text)
                 coordinator.paused.set(); self._write_narration("Paused. I will stop at the next safe boundary.", "lesson"); return
             if text == "/resume":
+                self._write_human_command(text)
                 coordinator.paused.clear(); self._write_narration("Resuming.", "lesson"); return
             if text == "/stop":
+                self._write_human_command(text)
                 coordinator.stop_requested = True; (coordinator.workspace / "STOP").touch(); self._write_narration("Stop requested; finishing the current safe action.", "request"); return
             if text == "/plan":
+                self._write_human_command(text)
                 self._write_narration(json.dumps(coordinator.plan, ensure_ascii=False), "lesson"); return
             if text == "/identity":
+                self._write_human_command(text)
                 self._write_narration(json.dumps(coordinator.identity.load(), ensure_ascii=False, indent=2), "lesson"); return
             if text.startswith("/rename "):
+                self._write_human_command(text)
                 try:
                     identity = coordinator.identity.set_name(text[8:].strip(), coordinator.status.session_id, named_by="human")
                     self.title = f"SELF — {identity.get('name')}"
@@ -412,16 +626,19 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                     self._write_narration(f"Could not rename: {exc}", "error")
                 return
             if text == "/self":
+                self._write_human_command(text)
                 try:
                     content = (coordinator.workspace / "state" / "self_inquiry.md").read_text(encoding="utf-8", errors="replace")
                 except OSError:
                     content = "No self inquiry exists yet; it is written during first awakening."
                 self._write_narration(content[-6_000:], "lesson"); return
             if text == "/patches":
+                self._write_human_command(text)
                 patches = coordinator.identity.proposed_patches()
                 message = "\n".join(str(path) for path in patches[:20]) if patches else "No proposed core patches are waiting for review."
                 self._write_narration(message, "request"); return
             if text.startswith("/about me delete "):
+                self._write_human_command(text)
                 try:
                     line_number = int(text.removeprefix("/about me delete ").strip())
                     self._write_narration(coordinator.identity.delete_human_line(line_number, coordinator.status.session_id), "lesson")
@@ -429,22 +646,35 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                     self._write_narration(f"Could not delete stored line: {exc}", "error")
                 return
             if text == "/about me":
+                self._write_human_command(text)
                 content = coordinator.identity.about_human_text()
                 numbered = "\n".join(f"{index}: {line}" for index, line in enumerate(content.splitlines(), start=1))
                 self._write_narration(numbered or "No volunteered information is stored about you.", "lesson"); return
             if text == "/journal":
+                self._write_human_command(text)
                 try: self._write_narration((coordinator.workspace / "state" / "journal.md").read_text(encoding="utf-8")[-3_000:], "lesson")
                 except OSError: self._write_narration("No journal entry exists yet.", "lesson")
                 return
-            if text == "/tools": self._write_narration(", ".join(coordinator._tool_list()) or "No custom tools registered.", "tool"); return
-            if text == "/requests": self._write_narration(_requests_text(coordinator.workspace), "request"); return
+            if text == "/tools": self._write_human_command(text); self._write_narration(", ".join(coordinator._tool_list()) or "No custom tools registered.", "tool"); return
+            if text == "/requests": self._write_human_command(text); self._write_narration(_requests_text(coordinator.workspace), "request"); return
             if text.startswith("/memory "):
+                self._write_human_command(text)
                 self._write_narration(coordinator.learning.retrieve_memories(text[8:]), "lesson"); return
             if text == "/budget":
+                self._write_human_command(text)
                 self._write_narration(json.dumps(DailyTokenLedger(coordinator.workspace, coordinator.logger)._read()), "lesson"); return
             if text.startswith("/goal "):
+                self._write_human_command(text)
                 coordinator.receive_human_input("Temporary focus from the human: " + text[6:]); self._write_narration("Temporary focus queued for the next cycle.", "request"); return
             coordinator.receive_human_input(text)
+
+        def _listen_for_human(self) -> None:
+            text, error = self.voice.listen()
+            if error:
+                self.call_from_thread(self._write_narration, error, "error")
+                return
+            if text:
+                coordinator.receive_human_input(text)
 
     SelfApp().run()
     return 0

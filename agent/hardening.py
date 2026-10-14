@@ -79,6 +79,12 @@ class DailyTokenLedger:
             self._write(data)
             return True
 
+    def available_tokens(self) -> int:
+        """Return the remaining daily allowance, including active reservations."""
+        with self._lock:
+            data = self._read()
+            return max(0, self.cap - int(data.get("used_tokens", 0)) - int(data.get("reserved_tokens", 0)))
+
     def settle(self, reserved: int, actual: int | None) -> None:
         with self._lock:
             data = self._read()

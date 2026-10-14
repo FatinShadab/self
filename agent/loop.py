@@ -143,7 +143,20 @@ class AgentLoop:
         self.config = config
         self.logger = logger
         self.daily_ledger = DailyTokenLedger(config.workspace, logger)
-        self.llm = BudgetedLLM(llm, logger, config.token_budget, self.daily_ledger)
+        adaptive_enabled = os.getenv("SELF_ADAPTIVE_TOKEN_BUDGET", "1").lower() not in {"0", "false", "no", "off"}
+        try:
+            configured_max = int(os.getenv("SELF_MAX_ADAPTIVE_TOKEN_BUDGET", str(self.daily_ledger.cap)))
+        except ValueError:
+            configured_max = self.daily_ledger.cap
+        max_token_budget = max(config.token_budget, configured_max)
+        self.llm = BudgetedLLM(
+            llm,
+            logger,
+            config.token_budget,
+            self.daily_ledger,
+            adaptive_budget=adaptive_enabled,
+            max_token_budget=max_token_budget,
+        )
         self.tools = tools
         self.registry = ToolRegistry(config.workspace, logger, self.llm.call,
                                      {tool["name"] for tool in TOOL_DEFINITIONS},
@@ -181,6 +194,30 @@ class AgentLoop:
         if announced:
             self.logger.narrate("Resumed by the human.")
         return True
+
+    def _request_daily_budget_action(self) -> None:
+        """Pause safely and ask the human for a budget or provider decision."""
+        request = self.config.workspace / "HUMAN_REQUEST.md"
+        if not request.exists():
+            request.write_text(
+                "\n".join(
+                    [
+                        "# SELF needs a daily token-budget decision",
+                        "",
+                        "SELF reached the local daily token limit and paused before another AI call.",
+                        "",
+                        "Choose one host-side action:",
+                        "1. Increase `SELF_MAX_TOKENS_PER_DAY` in `.env`, then recreate the container.",
+                        "2. If the provider itself is rate-limited or unavailable, replace `OLLAMA_API_KEY` or add a backup provider key such as `ANTHROPIC_API_KEY` to `.env` and configure that provider.",
+                        "",
+                        "Never paste an API key into the chat or this file. Edit the host-side `.env` yourself, then remove this file and restart SELF.",
+                        "A backup API key does not bypass SELF's own daily ledger; it is for provider-side failures or quota limits.",
+                        "",
+                    ]
+                ),
+                encoding="utf-8",
+            )
+            self.logger.log("daily_budget_human_request_created", path=str(request))
 
     def _narrate_content(self, content: list[dict[str, Any]]) -> str:
         reports: list[str] = []
@@ -261,6 +298,7 @@ class AgentLoop:
             goal=STANDING_GOAL,
             max_iterations=self.config.max_iterations,
             token_budget=self.config.token_budget,
+            daily_token_budget=self.daily_ledger.cap,
             task=active_task,
             curriculum=self.config.curriculum,
             max_wall_clock_seconds=self.config.max_wall_clock_seconds,
@@ -341,9 +379,14 @@ class AgentLoop:
                 try:
                     result = self.llm.call(system=self._system_prompt(), messages=messages,
                                            tools=definitions, max_tokens=self.config.max_tokens_per_call)
-                except BudgetExceeded:
-                    self.logger.narrate("Too little token budget remains for another actor or critic call.")
-                    reason = "token_budget"
+                except BudgetExceeded as exc:
+                    if exc.kind == "daily":
+                        self._request_daily_budget_action()
+                        self.logger.narrate("I reached today's daily token limit. I paused and left a human request: increase the limit or configure a backup provider.")
+                        reason = "human_request_pending"
+                    else:
+                        self.logger.narrate("Too little token budget remains for another actor or critic call.")
+                        reason = "token_budget"
                     break
                 # Python source must retain its syntax; redact actual credentials
                 # without applying prose assignment heuristics to code blocks.
@@ -374,9 +417,14 @@ class AgentLoop:
                             observation = {"ok": False, "error": "Tool not offered in this step; use task keywords to retrieve it."}
                         else:
                             observation = self.tools.execute(name, arguments)
-                    except BudgetExceeded:
-                        self.logger.narrate("Critic cannot run within the remaining token budget; stopping.")
-                        reason = "token_budget"
+                    except BudgetExceeded as exc:
+                        if exc.kind == "daily":
+                            self._request_daily_budget_action()
+                            self.logger.narrate("I reached today's daily token limit. I paused and left a human request: increase the limit or configure a backup provider.")
+                            reason = "human_request_pending"
+                        else:
+                            self.logger.narrate("Critic cannot run within the remaining token budget; stopping.")
+                            reason = "token_budget"
                         break
                     tool_results.append(
                         {

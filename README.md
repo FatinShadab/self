@@ -168,6 +168,12 @@ The loop maintains three independent ceilings: per-run token budget,
 the active task and prior report at cycle boundaries, so an interrupted run
 can resume a pending task cleanly when invoked without a new `--task`.
 
+By default, `SELF_ADAPTIVE_TOKEN_BUDGET=1` lets a run expand its initial
+`SELF_TOKEN_BUDGET` when it would otherwise stop, but only into unused daily
+capacity. It never exceeds `SELF_MAX_TOKENS_PER_DAY` (or the optional
+`SELF_MAX_ADAPTIVE_TOKEN_BUDGET`) and never edits the host `.env`. Set the
+adaptive flag to `0` to restore a fixed per-run ceiling.
+
 ### Capability and key review
 
 SELF cannot expand beyond the container. A request for a credential, host mount,
@@ -262,9 +268,22 @@ docker compose run --rm self --headless --max-iterations 10
 ```
 
 Chat commands: `/pause`, `/resume`, `/stop`, `/plan`, `/journal`, `/tools`,
-`/requests`, `/memory <query>`, `/budget`, and `/goal <text>`. Ordinary text
-is durable high-priority context for the next iteration. `/stop` writes STOP;
-remove `workspace/STOP` before a future wake.
+`/requests`, `/memory <query>`, `/budget`, `/goal <text>`, `/typing on|off`,
+`/voice on|off`, and `/listen`. The TUI labels every bubble as `SELF` or
+`YOU`; agent bubbles reveal themselves with a short typing effect. Voice output
+is optional and off by default: Windows uses its built-in speech engine, while
+Linux can use an installed `espeak`/`spd-say` command. `/listen` uses Windows'
+default microphone when the local runtime exposes the speech-recognition API;
+the Docker image reports microphone input as unavailable rather than breaking
+the text UI. Ordinary text is durable high-priority context for the next
+iteration. `/stop` writes STOP; remove `workspace/STOP` before a future wake.
+
+The side panel also shows the entity's live presence (`THINKING`, `USING TOOL`,
+`WORKING`, or `WAITING FOR HUMAN`), current AI, total/completed/failed calls,
+and per-provider/model call counts. If the persisted daily token ledger blocks
+a call, SELF creates `workspace/HUMAN_REQUEST.md`, pauses, and explains how to
+raise the local daily limit or configure a provider backup without exposing a
+key in chat.
 
 To exercise crash recovery, stop a running service without graceful shutdown,
 then start it again. The greeting reports that the prior session crashed only

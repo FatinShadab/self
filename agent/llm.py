@@ -12,18 +12,50 @@ from hardening import DailyTokenLedger
 
 
 class BudgetExceeded(RuntimeError):
-    pass
+    def __init__(self, message: str, *, kind: str = "run") -> None:
+        super().__init__(message)
+        self.kind = kind
 
 
 class BudgetedLLM:
     """One budget shared by the actor and critic; failures reserve unknown spend."""
 
-    def __init__(self, client: Any, logger: EventLogger, token_budget: int, daily_ledger: DailyTokenLedger | None = None) -> None:
+    def __init__(
+        self,
+        client: Any,
+        logger: EventLogger,
+        token_budget: int,
+        daily_ledger: DailyTokenLedger | None = None,
+        *,
+        adaptive_budget: bool = False,
+        max_token_budget: int | None = None,
+    ) -> None:
         self.client = client
         self.logger = logger
-        self.token_budget = token_budget
+        self.token_budget = max(1, token_budget)
+        self.initial_token_budget = self.token_budget
+        self.adaptive_budget = adaptive_budget
+        self.max_token_budget = max(self.token_budget, max_token_budget or self.token_budget)
         self.tokens_used = 0
         self.daily_ledger = daily_ledger
+
+    def _adapt_budget(self) -> None:
+        if not self.adaptive_budget or self.daily_ledger is None or self.token_budget >= self.max_token_budget:
+            return
+        daily_remaining = self.daily_ledger.available_tokens()
+        new_budget = min(self.max_token_budget, self.tokens_used + daily_remaining)
+        if new_budget <= self.token_budget:
+            return
+        previous = self.token_budget
+        self.token_budget = new_budget
+        self.logger.log(
+            "run_token_budget_adapted",
+            initial_budget=self.initial_token_budget,
+            previous_budget=previous,
+            new_budget=self.token_budget,
+            daily_remaining=daily_remaining,
+            max_budget=self.max_token_budget,
+        )
 
     def call(self, *, system: str, messages: list[dict[str, Any]],
              tools: list[dict[str, Any]], max_tokens: int) -> LLMResult:
@@ -33,12 +65,13 @@ class BudgetedLLM:
         # conservative while leaving room for a small configured run budget.
         payload = json.dumps({"system": system, "messages": messages, "tools": tools}, ensure_ascii=False)
         reserved_input = (len(payload.encode("utf-8")) + 1) // 2 + 512
+        self._adapt_budget()
         allowance = min(max_tokens, self.token_budget - self.tokens_used - reserved_input)
         if allowance < 64:
             raise BudgetExceeded("Insufficient remaining budget for this actor or critic call")
         reservation = reserved_input + allowance
         if self.daily_ledger is not None and not self.daily_ledger.reserve(reservation):
-            raise BudgetExceeded("Daily token budget is exhausted")
+            raise BudgetExceeded("Daily token budget is exhausted", kind="daily")
         try:
             result = self.client.call(system=system, messages=messages, tools=tools, max_tokens=allowance)
         except Exception:
