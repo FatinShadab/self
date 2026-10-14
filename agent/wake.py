@@ -471,7 +471,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             self.voice = VoiceController()
             self.typing_enabled = True
             self.typing_delay = max(0.001, min(float(os.getenv("SELF_TUI_TYPING_DELAY", "0.018")), 0.2))
-            self._message_queue: list[tuple[str, str, str]] = []
+            self._pending_messages: list[tuple[str, str, str]] = []
             self._draining_messages = False
 
         def compose(self) -> ComposeResult:
@@ -497,7 +497,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
 
         def _write_narration(self, message: str, kind: str) -> None:
             role = "human" if kind == "human" else "agent"
-            self._message_queue.append((role, message, kind))
+            self._pending_messages.append((role, message, kind))
             if not self._draining_messages:
                 self._draining_messages = True
                 self.run_worker(self._drain_messages(), exclusive=False)
@@ -517,8 +517,8 @@ def run_tui(coordinator: WakeCoordinator) -> int:
         async def _drain_messages(self) -> None:
             conversation = self.query_one("#conversation", VerticalScroll)
             try:
-                while self._message_queue:
-                    role, message, kind = self._message_queue.pop(0)
+                while self._pending_messages:
+                    role, message, kind = self._pending_messages.pop(0)
                     bubble = Static(self._render_message(role, "" if role == "agent" and self.typing_enabled else message, kind, typing=role == "agent" and self.typing_enabled), classes=f"message {'human' if role == 'human' else 'agent'}-message")
                     await conversation.mount(bubble)
                     conversation.scroll_end(animate=False)
@@ -536,7 +536,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                         self.voice.speak(message)
             finally:
                 self._draining_messages = False
-                if self._message_queue:
+                if self._pending_messages:
                     self._draining_messages = True
                     self.run_worker(self._drain_messages(), exclusive=False)
 
