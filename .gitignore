@@ -159,6 +159,12 @@ ENV/
 env.bak/
 venv.bak/
 
+# SELF runtime state and host-mounted agent data
+workspace/*
+!workspace/.gitkeep
+data/
+logs/
+
 # Spyder project settings
 .spyderproject
 .spyproject

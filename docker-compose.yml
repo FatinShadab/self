@@ -1,0 +1,22 @@
+services:
+  self:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "no"
+    mem_limit: 4g
+    cpus: 2
+    pids_limit: 512
+    command: ["sleep", "infinity"]
+    env_file:
+      - .env
+    volumes:
+      - type: bind
+        source: ./workspace
+        target: /home/entity
+        read_only: false
+    # Default bridge networking is intentional: internet access is available
+    # without host networking, privileged mode, or extra capabilities.
+    networks:
+      - default
+
