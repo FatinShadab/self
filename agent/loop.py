@@ -400,6 +400,13 @@ class AgentLoop:
                         self.logger.narrate("Too little token budget remains for another actor or critic call.")
                         reason = "token_budget"
                     break
+                except Exception as exc:
+                    self.logger.log("run_failed", error_type=type(exc).__name__, provider_error=True)
+                    self.logger.narrate(
+                        f"The AI provider failed with {type(exc).__name__}. I paused safely; use /restart to try again."
+                    )
+                    reason = "provider_error"
+                    break
                 # Python source must retain its syntax; redact actual credentials
                 # without applying prose assignment heuristics to code blocks.
                 safe_content = json.loads(self.logger.redactor.known(json.dumps(result.content)))
@@ -451,11 +458,11 @@ class AgentLoop:
                         self.logger.narrate("A human request was created; pausing immediately.")
                         reason = "human_request_pending"
                         break
-                if reason in {"stop_file", "human_request_pending", "token_budget", "wall_clock_budget"}:
+                if reason in {"stop_file", "human_request_pending", "token_budget", "wall_clock_budget", "provider_error"}:
                     break
                 messages.append({"role": "user", "content": tool_results})
 
-            if reason in {"stop_file", "token_budget", "human_request_pending", "wall_clock_budget"}:
+            if reason in {"stop_file", "token_budget", "human_request_pending", "wall_clock_budget", "provider_error"}:
                 break
             completed_iterations += 1
             last_report = cycle_report or "Cycle completed without a textual report."

@@ -1,6 +1,7 @@
 from __future__ import annotations
 
 import os
+import time
 from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit
@@ -163,23 +164,35 @@ class LLMClient:
             tool_count=len(tools),
             max_output_tokens=max_tokens,
         )
-        try:
-            response = self._client.messages.create(
-                model=self.model,
-                max_tokens=max_tokens,
-                system=system,
-                messages=messages,
-                tools=tools,
-            )
-        except Exception as exc:
-            self.logger.log(
-                "llm_call_failed",
-                provider=self.provider,
-                model=self.model,
-                error_type=type(exc).__name__,
-                error=str(exc),
-            )
-            raise
+        response = None
+        for attempt in range(3):
+            try:
+                response = self._client.messages.create(
+                    model=self.model,
+                    max_tokens=max_tokens,
+                    system=system,
+                    messages=messages,
+                    tools=tools,
+                )
+                break
+            except Exception as exc:
+                status_code = getattr(exc, "status_code", None)
+                retryable = status_code in {500, 502, 503, 504} or "Internal Server Error" in str(exc)
+                self.logger.log(
+                    "llm_call_failed",
+                    provider=self.provider,
+                    model=self.model,
+                    error_type=type(exc).__name__,
+                    error=str(exc),
+                    retry_attempt=attempt + 1,
+                    retryable=retryable,
+                )
+                if not retryable or attempt == 2:
+                    raise
+                time.sleep(1.5 * (attempt + 1))
+
+        if response is None:
+            raise RuntimeError("LLM provider returned no response")
 
         usage = response.usage
         input_tokens = sum(int(getattr(usage, field, 0) or 0) for field in

@@ -458,7 +458,7 @@ class WakeCoordinator:
             )
             handoff = self._make_handoff(reflection.get("summary", ""), summary.reason)
             handoff["failures_and_lessons"] = list(handoff["failures_and_lessons"]) + list(reflection.get("failures_and_lessons", []))
-            end_reason = "clean_shutdown" if self.stop_requested or summary.reason == "max_iterations" else "stop_file" if summary.reason == "stop_file" else "budget_exhausted" if summary.reason in {"token_budget", "wall_clock_budget"} else "clean_shutdown"
+            end_reason = "clean_shutdown" if self.stop_requested or summary.reason == "max_iterations" else "stop_file" if summary.reason == "stop_file" else "budget_exhausted" if summary.reason in {"token_budget", "wall_clock_budget"} else "provider_error" if summary.reason == "provider_error" else "clean_shutdown"
             self.sessions.finish(self.status.session_id, handoff, summary.iterations, summary.tokens_used, end_reason)
             return summary
         except Exception:
@@ -625,7 +625,9 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             try:
                 result = coordinator.run()
                 if not (result is None and (coordinator.workspace / "STOP").exists()):
-                    if (coordinator.workspace / "STOP").exists():
+                    if result is not None and getattr(result, "reason", "") == "provider_error":
+                        final_message = "The AI provider failed after retries, so I paused safely. Use /restart to try the conversation again."
+                    elif (coordinator.workspace / "STOP").exists():
                         final_message = "I am paused because STOP was requested. Use /restart here, or remove workspace/STOP and launch SELF again."
                     elif (coordinator.workspace / "HUMAN_REQUEST.md").exists():
                         final_message = "I am waiting for your decision in HUMAN_REQUEST.md. Resolve it, remove the file, then use /restart."
