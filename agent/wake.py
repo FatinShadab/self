@@ -688,6 +688,12 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                 try:
                     if stop_path.exists():
                         stop_path.unlink()
+                    request_path = coordinator.workspace / "HUMAN_REQUEST.md"
+                    if request_path.exists():
+                        request_text = request_path.read_text(encoding="utf-8", errors="replace").lower()
+                        if "daily token-budget decision" in request_text:
+                            request_path.unlink()
+                            self._write_narration("I cleared the previous token-budget request; the new daily limit will be used for this run.", "lesson")
                 except OSError as exc:
                     self._write_narration(f"I could not remove STOP: {type(exc).__name__}.", "error")
                     return
