@@ -369,6 +369,18 @@ class AgentLoop:
                 if time.monotonic() - started_at >= self.config.max_wall_clock_seconds:
                     reason = "wall_clock_budget"
                     break
+                new_human_messages = self.config.input_provider() if self.config.input_provider else []
+                if new_human_messages:
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": (
+                                "New human messages arrived while you were working. Respond to them in the next decision, "
+                                "while preserving the current task:\n" +
+                                "\n".join(f"- {self.logger.redactor.text(message)}" for message in new_human_messages)
+                            ),
+                        }
+                    )
                 self._refresh_learning_runtime()
                 selected = self.registry.retrieve(
                     f"{active_task or STANDING_GOAL}\n{cycle_report or last_report}",

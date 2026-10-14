@@ -548,7 +548,15 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             coordinator.on_narration = lambda message, kind: self.call_from_thread(self._write_narration, message, kind)
             self.set_interval(0.5, self._refresh)
             self.set_interval(0.16, self._animate_activity)
+            self._start_agent()
+
+        def _start_agent(self) -> bool:
+            """Start one wake session, including after a clean session end."""
+            if self._agent_running:
+                return False
+            self._agent_running = True
             self.run_worker(self._run_agent, thread=True)
+            return True
 
         def _animate_activity(self) -> None:
             active = self._agent_running or self._draining_messages
@@ -613,7 +621,6 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             self._write_narration(message or self.voice.status_text(), "lesson")
 
         def _run_agent(self) -> None:
-            self._agent_running = True
             final_message: str | None = None
             try:
                 result = coordinator.run()
@@ -700,7 +707,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                 coordinator.stop_requested = False
                 coordinator.paused.clear()
                 self._write_narration("I removed the previous stop request and am waking now.", "request")
-                self.run_worker(self._run_agent, thread=True)
+                self._start_agent()
                 return
             if text == "/pause":
                 self._write_human_command(text)
@@ -779,8 +786,17 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                 self._write_narration(json.dumps(DailyTokenLedger(coordinator.workspace, coordinator.logger)._read()), "lesson"); return
             if text.startswith("/goal "):
                 self._write_human_command(text)
-                coordinator.receive_human_input("Temporary focus from the human: " + text[6:]); self._write_narration("Temporary focus queued for the next cycle.", "request"); return
+                coordinator.receive_human_input("Temporary focus from the human: " + text[6:]); self._write_narration("Temporary focus queued for the next cycle.", "request")
+                if not self._agent_running:
+                    self._write_narration("The previous session had ended, so I am waking to work on it now.", "request")
+                    self._start_agent()
+                return
             coordinator.receive_human_input(text)
+            if self._agent_running:
+                self._write_narration("I heard you. I will bring that into my next safe decision while I continue working.", "request")
+            else:
+                self._write_narration("I heard you. The previous session had ended, so I am waking now and will respond through the conversation.", "request")
+                self._start_agent()
 
         def _listen_for_human(self) -> None:
             text, error = self.voice.listen()
