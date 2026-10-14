@@ -488,6 +488,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
         #conversation-pane { width: 2fr; border: solid $primary; }
         #conversation-header { height: 3; padding: 1; color: $text-muted; }
         #presence { height: 3; padding: 1; border: solid $accent; color: $text; }
+        #activity { height: 3; padding: 1; color: $secondary; }
         #conversation { height: 1fr; padding: 0 1; scrollbar-gutter: stable; }
         .message { width: 100%; margin: 0 0 1 0; padding: 1; }
         .agent-message { border-left: thick $primary; background: $panel; }
@@ -507,6 +508,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             self._pending_messages: list[tuple[str, str, str]] = []
             self._draining_messages = False
             self._agent_running = False
+            self._activity_frame = 0
 
         def compose(self) -> ComposeResult:
             yield Header(show_clock=True)
@@ -514,6 +516,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                 with Vertical(id="conversation-pane"):
                     yield Static(f"[b]Conversation with {coordinator.identity.display_name()}[/b]   [b]YOU[/b] = human messages", id="conversation-header", markup=True)
                     yield Static(f"● {coordinator.identity.display_name()} · presence starting", id="presence")
+                    yield Static("[----] idle", id="activity")
                     yield VerticalScroll(id="conversation")
                 with Vertical(id="side"):
                     yield Static("Plan loading...", id="plan")
@@ -527,7 +530,19 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             self.title = f"SELF — {coordinator.identity.display_name()}"
             coordinator.on_narration = lambda message, kind: self.call_from_thread(self._write_narration, message, kind)
             self.set_interval(0.5, self._refresh)
+            self.set_interval(0.16, self._animate_activity)
             self.run_worker(self._run_agent, thread=True)
+
+        def _animate_activity(self) -> None:
+            active = self._agent_running or self._draining_messages
+            if not active:
+                self.query_one("#activity", Static).update("[----] idle")
+                return
+            frames = ("[>   ]", "[>>  ]", "[>>> ]", "[ >>>]", "[  >>]", "[   >]")
+            self._activity_frame = (self._activity_frame + 1) % len(frames)
+            state = str(coordinator.runtime_snapshot()["state"]).lower()
+            label = "talking" if self._draining_messages and not self._agent_running else state
+            self.query_one("#activity", Static).update(f"{frames[self._activity_frame]} {label} ...")
 
         def _write_narration(self, message: str, kind: str) -> None:
             role = "human" if kind == "human" else "agent"
@@ -566,7 +581,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                             conversation.scroll_end(animate=False)
                             if len(visible) < len(message):
                                 await asyncio.sleep(self.typing_delay)
-                    if role == "agent" and kind in {"request", "error", "lesson"}:
+                    if role == "agent" and kind != "tool":
                         self.voice.speak(message)
             finally:
                 self._draining_messages = False

@@ -44,12 +44,14 @@ class VoiceController:
         output = "available" if self.output_available else "unavailable"
         input_status = "available" if self.input_available else "unavailable"
         state = "on" if self.enabled else "off"
-        return f"Voice: {state} (output {output}, input {input_status})"
+        backend = self._tts or "none"
+        preference = "female preferred" if self._tts == "powershell" else "female variant when supported"
+        return f"Voice: {state} (output {output}, input {input_status}, {backend}; {preference})"
 
     def set_enabled(self, enabled: bool) -> str:
         self.enabled = enabled
         if enabled and not self.output_available:
-            return "Voice output is unavailable on this host. Install espeak or use a Windows speech backend."
+            return "Voice output is unavailable here. Docker cannot reach Windows audio; run SELF natively on Windows or install/configure a container audio backend."
         return f"Voice output {'enabled' if enabled else 'disabled'}."
 
     def speak(self, text: str) -> bool:
@@ -68,6 +70,8 @@ class VoiceController:
                 script = (
                     "Add-Type -AssemblyName System.Speech; "
                     "$s = New-Object System.Speech.Synthesis.SpeechSynthesizer; "
+                    "$v = $s.GetInstalledVoices() | Where-Object { $_.VoiceInfo.Gender -eq [System.Speech.Synthesis.VoiceGender]::Female } | Select-Object -First 1; "
+                    "if ($null -ne $v) { $s.SelectVoice($v.VoiceInfo.Name) }; "
                     "$t = [Console]::In.ReadToEnd(); $s.Speak($t)"
                 )
                 process = subprocess.Popen(
@@ -81,7 +85,10 @@ class VoiceController:
             elif self._tts == "spd-say":
                 subprocess.run([self._tts, "--", text], check=False, timeout=120, capture_output=True)
             else:
-                subprocess.run([self._tts or "espeak", "-s", "165", text], check=False, timeout=120, capture_output=True)
+                # espeak exposes several female English variants.  If the
+                # installed backend does not support the variant, it falls
+                # back to its normal voice rather than failing the TUI.
+                subprocess.run([self._tts or "espeak", "-v", "en+f3", "-s", "165", text], check=False, timeout=120, capture_output=True)
         except (OSError, subprocess.SubprocessError):
             pass
         finally:

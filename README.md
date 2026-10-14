@@ -269,7 +269,11 @@ docker compose run --rm self --headless --max-iterations 10
 
 Chat commands: `/pause`, `/resume`, `/stop`, `/plan`, `/journal`, `/tools`,
 `/requests`, `/memory <query>`, `/budget`, `/goal <text>`, `/typing on|off`,
-`/voice on|off`, and `/listen`. The TUI labels every bubble as `SELF` or
+`/voice on|off`, and `/listen`. Voice output is opt-in; native Windows runs
+prefer the first installed female System.Speech voice, while Docker on Windows
+needs a separate audio bridge to reach the host speaker. The conversation also
+shows a small animated ASCII activity indicator while SELF is working or
+revealing a response. The TUI labels every bubble as `SELF` or
 `YOU`; agent bubbles reveal themselves with a short typing effect. Voice output
 is optional and off by default: Windows uses its built-in speech engine, while
 Linux can use an installed `espeak`/`spd-say` command. `/listen` uses Windows'
