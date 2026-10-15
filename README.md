@@ -162,19 +162,17 @@ There is no privileged mode, Docker socket, host network, Windows mount, or
 extra capability configured. The image contains the harness in `/opt/agent`;
 all durable runtime state is under the mounted `/home/entity/state` directory.
 
-The loop maintains three independent ceilings: per-run token budget,
-`SELF_MAX_TOKENS_PER_DAY` (persisted across restarts), and
-`SELF_MAX_WALL_CLOCK_SECONDS`. Its atomic `state/run_checkpoint.json` records
+The loop uses `SELF_MAX_TOKENS_PER_DAY` as its only automatic resource ceiling;
+the daily ledger is persisted across restarts. Set `SELF_TOKEN_BUDGET=0`,
+`SELF_MAX_ITERATIONS=0`, and `SELF_MAX_WALL_CLOCK_SECONDS=0` for daily-only
+operation. Its atomic `state/run_checkpoint.json` records
 the active task and prior report at cycle boundaries, so an interrupted run
 can resume a pending task cleanly when invoked without a new `--task`.
 
-By default, `SELF_ADAPTIVE_TOKEN_BUDGET=1` lets a run expand its initial
-`SELF_TOKEN_BUDGET` when it would otherwise stop, but only into unused daily
-capacity. It never exceeds `SELF_MAX_TOKENS_PER_DAY` (or the optional
-`SELF_MAX_ADAPTIVE_TOKEN_BUDGET`) and never edits the host `.env`. Set the
-adaptive flag to `0` to restore a fixed per-run ceiling.
-Set `SELF_TOKEN_BUDGET=0` to make one chat use the configured daily cap as its
-default ceiling; an explicit `--token-budget` still overrides it for one run.
+`SELF_ADAPTIVE_TOKEN_BUDGET` and `SELF_MAX_ADAPTIVE_TOKEN_BUDGET` are retained
+for compatibility with older configurations, but daily-only mode does not
+create a separate per-run token ceiling. An explicit `--token-budget` remains
+available as a deliberate command-line override for tests or one-off runs.
 
 ### Capability and key review
 

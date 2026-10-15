@@ -25,7 +25,7 @@ class BudgetedLLM:
         self,
         client: Any,
         logger: EventLogger,
-        token_budget: int,
+        token_budget: int | None,
         daily_ledger: DailyTokenLedger | None = None,
         *,
         adaptive_budget: bool = False,
@@ -33,15 +33,22 @@ class BudgetedLLM:
     ) -> None:
         self.client = client
         self.logger = logger
-        self.token_budget = max(1, token_budget)
+        # None means that this wrapper has no per-run ceiling. The daily
+        # ledger, when present, remains the only aggregate token limit.
+        self.token_budget = max(1, token_budget) if token_budget is not None else None
         self.initial_token_budget = self.token_budget
         self.adaptive_budget = adaptive_budget
-        self.max_token_budget = max(self.token_budget, max_token_budget or self.token_budget)
+        self.max_token_budget = (
+            max(self.token_budget, max_token_budget or self.token_budget)
+            if self.token_budget is not None else None
+        )
         self.tokens_used = 0
         self.daily_ledger = daily_ledger
 
     def _adapt_budget(self) -> None:
-        if not self.adaptive_budget or self.daily_ledger is None or self.token_budget >= self.max_token_budget:
+        if (not self.adaptive_budget or self.daily_ledger is None or
+                self.token_budget is None or self.max_token_budget is None or
+                self.token_budget >= self.max_token_budget):
             return
         daily_remaining = self.daily_ledger.available_tokens()
         new_budget = min(self.max_token_budget, self.tokens_used + daily_remaining)
@@ -67,9 +74,16 @@ class BudgetedLLM:
         payload = json.dumps({"system": system, "messages": messages, "tools": tools}, ensure_ascii=False)
         reserved_input = (len(payload.encode("utf-8")) + 1) // 2 + 512
         self._adapt_budget()
-        allowance = min(max_tokens, self.token_budget - self.tokens_used - reserved_input)
+        if self.token_budget is None:
+            # Daily-only mode: reserve the prompt first, then spend as much of
+            # the remaining daily allowance as this individual call requests.
+            daily_remaining = self.daily_ledger.available_tokens() if self.daily_ledger is not None else max_tokens + reserved_input
+            allowance = min(max_tokens, daily_remaining - reserved_input)
+        else:
+            allowance = min(max_tokens, self.token_budget - self.tokens_used - reserved_input)
         if allowance < 64:
-            raise BudgetExceeded("Insufficient remaining budget for this actor or critic call")
+            kind = "daily" if self.token_budget is None else "run"
+            raise BudgetExceeded("Insufficient remaining budget for this actor or critic call", kind=kind)
         reservation = reserved_input + allowance
         if self.daily_ledger is not None and not self.daily_ledger.reserve(reservation):
             raise BudgetExceeded("Daily token budget is exhausted", kind="daily")
@@ -80,14 +94,17 @@ class BudgetedLLM:
             if self.daily_ledger is not None:
                 self.daily_ledger.settle(reservation, None)
             self.logger.log("token_spend", usage_known=False, reserved_tokens=reservation,
-                            run_tokens_used=self.tokens_used, run_token_budget=self.token_budget)
+                            run_tokens_used=self.tokens_used,
+                            run_token_budget=self.token_budget if self.token_budget is not None else (self.daily_ledger.cap if self.daily_ledger else 0),
+                            run_budget_mode="per_run" if self.token_budget is not None else "daily_only")
             raise
         self.tokens_used += result.total_tokens
         if self.daily_ledger is not None:
             self.daily_ledger.settle(reservation, result.total_tokens)
         self.logger.log("token_spend", usage_known=True, call_input_tokens=result.input_tokens,
                         call_output_tokens=result.output_tokens, run_tokens_used=self.tokens_used,
-                        run_token_budget=self.token_budget)
+                        run_token_budget=self.token_budget if self.token_budget is not None else (self.daily_ledger.cap if self.daily_ledger else 0),
+                        run_budget_mode="per_run" if self.token_budget is not None else "daily_only")
         return result
 
 

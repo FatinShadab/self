@@ -71,15 +71,15 @@ class LLMProtocol(Protocol):
 @dataclass
 class AgentConfig:
     workspace: Path = Path("/home/entity")
-    max_iterations: int = 20
-    token_budget: int = 50_000
+    max_iterations: int | None = None
+    token_budget: int | None = None
     max_tokens_per_call: int = 4_096
     top_k_tools: int = 5
     task: str = ""
     base_tool_names: tuple[str, ...] | None = None
     retrieve_memories: bool = True
     curriculum: bool = False
-    max_wall_clock_seconds: int = 1_800
+    max_wall_clock_seconds: int | None = None
     input_provider: Callable[[], list[str]] | None = None
     initial_context: str = ""
     resume_checkpoint_task: bool = True
@@ -151,7 +151,7 @@ class AgentLoop:
             configured_max = int(os.getenv("SELF_MAX_ADAPTIVE_TOKEN_BUDGET", str(self.daily_ledger.cap)))
         except ValueError:
             configured_max = self.daily_ledger.cap
-        max_token_budget = max(config.token_budget, configured_max)
+        max_token_budget = max(config.token_budget or 1, configured_max) if config.token_budget is not None else None
         self.llm = BudgetedLLM(
             llm,
             logger,
@@ -271,7 +271,7 @@ class AgentLoop:
             [tool["name"] for tool in TOOL_DEFINITIONS] + ["create_tool"] + custom_names,
             {
                 "max_iterations_per_run": self.config.max_iterations,
-                "token_budget_per_run": self.config.token_budget,
+                "token_budget_per_run": self.config.token_budget if self.config.token_budget is not None else "daily_only",
                 "tool_output_char_cap": self.tools.output_cap,
             },
         )
@@ -307,11 +307,13 @@ class AgentLoop:
         )
         started_at = time.monotonic()
 
-        for cycle in range(1, self.config.max_iterations + 1):
+        cycle = 1
+        while self.config.max_iterations is None or cycle <= self.config.max_iterations:
             if not self._wait_while_paused():
                 reason = "stop_file"
                 break
-            if time.monotonic() - started_at >= self.config.max_wall_clock_seconds:
+            if (self.config.max_wall_clock_seconds is not None and
+                    time.monotonic() - started_at >= self.config.max_wall_clock_seconds):
                 self.logger.narrate("Run wall-clock budget reached; saving checkpoint and stopping cleanly.")
                 reason = "wall_clock_budget"
                 break
@@ -323,7 +325,8 @@ class AgentLoop:
                 self.logger.log("run_stopped", reason="human_request_pending")
                 reason = "human_request_pending"
                 break
-            if self.llm.tokens_used >= self.config.token_budget:
+            if (self.config.token_budget is not None and
+                    self.llm.tokens_used >= self.config.token_budget):
                 self.logger.narrate("The run token budget is exhausted; stopping before another call.")
                 reason = "token_budget"
                 break
@@ -375,7 +378,8 @@ class AgentLoop:
                 if self._stopped():
                     reason = "stop_file"
                     break
-                if time.monotonic() - started_at >= self.config.max_wall_clock_seconds:
+                if (self.config.max_wall_clock_seconds is not None and
+                        time.monotonic() - started_at >= self.config.max_wall_clock_seconds):
                     reason = "wall_clock_budget"
                     break
                 new_human_messages = self.config.input_provider() if self.config.input_provider else []
@@ -497,6 +501,8 @@ class AgentLoop:
                 reason = "human_request_pending"
                 break
 
+            cycle += 1
+
         self.logger.log(
             "run_completed",
             iterations=completed_iterations,
@@ -524,9 +530,9 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument(
         "--max-iterations",
         type=int,
-        default=int(os.getenv("SELF_MAX_ITERATIONS", "20")),
+        default=int(os.getenv("SELF_MAX_ITERATIONS", "0")),
     )
-    parser.add_argument("--max-wall-clock-seconds", type=int, default=int(os.getenv("SELF_MAX_WALL_CLOCK_SECONDS", "1800")))
+    parser.add_argument("--max-wall-clock-seconds", type=int, default=int(os.getenv("SELF_MAX_WALL_CLOCK_SECONDS", "0")))
     parser.add_argument(
         "--curriculum",
         action="store_true",
@@ -536,7 +542,7 @@ def parse_args() -> argparse.Namespace:
         "--token-budget",
         type=int,
         default=None,
-        help="Maximum tokens for this run; defaults to the configured daily cap.",
+        help="Optional test/override ceiling for this run; omit it for daily-only budgeting.",
     )
     parser.add_argument(
         "--max-tokens-per-call",
@@ -553,17 +559,16 @@ def main() -> int:
     try:
         llm = LLMClient(logger)
         configured_budget = args.token_budget if args.token_budget is not None else int(os.getenv("SELF_TOKEN_BUDGET", "0"))
-        if configured_budget <= 0:
-            configured_budget = int(os.getenv("SELF_MAX_TOKENS_PER_DAY", "200000"))
+        configured_budget = configured_budget if configured_budget > 0 else None
         config = AgentConfig(
             workspace=workspace,
-            max_iterations=max(1, args.max_iterations),
-            token_budget=max(1, configured_budget),
+            max_iterations=args.max_iterations if args.max_iterations > 0 else None,
+            token_budget=configured_budget,
             max_tokens_per_call=max(64, args.max_tokens_per_call),
             task=args.task,
             top_k_tools=max(0, args.top_k_tools),
             curriculum=args.curriculum,
-            max_wall_clock_seconds=max(1, args.max_wall_clock_seconds),
+            max_wall_clock_seconds=args.max_wall_clock_seconds if args.max_wall_clock_seconds > 0 else None,
         )
         summary = AgentLoop(config, logger, llm, ToolRunner(logger, workspace)).run()
         return 0 if summary.reason != "error" else 1

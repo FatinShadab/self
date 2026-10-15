@@ -96,13 +96,13 @@ class WakeCoordinator:
         self.sessions = SessionStore(self.workspace, self.logger)
         self.inbox = HumanInbox(self.workspace, self.logger)
         self.identity = IdentityStore(self.workspace, self.logger)
-        self.max_iterations = max_iterations or int(os.getenv("SELF_MAX_ITERATIONS", "20"))
+        configured_iterations = max_iterations if max_iterations is not None else int(os.getenv("SELF_MAX_ITERATIONS", "0"))
+        self.max_iterations = configured_iterations if configured_iterations > 0 else None
         configured_budget = token_budget if token_budget is not None else int(os.getenv("SELF_TOKEN_BUDGET", "0"))
-        if configured_budget <= 0:
-            configured_budget = int(os.getenv("SELF_MAX_TOKENS_PER_DAY", "200000"))
-        self.token_budget = max(1, configured_budget)
+        self.token_budget = configured_budget if configured_budget > 0 else None
         self.daily_ledger = DailyTokenLedger(self.workspace, self.logger)
-        self.max_wall_clock_seconds = max_wall_clock_seconds or int(os.getenv("SELF_MAX_WALL_CLOCK_SECONDS", "1800"))
+        configured_wall_clock = max_wall_clock_seconds if max_wall_clock_seconds is not None else int(os.getenv("SELF_MAX_WALL_CLOCK_SECONDS", "0"))
+        self.max_wall_clock_seconds = configured_wall_clock if configured_wall_clock > 0 else None
         self.paused = threading.Event()
         self.stop_requested = False
         self.lock = threading.Lock()
@@ -392,7 +392,10 @@ class WakeCoordinator:
         try:
             if self._llm is None:
                 self._llm = LLMClient(self.logger)
-            budget = BudgetedLLM(self._llm, self.logger, min(4_000, self.token_budget), self.daily_ledger)
+            # Reflections use the same daily-only ledger as normal work. The
+            # wrapper reserves the serialized prompt plus the requested output
+            # instead of imposing a separate 4,000-token run ceiling.
+            budget = BudgetedLLM(self._llm, self.logger, self.token_budget, self.daily_ledger)
             result = budget.call(
                 system="You are SELF preparing a truthful durable handoff. Return ONLY JSON with attempted, achieved, summary, plan (objects: step, why, priority, status), mood_of_run, failures_and_lessons, open_questions. Explain what this session was trying to do, what it actually achieved, and the updated next plan. Do not invent facts; use only supplied state. Redact secrets.",
                 messages=[{"role": "user", "content": self.logger.redactor.text(f"Purpose: {purpose}\nOld handoff: {json.dumps(self.handoff, ensure_ascii=False)[:7000]}\nCurrent plan: {json.dumps(self.plan)}\n{extra}")}],
@@ -411,10 +414,30 @@ class WakeCoordinator:
             return fallback
 
     def revise_plan(self) -> None:
+        self._recover_budget_blocked_plan()
         reflected = self._reflection("wake-up plan review", "Revise the old plan against current state and spot checks.")
         self.plan = list(reflected.get("plan") or self.plan)
+        self._recover_budget_blocked_plan()
         self.handoff["long_term_summary"] = reflected.get("summary", self.handoff.get("long_term_summary", ""))
         self.logger.narrate("I reviewed the previous plan against current state and updated the plan.")
+
+    def _recover_budget_blocked_plan(self) -> None:
+        """Clear stale budget blockers once the daily ledger has room again."""
+        if self.daily_ledger.available_tokens() < 2_048:
+            return
+        changed = False
+        for item in self.plan:
+            if not isinstance(item, dict) or str(item.get("status", "")).lower() not in {"blocked", "stuck"}:
+                continue
+            details = f"{item.get('step', '')} {item.get('why', '')}".lower()
+            if not any(marker in details for marker in ("token", "budget", "limit")):
+                continue
+            item["status"] = "todo"
+            item["why"] = "The previous token-budget blocker is cleared; continue using the remaining daily allowance."
+            changed = True
+        if changed:
+            self.logger.log("stale_budget_plan_recovered", available_daily_tokens=self.daily_ledger.available_tokens())
+            self.logger.narrate("The previous per-run budget blocker is stale; I restored those plan items and will use the daily allowance.")
 
     def _make_handoff(self, report: str, reason: str) -> dict[str, Any]:
         map_entries = self.learning._load_map().get("entries", {})
@@ -511,9 +534,9 @@ class WakeCoordinator:
         loop = AgentLoop(
             AgentConfig(
                 workspace=self.workspace,
-                max_iterations=max(1, self.max_iterations),
-                token_budget=max(1, self.token_budget),
-                max_wall_clock_seconds=max(1, self.max_wall_clock_seconds),
+                max_iterations=self.max_iterations,
+                token_budget=self.token_budget,
+                max_wall_clock_seconds=self.max_wall_clock_seconds,
                 # Startup inventory is a one-cycle context, not the standing
                 # task.  Keeping it in `task` made every cycle repeat pip list.
                 initial_context=startup_context,
@@ -838,14 +861,15 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             uptime = int(time.monotonic() - coordinator.status.started_monotonic)
             since_human = int(time.monotonic() - coordinator.status.last_human_input)
             run_tokens = telemetry["run_tokens_used"] or coordinator.status.tokens_used
-            run_budget = telemetry["run_budget"] or coordinator.token_budget
-            status = f"Session: {coordinator.status.session_id[:12]}\nIteration: {coordinator.status.iteration}\nTokens: {run_tokens}/{run_budget}\nModel: {coordinator.status.active_provider}/{coordinator.status.active_model}\nTools: {len(coordinator._tool_list())}\nUptime: {uptime}s\nSince human input: {since_human}s"
+            run_budget = telemetry["run_budget"] or coordinator.daily_ledger.cap
+            budget_label = "daily-only" if coordinator.token_budget is None else str(run_budget)
+            status = f"Session: {coordinator.status.session_id[:12]}\nIteration: {coordinator.status.iteration}\nTokens: {run_tokens} ({budget_label})\nModel: {coordinator.status.active_provider}/{coordinator.status.active_model}\nTools: {len(coordinator._tool_list())}\nUptime: {uptime}s\nSince human input: {since_human}s"
             daily_remaining = max(0, telemetry["daily_cap"] - telemetry["daily_used"] - telemetry["daily_reserved"]) if telemetry["daily_cap"] else "unknown"
             stats = (
                 f"Presence: {telemetry['state']}\n"
                 f"Current AI: {telemetry['current_ai']}\n"
                 f"Calls: {telemetry['total_calls']} total | {telemetry['completed_calls']} completed | {telemetry['failed_calls']} failed\n"
-                f"Run budget: {run_budget}\n"
+                f"Run budget: {budget_label}\n"
                 f"Daily tokens: {telemetry['daily_used']}/{telemetry['daily_cap'] or '?'} (remaining {daily_remaining})\n"
                 f"AI call counts:\n{calls}"
             )
