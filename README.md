@@ -227,9 +227,14 @@ not configured by this project.
 
 ## Phase 7: wake-up sessions and terminal UI
 
-The container now wakes into `python -m agent.wake`. Its Textual UI has live
-Thoughts/Narration, Plan, Status, and chat-input panes. Persistent session
-state stays under the workspace mount:
+The container now wakes into `python -m agent.wake`. Its Textual UI has a
+scrollable conversation pane, a combined Plan/live-work pane, and a right-side
+presence/status column. Chat contains human messages, cycle summaries, and
+read-only conversation replies; commands, tool steps, terminal commands, and
+streamed command output stay in the live-work pane. The conversation pane does
+not force-scroll when the human is reviewing earlier answers.
+
+Persistent session state stays under the workspace mount:
 
 - `state/sessions.jsonl` — one completed record per session.
 - `state/handoff.json` — the latest bounded wake/sleep handoff, with a
@@ -239,6 +244,8 @@ state stays under the workspace mount:
   an unfinished prior run as a crash and recovers the last handoff.
 - `state/human_input.jsonl` — durable high-priority human messages, consumed
   by the next safe loop iteration.
+- `state/conversation_threads.jsonl` — bounded records for independent,
+  read-only human conversation threads.
 
 At wake, SELF checks STOP and durable state, loads its handoff, notes tracked
 changes, spot-checks OS/CPU/disk facts from `map.json`, greets you, performs a
@@ -286,8 +293,12 @@ is optional and off by default: Windows uses its built-in speech engine, while
 Linux can use an installed `espeak`/`spd-say` command. `/listen` uses Windows'
 default microphone when the local runtime exposes the speech-recognition API;
 the Docker image reports microphone input as unavailable rather than breaking
-the text UI. Ordinary text is durable high-priority context for the next
-iteration. `/stop` writes STOP; remove `workspace/STOP` before a future wake.
+the text UI. Ordinary text starts an independent bounded conversation thread
+immediately and does not wait for the autonomous cycle or enter its inbox.
+Conversation threads are read-only and share the daily token ledger with
+autonomous work. `/goal <text>` remains the explicit way to send a new focus
+to the autonomous loop. `/stop` writes STOP; remove `workspace/STOP` before a
+future wake.
 Tool rounds within a cycle are unlimited; the run still observes STOP, token,
 wall-clock, and per-session iteration bounds. Identical tool actions are
 reported back to the model so it can choose a different investigation.

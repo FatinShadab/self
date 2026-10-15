@@ -7,6 +7,7 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
+import uuid
 from pathlib import Path
 from typing import Any
 
@@ -247,8 +248,22 @@ class ToolRunner:
         return safe_result
 
     def run_shell(self, cmd: str, timeout: float = 30) -> dict[str, Any]:
+        stream_id = uuid.uuid4().hex[:12]
+        safe_command = self.logger.redactor.text(cmd)
+        self.logger.log("command_started", stream_id=stream_id, command=safe_command[:2_000], timeout=float(timeout))
+
+        def on_output(chunk: str) -> None:
+            self.logger.log("command_output", stream_id=stream_id,
+                            output=self.logger.redactor.text(chunk)[:4_000])
+
+        def on_complete(result: dict[str, Any]) -> None:
+            self.logger.log("command_finished", stream_id=stream_id,
+                            exit_code=result.get("exit_code"), timed_out=bool(result.get("timed_out")),
+                            output_bytes=result.get("output_bytes", 0), truncated=bool(result.get("truncated")))
+
         return run_process(["/bin/bash", "-lc", cmd], cwd=self.workspace,
-                           timeout=float(timeout), cap=self.output_cap)
+                           timeout=float(timeout), cap=self.output_cap,
+                           on_output=on_output, on_complete=on_complete)
 
     def update_environment_map(self, entries: list[dict[str, Any]]) -> dict[str, Any]:
         if self.learning is None:

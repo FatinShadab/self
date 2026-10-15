@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import argparse
 import asyncio
+from collections import deque
 import json
 import os
 import platform
@@ -16,6 +17,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from base_tools import ToolRunner
+from conversation import ConversationManager
 from event_log import EventLogger
 from hardening import DailyTokenLedger
 from identity import IdentityStore
@@ -83,6 +85,7 @@ class RuntimeTelemetry:
     daily_reserved: int = 0
     daily_cap: int = 0
     daily_blocked: bool = False
+    current_activity: str = ""
 
 
 class WakeCoordinator:
@@ -98,6 +101,7 @@ class WakeCoordinator:
         if configured_budget <= 0:
             configured_budget = int(os.getenv("SELF_MAX_TOKENS_PER_DAY", "200000"))
         self.token_budget = max(1, configured_budget)
+        self.daily_ledger = DailyTokenLedger(self.workspace, self.logger)
         self.max_wall_clock_seconds = max_wall_clock_seconds or int(os.getenv("SELF_MAX_WALL_CLOCK_SECONDS", "1800"))
         self.paused = threading.Event()
         self.stop_requested = False
@@ -111,7 +115,13 @@ class WakeCoordinator:
         self._session_info: dict[str, Any] = {}
         self._first_awakening_messages: list[str] = []
         self._llm: Any = llm_client
+        self._activity: deque[str] = deque(maxlen=400)
+        self._cycle_summaries: deque[str] = deque(maxlen=40)
         self.on_narration: Callable[[str, str], None] | None = None
+        self.on_chat: Callable[[str, str], None] | None = None
+        self.on_activity: Callable[[str], None] | None = None
+        self.conversations = ConversationManager(self.workspace, self.logger, self.daily_ledger, llm_client,
+                                                 max_workers=int(os.getenv("SELF_MAX_CONVERSATION_WORKERS", "2")))
         self.logger.add_listener(self._event_listener)
 
     def _update_telemetry(self, record: dict[str, Any]) -> None:
@@ -193,18 +203,47 @@ class WakeCoordinator:
                 "daily_reserved": self.telemetry.daily_reserved,
                 "daily_cap": self.telemetry.daily_cap,
                 "daily_blocked": self.telemetry.daily_blocked,
+                "current_activity": self.telemetry.current_activity,
+                "activity": list(self._activity)[-80:],
             }
 
     def _event_listener(self, record: dict[str, Any]) -> None:
         self._update_telemetry(record)
-        if record.get("event") == "narration" and self.on_narration:
-            message = str(record.get("message", ""))
-            if message.startswith("Human: "):
-                self.on_narration(message[7:], "human")
-                return
-            lower = message.lower()
-            kind = "request" if "request" in lower or "approval" in lower else "error" if any(word in lower for word in ("error", "failed", "stuck")) else "lesson" if "learn" in lower else "tool" if "tool" in lower or "writing" in lower else "explore"
-            self.on_narration(message, kind)
+        event = str(record.get("event", ""))
+        activity = ""
+        if event == "command_started":
+            activity = f"$ {record.get('command', '')}"
+        elif event == "command_output":
+            activity = "  " + str(record.get("output", "")).rstrip()
+        elif event == "command_finished":
+            status = "timeout" if record.get("timed_out") else f"exit {record.get('exit_code')}"
+            activity = f"  [{status}]"
+        elif event == "tool_call":
+            activity = f"tool: {record.get('tool', '')}"
+        elif event == "tool_result":
+            activity = f"tool result: {record.get('tool', '')} · {'ok' if record.get('ok') else 'failed'}"
+        elif event == "agent_step":
+            activity = "step: " + str(record.get("message", ""))
+        elif event == "narration":
+            activity = str(record.get("message", ""))
+        elif event == "cycle_completed":
+            summary = f"Cycle {record.get('cycle', '?')} summary\n{record.get('report', '')}".strip()
+            self._cycle_summaries.append(summary)
+            if self.on_chat:
+                self.on_chat(summary, "cycle")
+        elif event == "session_summary":
+            if self.on_chat:
+                self.on_chat(str(record.get("message", "")), "session")
+        if activity:
+            clean = self.logger.redactor.text(activity).strip()
+            if clean:
+                with self.lock:
+                    self._activity.append(clean[:4_000])
+                    self.telemetry.current_activity = clean[:500]
+                if self.on_activity:
+                    self.on_activity(clean[:4_000])
+                elif self.on_narration:
+                    self.on_narration(clean[:4_000], "activity")
 
     def _pending_requests(self) -> list[str]:
         pending: list[str] = []
@@ -282,7 +321,7 @@ class WakeCoordinator:
     def boot(self) -> str:
         self.workspace.mkdir(parents=True, exist_ok=True)
         self.learning.initialize()
-        ledger = DailyTokenLedger(self.workspace, self.logger)
+        ledger = self.daily_ledger
         daily = ledger._read()  # validates/reinitializes the daily persisted budget.
         with self.lock:
             self.telemetry.daily_used = int(daily.get("used_tokens", 0) or 0)
@@ -353,7 +392,7 @@ class WakeCoordinator:
         try:
             if self._llm is None:
                 self._llm = LLMClient(self.logger)
-            budget = BudgetedLLM(self._llm, self.logger, min(4_000, self.token_budget), DailyTokenLedger(self.workspace, self.logger))
+            budget = BudgetedLLM(self._llm, self.logger, min(4_000, self.token_budget), self.daily_ledger)
             result = budget.call(
                 system="You are SELF preparing a truthful durable handoff. Return ONLY JSON with attempted, achieved, summary, plan (objects: step, why, priority, status), mood_of_run, failures_and_lessons, open_questions. Explain what this session was trying to do, what it actually achieved, and the updated next plan. Do not invent facts; use only supplied state. Redact secrets.",
                 messages=[{"role": "user", "content": self.logger.redactor.text(f"Purpose: {purpose}\nOld handoff: {json.dumps(self.handoff, ensure_ascii=False)[:7000]}\nCurrent plan: {json.dumps(self.plan)}\n{extra}")}],
@@ -419,6 +458,17 @@ class WakeCoordinator:
                     pass
         self.logger.narrate(f"Human: {text}")
 
+    def conversation_context(self) -> str:
+        """Build a bounded read-only snapshot for an independent conversation."""
+        handoff = json.dumps(self.handoff, ensure_ascii=False)[:6_000]
+        plan = json.dumps(visible_plan_items(self.plan), ensure_ascii=False)[:4_000]
+        activity = "\n".join(list(self._activity)[-40:])[:6_000]
+        summaries = "\n\n".join(list(self._cycle_summaries)[-6:])[:8_000]
+        return f"Current handoff:\n{handoff}\n\nActive plan:\n{plan}\n\nRecent cycle summaries:\n{summaries}\n\nRecent activity:\n{activity}"
+
+    def start_conversation(self, text: str, on_result: Callable[[str, str, str], None]) -> str:
+        return self.conversations.submit(text, self.conversation_context, on_result)
+
     @staticmethod
     def _human_name_candidate(text: str) -> str | None:
         clean = " ".join(text.strip().split())
@@ -471,6 +521,7 @@ class WakeCoordinator:
                 pause_provider=self.paused.is_set,
                 on_cycle=self._checkpoint_cycle,
                 identity_context_provider=self.identity.prompt_context,
+                daily_ledger=self.daily_ledger,
             ),
             self.logger, self._llm or LLMClient(self.logger), runner,
         )
@@ -504,7 +555,7 @@ class WakeCoordinator:
                 f"Achieved: {achieved}\n"
                 f"Updated plan: {next_plan}"
             )
-            self.logger.narrate(session_report)
+            self.logger.log("session_summary", message=session_report)
             self.identity.reflect_session(
                 self.status.session_id,
                 self._session_start,
@@ -563,6 +614,9 @@ def run_tui(coordinator: WakeCoordinator) -> int:
         from textual.app import App, ComposeResult
         from textual.containers import Horizontal, Vertical, VerticalScroll
         from textual.widgets import Footer, Header, Input, Static
+        from rich.console import Group
+        from rich.markdown import Markdown
+        from rich.markup import escape
         from rich.text import Text
         from voice import VoiceController
     except ImportError:
@@ -573,16 +627,18 @@ def run_tui(coordinator: WakeCoordinator) -> int:
         CSS = """
         #body { height: 1fr; }
         #conversation-pane { width: 2fr; border: solid $primary; }
+        #work-pane { width: 1.5fr; border: solid $secondary; }
         #conversation-header { height: 3; padding: 1; color: $text-muted; }
-        #presence { height: 3; padding: 1; border: solid $accent; color: $text; }
-        #activity { height: 3; padding: 1; color: $secondary; }
         #conversation { height: 1fr; padding: 0 1; scrollbar-gutter: stable; }
+        #plan { height: 10; padding: 1; border-bottom: solid $secondary; }
+        #worklog { height: 1fr; padding: 0 1; scrollbar-gutter: stable; }
+        .activity-entry { width: 100%; margin: 0 0 1 0; padding: 0 1; }
         .message { width: 100%; margin: 0 0 1 0; padding: 1; }
         .agent-message { border-left: thick $primary; background: $panel; }
         .human-message { border-left: thick $accent; background: $boost; }
         .typing-message { border-left: thick $secondary; background: $panel; color: $text-muted; }
         #side { width: 1fr; }
-        #plan, #status, #stats, #self { border: solid $secondary; height: 1fr; padding: 1; }
+        #presence, #status, #stats, #self { border: solid $secondary; height: 1fr; padding: 1; }
         #stats { height: 1.4fr; }
         #chat { dock: bottom; }
         """
@@ -592,21 +648,25 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             self.voice = VoiceController()
             self.typing_enabled = True
             self.typing_delay = max(0.001, min(float(os.getenv("SELF_TUI_TYPING_DELAY", "0.018")), 0.2))
-            self._pending_messages: list[tuple[str, str, str]] = []
-            self._draining_messages = False
+            self._pending_chat: list[tuple[str, str, str]] = []
+            self._pending_activity: list[str] = []
+            self._draining_chat = False
+            self._draining_activity = False
             self._agent_running = False
             self._activity_frame = 0
+            self._unread_chat = 0
 
         def compose(self) -> ComposeResult:
             yield Header(show_clock=True)
             with Horizontal(id="body"):
                 with Vertical(id="conversation-pane"):
                     yield Static(f"[b]Conversation with {coordinator.identity.display_name()}[/b]   [b]YOU[/b] = human messages", id="conversation-header", markup=True)
-                    yield Static(f"● {coordinator.identity.display_name()} · presence starting", id="presence")
-                    yield Static("[----] idle", id="activity")
                     yield VerticalScroll(id="conversation")
+                with Vertical(id="work-pane"):
+                    yield Static("Plan loading...", id="plan", markup=True)
+                    yield VerticalScroll(id="worklog")
                 with Vertical(id="side"):
-                    yield Static("Plan loading...", id="plan")
+                    yield Static(f"● {coordinator.identity.display_name()} · presence starting", id="presence")
                     yield Static("Status loading...", id="status")
                     yield Static("Stats loading...", id="stats", markup=False)
                     yield Static("Self loading...", id="self")
@@ -615,7 +675,8 @@ def run_tui(coordinator: WakeCoordinator) -> int:
 
         def on_mount(self) -> None:
             self.title = f"SELF — {coordinator.identity.display_name()}"
-            coordinator.on_narration = lambda message, kind: self.call_from_thread(self._write_narration, message, kind)
+            coordinator.on_activity = lambda message: self.call_from_thread(self._queue_activity, message)
+            coordinator.on_chat = lambda message, kind: self.call_from_thread(self._queue_chat, "agent", message, kind)
             self.set_interval(0.5, self._refresh)
             self.set_interval(0.16, self._animate_activity)
             # on_mount can run before descendants have finished attaching.
@@ -633,43 +694,48 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             return True
 
         def _animate_activity(self) -> None:
-            active = self._agent_running or self._draining_messages
+            active = self._agent_running or self._draining_activity or self._draining_chat
             if not active:
-                self.query_one("#activity", Static).update("[----] idle")
                 return
             frames = ("[>   ]", "[>>  ]", "[>>> ]", "[ >>>]", "[  >>]", "[   >]")
             self._activity_frame = (self._activity_frame + 1) % len(frames)
             state = str(coordinator.runtime_snapshot()["state"]).lower()
-            label = "talking" if self._draining_messages and not self._agent_running else state
-            self.query_one("#activity", Static).update(f"{frames[self._activity_frame]} {label} ...")
+            self.title = f"SELF — {coordinator.identity.display_name()} {frames[self._activity_frame]} {state}"
 
-        def _write_narration(self, message: str, kind: str) -> None:
-            role = "human" if kind == "human" else "agent"
-            self._pending_messages.append((role, message, kind))
-            if not self._draining_messages:
-                self._draining_messages = True
-                self.run_worker(self._drain_messages(), exclusive=False)
+        def _queue_chat(self, role: str, message: str, kind: str) -> None:
+            self._pending_chat.append((role, message, kind))
+            if not self._draining_chat:
+                self._draining_chat = True
+                self.run_worker(self._drain_chat(), exclusive=False)
 
-        def _render_message(self, role: str, message: str, kind: str, *, typing: bool = False) -> Text:
+        def _queue_activity(self, message: str) -> None:
+            self._pending_activity.append(message)
+            if not self._draining_activity:
+                self._draining_activity = True
+                self.run_worker(self._drain_activity(), exclusive=False)
+
+        def _render_message(self, role: str, message: str, kind: str, *, typing: bool = False) -> Group:
             if role == "human":
                 badge, badge_style, label_style = " YOU ", "bold white on dark_orange", "bold #ffbd7a"
             else:
                 badge, badge_style, label_style = f" {coordinator.identity.display_name()} ", "bold white on dark_blue", "bold #8ed8ff"
-            text = Text()
-            text.append(badge, style=badge_style)
-            text.append("  " + ("typing..." if typing else kind.title()), style=label_style)
-            text.append("\n")
-            text.append(message)
-            return text
+            header = Text()
+            header.append(badge, style=badge_style)
+            header.append("  " + ("typing..." if typing else kind.title()), style=label_style)
+            return Group(header, Markdown(message))
 
-        async def _drain_messages(self) -> None:
+        async def _drain_chat(self) -> None:
             conversation = self.query_one("#conversation", VerticalScroll)
             try:
-                while self._pending_messages:
-                    role, message, kind = self._pending_messages.pop(0)
+                while self._pending_chat:
+                    role, message, kind = self._pending_chat.pop(0)
+                    follow = conversation.scroll_y >= conversation.max_scroll_y - 1
                     bubble = Static(self._render_message(role, "" if role == "agent" and self.typing_enabled else message, kind, typing=role == "agent" and self.typing_enabled), classes=f"message {'human' if role == 'human' else 'agent'}-message")
                     await conversation.mount(bubble)
-                    conversation.scroll_end(animate=False)
+                    if follow:
+                        conversation.scroll_end(animate=False)
+                    else:
+                        self._unread_chat += 1
                     if role == "agent" and self.typing_enabled:
                         step = max(1, len(message) // 90)
                         for index in range(step, len(message) + step, step):
@@ -677,22 +743,47 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                             if len(visible) >= len(message):
                                 visible = message
                             bubble.update(self._render_message(role, visible, kind))
-                            conversation.scroll_end(animate=False)
+                            if follow:
+                                conversation.scroll_end(animate=False)
                             if len(visible) < len(message):
                                 await asyncio.sleep(self.typing_delay)
-                    if role == "agent" and kind != "tool":
+                    if role == "agent" and kind in {"conversation", "cycle", "session"}:
                         self.voice.speak(message)
             finally:
-                self._draining_messages = False
-                if self._pending_messages:
-                    self._draining_messages = True
-                    self.run_worker(self._drain_messages(), exclusive=False)
+                self._draining_chat = False
+                if self._pending_chat:
+                    self._draining_chat = True
+                    self.run_worker(self._drain_chat(), exclusive=False)
 
-        def _write_human_command(self, message: str) -> None:
-            self._write_narration(message, "human")
+        async def _drain_activity(self) -> None:
+            worklog = self.query_one("#worklog", VerticalScroll)
+            try:
+                while self._pending_activity:
+                    message = self._pending_activity.pop(0)
+                    follow = worklog.scroll_y >= worklog.max_scroll_y - 1
+                    await worklog.mount(Static(message, classes="activity-entry", markup=False))
+                    if follow:
+                        # Mounting changes the content height asynchronously. Scroll
+                        # after Textual lays out the new entry, otherwise max_scroll_y
+                        # still describes the previous bottom and follow mode drifts.
+                        self.call_after_refresh(lambda: worklog.scroll_end(animate=False))
+            finally:
+                self._draining_activity = False
+                if self._pending_activity:
+                    self._draining_activity = True
+                    self.run_worker(self._drain_activity(), exclusive=False)
+
+        def _write_command(self, message: str) -> None:
+            self._queue_activity(f"human command: {message}")
 
         def _voice_status(self, message: str | None = None) -> None:
-            self._write_narration(message or self.voice.status_text(), "lesson")
+            self._queue_activity(message or self.voice.status_text())
+
+        def _command_response(self, message: str, kind: str = "info") -> None:
+            self._queue_activity(f"[{kind}] {message}")
+
+        def _conversation_result(self, thread_id: str, message: str, kind: str) -> None:
+            self.call_from_thread(self._queue_chat, "agent", message, "conversation" if kind == "assistant" else "error")
 
         def _watch_human_request(self) -> None:
             if (coordinator.workspace / "STOP").exists():
@@ -704,8 +795,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
 
         def _finish_agent_turn(self, final_message: str | None, restart_delay: float | None) -> None:
             if final_message:
-                kind = "request" if any(word in final_message.lower() for word in ("paused", "waiting", "human action")) else "lesson"
-                self._write_narration(final_message, kind)
+                self._command_response(final_message, "request" if any(word in final_message.lower() for word in ("paused", "waiting", "human action")) else "session")
             if (coordinator.workspace / "STOP").exists():
                 return
             if (coordinator.workspace / "HUMAN_REQUEST.md").exists():
@@ -740,6 +830,10 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             calls = "\n".join(f"{name}: {count}" for name, count in sorted(ai_counts.items())) or "No AI calls yet"
             active_plan = visible_plan_items(coordinator.plan)
             plan = "\n".join(f"{item.get('priority', 3)}. [{item.get('status', 'todo')}] {item.get('step', '')}" for item in active_plan)
+            current_activity = " ".join(str(telemetry.get("current_activity", "")).split())[:220]
+            plan_panel = "[b]Plan[/b]\n" + (plan or "No plan")
+            if current_activity:
+                plan_panel += "\n\n[b]Now[/b]\n" + escape(current_activity)
             uptime = int(time.monotonic() - coordinator.status.started_monotonic)
             since_human = int(time.monotonic() - coordinator.status.last_human_input)
             run_tokens = telemetry["run_tokens_used"] or coordinator.status.tokens_used
@@ -758,11 +852,22 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                 stats += "\n\nACTION NEEDED: daily limit reached; see HUMAN_REQUEST.md"
             presence = f"● {coordinator.identity.display_name()} · {telemetry['state']} · {telemetry['current_ai']}"
             self.query_one("#presence", Static).update(presence)
-            self.query_one("#plan", Static).update("[b]Plan[/b]\n" + (plan or "No plan"))
+            self.query_one("#plan", Static).update(plan_panel)
             self.query_one("#status", Static).update("[b]Status[/b]\n" + status + "\n" + self.voice.status_text())
             self.query_one("#stats", Static).update(stats)
             self.query_one("#self", Static).update(coordinator.identity.self_panel_text())
-            self.title = f"SELF — {coordinator.identity.display_name()}"
+            conversation = self.query_one("#conversation", VerticalScroll)
+            if conversation.scroll_y >= conversation.max_scroll_y - 1:
+                self._unread_chat = 0
+            if self._unread_chat:
+                self.query_one("#conversation-header", Static).update(
+                    f"[b]Conversation with {coordinator.identity.display_name()}[/b]   "
+                    f"[b]YOU[/b] = human messages   [yellow]{self._unread_chat} new message(s); scroll to follow[/yellow]",
+                )
+            else:
+                self.query_one("#conversation-header", Static).update(
+                    f"[b]Conversation with {coordinator.identity.display_name()}[/b]   [b]YOU[/b] = human messages"
+                )
 
         def on_input_submitted(self, event: Input.Submitted) -> None:
             text = event.value.strip()
@@ -770,22 +875,22 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             if not text:
                 return
             if text == "/voice":
-                self._write_human_command(text); self._voice_status(); return
+                self._write_command(text); self._voice_status(); return
             if text in {"/voice on", "/voice off"}:
-                self._write_human_command(text); self._voice_status(self.voice.set_enabled(text.endswith(" on"))); return
+                self._write_command(text); self._voice_status(self.voice.set_enabled(text.endswith(" on"))); return
             if text == "/typing":
-                self._write_human_command(text); self._write_narration(f"Typing effect {'enabled' if self.typing_enabled else 'disabled'}.", "lesson"); return
+                self._write_command(text); self._command_response(f"Typing effect {'enabled' if self.typing_enabled else 'disabled'}."); return
             if text in {"/typing on", "/typing off"}:
-                self._write_human_command(text); self.typing_enabled = text.endswith(" on"); self._write_narration(f"Typing effect {'enabled' if self.typing_enabled else 'disabled'}.", "lesson"); return
+                self._write_command(text); self.typing_enabled = text.endswith(" on"); self._command_response(f"Typing effect {'enabled' if self.typing_enabled else 'disabled'}."); return
             if text == "/listen":
-                self._write_human_command(text)
-                self._write_narration("Listening for one microphone phrase...", "request")
+                self._write_command(text)
+                self._command_response("Listening for one microphone phrase...", "request")
                 self.run_worker(self._listen_for_human, thread=True)
                 return
             if text == "/restart":
-                self._write_human_command(text)
+                self._write_command(text)
                 if self._agent_running:
-                    self._write_narration("I am already running; use /stop first if you want a fresh session.", "lesson")
+                    self._command_response("I am already running; use /stop first if you want a fresh session.")
                     return
                 stop_path = coordinator.workspace / "STOP"
                 try:
@@ -796,111 +901,111 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                         request_text = request_path.read_text(encoding="utf-8", errors="replace").lower()
                         if "daily token-budget decision" in request_text:
                             request_path.unlink()
-                            self._write_narration("I cleared the previous token-budget request; the new daily limit will be used for this run.", "lesson")
+                            self._command_response("I cleared the previous token-budget request; the new daily limit will be used for this run.")
                 except OSError as exc:
-                    self._write_narration(f"I could not remove STOP: {type(exc).__name__}.", "error")
+                    self._command_response(f"I could not remove STOP: {type(exc).__name__}.", "error")
                     return
                 coordinator.stop_requested = False
                 coordinator.paused.clear()
-                self._write_narration("I removed the previous stop request and am waking now.", "request")
+                self._command_response("I removed the previous stop request and am waking now.", "request")
                 self._start_agent()
                 return
             if text == "/pause":
-                self._write_human_command(text)
-                coordinator.paused.set(); self._write_narration("Paused. I will stop at the next safe boundary.", "lesson"); return
+                self._write_command(text)
+                coordinator.paused.set(); self._command_response("Paused. I will stop at the next safe boundary."); return
             if text == "/resume":
-                self._write_human_command(text)
-                coordinator.paused.clear(); self._write_narration("Resuming.", "lesson"); return
+                self._write_command(text)
+                coordinator.paused.clear(); self._command_response("Resuming."); return
             if text == "/stop":
-                self._write_human_command(text)
-                coordinator.stop_requested = True; (coordinator.workspace / "STOP").touch(); self._write_narration("Stop requested; finishing the current safe action.", "request"); return
+                self._write_command(text)
+                coordinator.stop_requested = True; (coordinator.workspace / "STOP").touch(); self._command_response("Stop requested; finishing the current safe action.", "request"); return
             if text == "/plan":
-                self._write_human_command(text)
-                self._write_narration(json.dumps(coordinator.plan, ensure_ascii=False), "lesson"); return
+                self._write_command(text)
+                self._command_response(json.dumps(coordinator.plan, ensure_ascii=False)); return
             if text == "/identity":
-                self._write_human_command(text)
-                self._write_narration(json.dumps(coordinator.identity.load(), ensure_ascii=False, indent=2), "lesson"); return
+                self._write_command(text)
+                self._command_response(json.dumps(coordinator.identity.load(), ensure_ascii=False, indent=2)); return
             if text.startswith("/rename "):
-                self._write_human_command(text)
+                self._write_command(text)
                 try:
                     identity = coordinator.identity.set_name(text[8:].strip(), coordinator.status.session_id, named_by="human")
                     self.title = f"SELF — {identity.get('name')}"
-                    self._write_narration(f"Name saved as {identity.get('name')}.", "lesson")
+                    self._command_response(f"Name saved as {identity.get('name')}.")
                 except ValueError as exc:
-                    self._write_narration(f"Could not rename: {exc}", "error")
+                    self._command_response(f"Could not rename: {exc}", "error")
                 return
             if text == "/name":
-                self._write_human_command(text)
+                self._write_command(text)
                 current = coordinator.identity.human_name()
-                self._write_narration(f"I currently know your name as {current}." if current else "I do not know your name yet. Use `/name <your name>` or say `My name is ...`.", "lesson")
+                self._command_response(f"I currently know your name as {current}." if current else "I do not know your name yet. Use `/name <your name>`.")
                 return
             if text.startswith("/name "):
-                self._write_human_command(text)
+                self._write_command(text)
                 try:
                     saved = coordinator.identity.set_human_name(text[6:].strip(), coordinator.status.session_id)
-                    self._write_narration(f"Thank you, {saved}. I saved your name for future conversations.", "lesson")
+                    self._command_response(f"Thank you, {saved}. I saved your name for future conversations.")
                 except ValueError as exc:
-                    self._write_narration(f"Could not save your name: {exc}", "error")
+                    self._command_response(f"Could not save your name: {exc}", "error")
                 return
             if text == "/self":
-                self._write_human_command(text)
+                self._write_command(text)
                 try:
                     content = (coordinator.workspace / "state" / "self_inquiry.md").read_text(encoding="utf-8", errors="replace")
                 except OSError:
                     content = "No self inquiry exists yet; it is written during first awakening."
-                self._write_narration(content[-6_000:], "lesson"); return
+                self._command_response(content[-6_000:]); return
             if text == "/patches":
-                self._write_human_command(text)
+                self._write_command(text)
                 patches = coordinator.identity.proposed_patches()
                 message = "\n".join(str(path) for path in patches[:20]) if patches else "No proposed core patches are waiting for review."
-                self._write_narration(message, "request"); return
+                self._command_response(message, "request"); return
             if text.startswith("/about me delete "):
-                self._write_human_command(text)
+                self._write_command(text)
                 try:
                     line_number = int(text.removeprefix("/about me delete ").strip())
-                    self._write_narration(coordinator.identity.delete_human_line(line_number, coordinator.status.session_id), "lesson")
+                    self._command_response(coordinator.identity.delete_human_line(line_number, coordinator.status.session_id))
                 except (ValueError, FileNotFoundError) as exc:
-                    self._write_narration(f"Could not delete stored line: {exc}", "error")
+                    self._command_response(f"Could not delete stored line: {exc}", "error")
                 return
             if text == "/about me":
-                self._write_human_command(text)
+                self._write_command(text)
                 content = coordinator.identity.about_human_text()
                 numbered = "\n".join(f"{index}: {line}" for index, line in enumerate(content.splitlines(), start=1))
-                self._write_narration(numbered or "No volunteered information is stored about you.", "lesson"); return
+                self._command_response(numbered or "No volunteered information is stored about you."); return
             if text == "/journal":
-                self._write_human_command(text)
-                try: self._write_narration((coordinator.workspace / "state" / "journal.md").read_text(encoding="utf-8")[-3_000:], "lesson")
-                except OSError: self._write_narration("No journal entry exists yet.", "lesson")
+                self._write_command(text)
+                try: self._command_response((coordinator.workspace / "state" / "journal.md").read_text(encoding="utf-8")[-3_000:])
+                except OSError: self._command_response("No journal entry exists yet.")
                 return
-            if text == "/tools": self._write_human_command(text); self._write_narration(", ".join(coordinator._tool_list()) or "No custom tools registered.", "tool"); return
-            if text == "/requests": self._write_human_command(text); self._write_narration(_requests_text(coordinator.workspace), "request"); return
+            if text == "/tools": self._write_command(text); self._command_response(", ".join(coordinator._tool_list()) or "No custom tools registered."); return
+            if text == "/requests": self._write_command(text); self._command_response(_requests_text(coordinator.workspace), "request"); return
             if text.startswith("/memory "):
-                self._write_human_command(text)
-                self._write_narration(coordinator.learning.retrieve_memories(text[8:]), "lesson"); return
+                self._write_command(text)
+                self._command_response(coordinator.learning.retrieve_memories(text[8:])); return
             if text == "/budget":
-                self._write_human_command(text)
-                self._write_narration(json.dumps(DailyTokenLedger(coordinator.workspace, coordinator.logger)._read()), "lesson"); return
+                self._write_command(text)
+                self._command_response(json.dumps(coordinator.daily_ledger._read())); return
             if text.startswith("/goal "):
-                self._write_human_command(text)
-                coordinator.receive_human_input("Temporary focus from the human: " + text[6:]); self._write_narration("Temporary focus queued for the next cycle.", "request")
+                self._write_command(text)
+                coordinator.receive_human_input("Temporary focus from the human: " + text[6:]); self._command_response("Temporary focus queued for the next cycle.", "request")
                 if not self._agent_running:
-                    self._write_narration("The previous session had ended, so I am waking to work on it now.", "request")
+                    self._command_response("The previous session had ended, so I am waking to work on it now.", "request")
                     self._start_agent()
                 return
-            coordinator.receive_human_input(text)
-            if self._agent_running:
-                self._write_narration("I heard you. I will bring that into my next safe decision while I continue working.", "request")
-            else:
-                self._write_narration("I heard you. The previous session had ended, so I am waking now and will respond through the conversation.", "request")
-                self._start_agent()
+            # Ordinary messages are conversation threads, not autonomous inbox
+            # entries. They appear immediately and are answered independently.
+            self._queue_chat("human", text, "human")
+            self._command_response("Conversation thread started; autonomous work continues separately.")
+            coordinator.start_conversation(text, self._conversation_result)
 
         def _listen_for_human(self) -> None:
             text, error = self.voice.listen()
             if error:
-                self.call_from_thread(self._write_narration, error, "error")
+                self.call_from_thread(self._command_response, error, "error")
                 return
             if text:
-                coordinator.receive_human_input(text)
+                self.call_from_thread(self._queue_chat, "human", text, "human")
+                coordinator.start_conversation(text, self._conversation_result)
 
     SelfApp().run()
     return 0

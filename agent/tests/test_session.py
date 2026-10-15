@@ -32,6 +32,14 @@ class WakeFakeLLM:
 
 
 class SessionTests(unittest.TestCase):
+    def test_runtime_snapshot_tracks_current_activity(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            coordinator = WakeCoordinator(temp, llm_client=WakeFakeLLM())
+            coordinator._event_listener({"event": "command_started", "command": "printf hello"})
+            snapshot = coordinator.runtime_snapshot()
+            self.assertEqual(snapshot["current_activity"], "$ printf hello")
+            self.assertEqual(snapshot["activity"][-1], "$ printf hello")
+
     def test_plan_panel_filters_completed_items(self) -> None:
         visible = visible_plan_items([
             {"step": "Finished inspection", "status": "completed"},

@@ -35,6 +35,7 @@ Operating rules:
 - Load the environment map and self notes before acting. After observing a durable fact, call update_environment_map with an explicit confidence level and evidence; do not claim unverified facts.
 - Put reusable tools you create under /home/entity/tools/, test them, and document their use.
 - Use create_tool(name, description, code, test_code) to register tools. Define run(...) with JSON type annotations, return JSON-serializable results, and supply unittest tests importing from tool. Retry failures at most three times. Only reviewed and tested tools are callable.
+- Tool source is saved as tool.py. Tests must use `from tool import run`; do not import a package __init__.py or a module named after the tool. Use supported annotations or a literal INPUT_SCHEMA for every run argument. A failed critic, schema check, import, or unittest is a routine repair problem: inspect the diagnostic and fix it yourself rather than renaming the tool or asking the human.
 - Custom tools are retrieved by keywords in their name and description before each step. Use relevant task keywords in your reports so tools can be selected on subsequent steps.
 - Before each tool action, provide one short, plain-language narration sentence.
 - End every cycle with a concise plain-language report of discoveries, changes, and the best next step.
@@ -85,6 +86,7 @@ class AgentConfig:
     pause_provider: Callable[[], bool] | None = None
     on_cycle: Callable[[int, str, int], None] | None = None
     identity_context_provider: Callable[[], str] | None = None
+    daily_ledger: DailyTokenLedger | None = None
 
 
 @dataclass
@@ -143,7 +145,7 @@ class AgentLoop:
     ) -> None:
         self.config = config
         self.logger = logger
-        self.daily_ledger = DailyTokenLedger(config.workspace, logger)
+        self.daily_ledger = config.daily_ledger or DailyTokenLedger(config.workspace, logger)
         adaptive_enabled = os.getenv("SELF_ADAPTIVE_TOKEN_BUDGET", "1").lower() not in {"0", "false", "no", "off"}
         try:
             configured_max = int(os.getenv("SELF_MAX_ADAPTIVE_TOKEN_BUDGET", str(self.daily_ledger.cap)))
@@ -229,9 +231,7 @@ class AgentLoop:
             if not text:
                 continue
             reports.append(text)
-            for line in text.splitlines():
-                if line.strip():
-                    self.logger.narrate(line)
+            self.logger.log("agent_step", message=self.logger.redactor.text(text[:4_000]))
         return "\n".join(reports)
 
     def _tool_narration(self, name: str, arguments: dict[str, Any]) -> str:
@@ -344,6 +344,7 @@ class AgentLoop:
                 )
             else:
                 context = "This focused test has no prior memories."
+            failure_context = self.registry.recent_failure_context()
             messages: list[dict[str, Any]] = [
                 {
                     "role": "user",
@@ -353,6 +354,7 @@ class AgentLoop:
                         f"Relevant tools and memories:\n{context}\n\n"
                         f"Previous cycle report:\n{last_report}\n\n"
                         f"High-priority human input received since the prior cycle:\n{human_context or 'None.'}\n\n"
+                        f"Recent tool-creation diagnostics (repair these instead of renaming the tool):\n{failure_context}\n\n"
                         "Choose a useful next investigation, act with tools, observe the results, "
                         "reflect, and finish with this cycle's report."
                     ),

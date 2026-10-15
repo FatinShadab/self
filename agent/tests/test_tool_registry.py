@@ -125,6 +125,22 @@ class RegistryTests(unittest.TestCase):
         with self.assertRaises(Exception):
             self.registry.execute("disk_usage_summary", {"path": 42})
 
+    def test_legacy_tool_name_import_uses_disposable_compatibility_alias(self):
+        legacy_test = DISK_TEST.replace("from tool import run", "from disk_usage_summary import run")
+        self.assertTrue(self.create(test=legacy_test)["ok"])
+        folder = self.workspace / "tools" / "disk_usage_summary"
+        self.assertFalse((folder / "disk_usage_summary.py").exists())
+        self.assertTrue((folder / "tool.py").exists())
+
+    def test_untyped_arguments_and_missing_run_are_actionable_and_never_registered(self):
+        untyped = self.create(code="def run(params):\n    return params\n", test="import unittest\n")
+        self.assertFalse(untyped["ok"])
+        self.assertIn("supported annotation", untyped["traceback"])
+        missing = self.registry.create_tool("missing_run", "missing run test", "def main(): return {}", "import unittest\n")
+        self.assertFalse(missing["ok"])
+        self.assertIn("exactly one", missing["traceback"])
+        self.assertNotIn("missing_run", self.registry.tools)
+
     def test_only_top_k_relevant_descriptions_selected(self):
         tools = [{"name": "disk_one", "description": "disk usage"},
                  {"name": "disk_two", "description": "disk usage free capacity"},

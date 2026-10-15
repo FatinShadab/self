@@ -7,11 +7,13 @@ import signal
 import subprocess
 import time
 from pathlib import Path
-from typing import Any
+from typing import Any, Callable
 
 
 def run_process(argv: list[str], *, cwd: Path, timeout: float, cap: int,
-                env: dict[str, str] | None = None, stdin: str | None = None) -> dict[str, Any]:
+                env: dict[str, str] | None = None, stdin: str | None = None,
+                on_output: Callable[[str], None] | None = None,
+                on_complete: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
     process = subprocess.Popen(argv, cwd=cwd, env=env, stdin=subprocess.PIPE,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                start_new_session=True)
@@ -58,10 +60,23 @@ def run_process(argv: list[str], *, cwd: Path, timeout: float, cap: int,
                     continue
                 total += len(chunk)
                 captured.extend(chunk[:max(0, cap - len(captured))])
+                if on_output is not None:
+                    try:
+                        on_output(chunk.decode("utf-8", errors="replace"))
+                    except Exception:
+                        # Activity observers are diagnostic only and must never
+                        # change subprocess behavior.
+                        pass
     finally:
         kill_group()  # Also clean up descendants after their parent exits.
         selector.close()
         process.stdout.close()
         process.wait(timeout=5)
-    return {"exit_code": process.returncode, "output": captured.decode("utf-8", errors="replace"),
-            "output_bytes": total, "truncated": total > cap, "timed_out": timed_out}
+    result = {"exit_code": process.returncode, "output": captured.decode("utf-8", errors="replace"),
+              "output_bytes": total, "truncated": total > cap, "timed_out": timed_out}
+    if on_complete is not None:
+        try:
+            on_complete(result)
+        except Exception:
+            pass
+    return result
