@@ -137,8 +137,9 @@ def escape_rich_markup(value: Any) -> str:
 
     The TUI uses a few Rich tags for its own headings. Plan entries, identity
     fields, provider labels, and telemetry, however, can originate with an LLM
-    or command output. A literal ``[`` in any of those values is Rich markup
-    syntax and may otherwise make the entire Textual screen fail to reflow.
+    or command output. Escape every literal ``[`` (rather than just known tag
+    shapes) so arbitrary bracketed text cannot become Rich markup and make the
+    entire Textual screen fail to reflow.
     """
     return str(value).replace("\\", "\\\\").replace("[", "\\[")
 
@@ -1187,7 +1188,11 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                 while self._pending_activity:
                     message = self._pending_activity.pop(0)
                     follow = worklog.scroll_y >= worklog.max_scroll_y - 1
-                    await worklog.mount(Static(message, classes="activity-entry", markup=False))
+                    # Textual 0.89 still parses a string Static as Rich markup
+                    # when rendering, even when ``markup=False`` was supplied.
+                    # Activity comes from LLM and tool output, so escape it at
+                    # the rendering boundary to keep every literal "[" safe.
+                    await worklog.mount(Static(escape_rich_markup(message), classes="activity-entry", markup=True))
                     if follow:
                         # Mounting changes the content height asynchronously. Scroll
                         # after Textual lays out the new entry, otherwise max_scroll_y

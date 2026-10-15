@@ -34,13 +34,18 @@ class WakeFakeLLM:
 class SessionTests(unittest.TestCase):
     def test_escape_rich_markup_keeps_bracketed_tool_output_literal(self) -> None:
         from rich.text import Text
+        from textual.widgets import Static
 
-        path = "[/usr/lib/apt/apt.systemd.daily update]"
-        panel = "[b]Plan[/b]\n1. (todo) " + escape_rich_markup(path)
+        message = "step: [bold]Cycle 8[/bold] [/usr/lib/apt/apt.systemd.daily update] ["
+        escaped = escape_rich_markup(message)
+        panel = "[b]Plan[/b]\n1. (todo) " + escaped
 
-        rendered = Text.from_markup(panel)
+        self.assertEqual(Text.from_markup(panel).plain, f"Plan\n1. (todo) {message}")
 
-        self.assertIn(path, rendered.plain)
+        # This is the same rendering path used by the activity log. In the
+        # pinned Textual version, ``markup=False`` does not stop Static from
+        # parsing a string, so pass the escaped content explicitly.
+        self.assertEqual(Static(escaped, markup=True).render_str(escaped).plain, message)
 
     def test_cardiac_monitor_frame_keeps_a_fixed_ascii_canvas(self) -> None:
         blank = cardiac_monitor_frame(0)
