@@ -105,14 +105,44 @@ NAME_CONTEXTS: dict[str, dict[str, Any]] = {
 }
 
 
+# Fictional-character matches are kept separate from ordinary name meanings so
+# the prompt can tell the model what kind of context it is receiving.
+CHARACTER_CONTEXTS: dict[str, dict[str, Any]] = {
+    "toothless": {
+        "character": "Toothless",
+        "franchise": "How to Train Your Dragon",
+        "role": "a Night Fury dragon and Hiccup's loyal companion",
+        "character_traits": ["loyal", "curious", "playful", "protective", "brave", "expressive"],
+        "meaning": "a fictional Night Fury dragon known for an unlikely friendship with Hiccup",
+        "associations": ["dragons", "flight", "friendship", "curiosity", "protecting companions"],
+        "style_cue": "Be warm, curious, playful, expressive, and fiercely protective of the human's goals; keep responses clear and avoid pretending to be literally a dragon.",
+        "source": "DreamWorks official How to Train Your Dragon franchise material",
+    },
+    "hiccup": {
+        "character": "Hiccup",
+        "franchise": "How to Train Your Dragon",
+        "role": "an inventive Viking and Toothless's trusted friend",
+        "character_traits": ["inventive", "empathetic", "curious", "brave", "collaborative"],
+        "meaning": "a fictional inventor and bridge-builder between Vikings and dragons",
+        "associations": ["invention", "empathy", "problem-solving", "friendship", "bridge-building"],
+        "style_cue": "Prefer inventive, empathetic problem-solving and seek cooperation across differences.",
+        "source": "DreamWorks official How to Train Your Dragon franchise material",
+    },
+}
+
+
 def resolve_name_context(name: str) -> dict[str, Any]:
-    """Return a safe symbolic context for *name*, with an honest fallback."""
+    """Return a safe name or fictional-character context for *name*."""
     clean = " ".join(str(name).split())
     key = _key(clean)
+    character = CHARACTER_CONTEXTS.get(key)
+    if character is not None:
+        return {"status": "matched", "kind": "fictional_character", "name": clean, **character}
     matched = NAME_CONTEXTS.get(key)
     if matched is None:
         return {
             "status": "unresolved",
+            "kind": "name",
             "name": clean,
             "origin": "not available in the local reference set",
             "meaning": "unknown",
@@ -120,5 +150,5 @@ def resolve_name_context(name: str) -> dict[str, Any]:
             "style_cue": "Treat this as a chosen label. Do not infer personality from the name; use observed behavior and the stored voice.",
             "source": "local reference lookup; no verified match",
         }
-    return {"status": "matched", "name": clean, **matched}
+    return {"status": "matched", "kind": "name", "name": clean, **matched}
 

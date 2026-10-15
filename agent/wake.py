@@ -932,9 +932,15 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                     identity = coordinator.identity.set_name(text[8:].strip(), coordinator.status.session_id, named_by="human")
                     self.title = f"SELF — {identity.get('name')}"
                     context = identity.get("name_context") or {}
+                    context_label = context.get("meaning", "no verified meaning found")
+                    if context.get("kind") == "fictional_character":
+                        context_label = (
+                            f"{context.get('character', identity.get('name'))} from "
+                            f"{context.get('franchise', 'a fictional story')} — {context.get('role', context_label)}"
+                        )
                     self._command_response(
                         f"Name saved as {identity.get('name')}. "
-                        f"Context: {context.get('meaning', 'no verified meaning found')}. "
+                        f"Context: {context_label}. "
                         f"Style cue: {context.get('style_cue', 'use observed behavior and the stored voice.')}"
                     )
                 except ValueError as exc:

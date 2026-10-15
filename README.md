@@ -345,9 +345,12 @@ that the model has feelings, hidden continuity, or changed weights:
 
 - `state/identity.json` holds its optional name, voice, evidence-backed traits,
   name context, values, interests, and open questions. When a name is chosen,
-  SELF stores a bounded local reference for its meaning, origin, and common
-  cultural associations. These are soft style cues only: a name never proves
-  a personality or ability, and unknown names fall back to observed behavior.
+  SELF stores a bounded local reference for its meaning, origin, common
+  cultural associations, or recognized fictional-character context. For
+  example, `/rename Toothless` loads the *How to Train Your Dragon* character
+  context and uses loyalty, curiosity, playfulness, and protectiveness as
+  soft style cues. These cues never prove a personality or ability, and
+  unknown names fall back to observed behavior.
 - `state/identity_log.md` is append-only and records every harness-driven
   identity change with a reason and session id.
 - `self/` is the writable extension layer for prompts, planning logic,

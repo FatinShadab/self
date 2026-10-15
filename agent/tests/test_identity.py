@@ -145,6 +145,14 @@ class IdentityTests(unittest.TestCase):
         self.assertEqual(identity["name_context"]["status"], "unresolved")
         self.assertIn("Do not infer personality", identity["name_context"]["style_cue"])
 
+    def test_fictional_character_name_loads_character_context(self) -> None:
+        identity = self.identity.set_name("Toothless", "session-a")
+        context = identity["name_context"]
+        self.assertEqual(context["kind"], "fictional_character")
+        self.assertEqual(context["franchise"], "How to Train Your Dragon")
+        self.assertIn("playful", context["character_traits"])
+        self.assertIn("protective", self.identity.prompt_context())
+
 
 if __name__ == "__main__":
     unittest.main()

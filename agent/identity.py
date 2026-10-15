@@ -168,12 +168,20 @@ class IdentityStore:
         associations = context.get("associations", [])
         if not isinstance(associations, list):
             associations = []
+        character_traits = context.get("character_traits", [])
+        if not isinstance(character_traits, list):
+            character_traits = []
         return {
             "status": self._safe(context.get("status"), 40),
+            "kind": self._safe(context.get("kind"), 60),
             "name": self._safe(context.get("name"), NAME_MAX_CHARS),
+            "character": self._safe(context.get("character"), 160),
+            "franchise": self._safe(context.get("franchise"), 240),
+            "role": self._safe(context.get("role"), 300),
             "origin": self._safe(context.get("origin"), 300),
             "meaning": self._safe(context.get("meaning"), 300),
             "associations": [self._safe(item, 120) for item in associations if self._safe(item, 120)][:8],
+            "character_traits": [self._safe(item, 120) for item in character_traits if self._safe(item, 120)][:8],
             "style_cue": self._safe(context.get("style_cue"), 500),
             "source": self._safe(context.get("source"), 300),
         }
@@ -463,6 +471,8 @@ Editable layer observed: {", ".join(observed_self)}.
             "that the name proves a personality, ability, history, or feeling. If the local context is unresolved "
             "but the name clearly references a well-known person, character, place, concept, or tradition, you may "
             "use general knowledge as a tentative cue and label uncertainty rather than inventing details.\n"
+            "For a matched fictional character, use the listed traits as inspiration for tone and priorities, "
+            "but do not claim to literally be that character or reproduce exact copyrighted dialogue.\n"
             f"{text[:IDENTITY_CONTEXT_MAX_CHARS]}"
         )
 
