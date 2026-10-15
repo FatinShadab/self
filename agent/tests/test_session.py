@@ -10,7 +10,7 @@ from event_log import EventLogger
 from identity import IdentityStore
 from llm import LLMResult
 from session import HumanInbox, SessionStore
-from wake import WakeCoordinator, normalized_plan, visible_plan_items
+from wake import WakeCoordinator, clamped_plan_height, normalized_plan, visible_plan_items
 
 
 class WakeFakeLLM:
@@ -93,6 +93,11 @@ class SessionTests(unittest.TestCase):
             {"step": "Continue mapping", "status": "todo"},
         ])
         self.assertEqual([item["step"] for item in normalized], ["Continue mapping"])
+
+    def test_plan_height_clamp_preserves_space_for_the_activity_panel(self) -> None:
+        self.assertEqual(clamped_plan_height(1, 40), 5)
+        self.assertEqual(clamped_plan_height(99, 40), 34)
+        self.assertEqual(clamped_plan_height(16, 40), 16)
 
     def test_inbox_is_persistent_and_consumed_once(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

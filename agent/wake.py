@@ -39,6 +39,10 @@ COMPLETED_PLAN_STATUSES = frozenset({
     "cancelled", "canceled", "dropped",
 })
 
+PLAN_MIN_HEIGHT = 5
+WORKLOG_MIN_HEIGHT = 5
+PLAN_RESIZER_HEIGHT = 1
+
 
 def visible_plan_items(plan: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Return only active plan items for the live panel."""
@@ -57,6 +61,15 @@ def normalized_plan(plan: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """
     active = visible_plan_items(plan)
     return active if active else default_plan()
+
+
+def clamped_plan_height(requested: int, work_pane_height: int) -> int:
+    """Keep both panes usable while the plan divider is dragged."""
+    maximum = max(
+        PLAN_MIN_HEIGHT,
+        work_pane_height - WORKLOG_MIN_HEIGHT - PLAN_RESIZER_HEIGHT,
+    )
+    return max(PLAN_MIN_HEIGHT, min(maximum, requested))
 
 
 def _read_json(path: Path) -> dict[str, Any]:
@@ -797,6 +810,7 @@ def run_headless(coordinator: WakeCoordinator) -> int:
 
 def run_tui(coordinator: WakeCoordinator) -> int:
     try:
+        from textual import events
         from textual.app import App, ComposeResult
         from textual.containers import Horizontal, Vertical, VerticalScroll
         from textual.widgets import Footer, Header, Input, Static
@@ -809,15 +823,49 @@ def run_tui(coordinator: WakeCoordinator) -> int:
         coordinator.logger.narrate("Textual is unavailable; falling back to --headless mode.")
         return run_headless(coordinator)
 
+    class PlanResizeHandle(Static):
+        """One-line divider that gives the plan a draggable vertical size."""
+
+        def __init__(self, on_drag: Callable[[int], None]) -> None:
+            super().__init__("─ drag to resize plan ─", id="plan-resizer", markup=False)
+            self._on_drag = on_drag
+            self._dragging = False
+
+        def _drag_to(self, event: events.MouseEvent) -> None:
+            screen_y = getattr(event, "screen_y", self.region.y + event.y)
+            self._on_drag(int(screen_y))
+
+        def on_mouse_down(self, event: events.MouseDown) -> None:
+            self._dragging = True
+            self.capture_mouse()
+            self._drag_to(event)
+            event.stop()
+
+        def on_mouse_move(self, event: events.MouseMove) -> None:
+            if self._dragging:
+                self._drag_to(event)
+                event.stop()
+
+        def on_mouse_up(self, event: events.MouseUp) -> None:
+            if self._dragging:
+                self._drag_to(event)
+                self._dragging = False
+                self.release_mouse()
+                event.stop()
+
     class SelfApp(App[None]):
         CSS = """
         #body { height: 1fr; }
         #conversation-pane { width: 2fr; border: solid $primary; }
         #work-pane { width: 1.5fr; border: solid $secondary; }
-        #conversation-header { height: 3; padding: 1; color: $text-muted; }
+        #conversation-top { height: 6; }
+        #conversation-header { width: 1fr; height: 6; padding: 1; color: $text-muted; }
+        #entity-art { width: 14; height: 6; padding: 0 1; color: $accent; content-align: center middle; }
         #conversation { height: 1fr; padding: 0 1; scrollbar-gutter: stable; }
-        #plan { height: 10; padding: 1; border-bottom: solid $secondary; }
-        #worklog { height: 1fr; padding: 0 1; scrollbar-gutter: stable; }
+        #plan { height: 10; min-height: 5; padding: 1; }
+        #plan-resizer { height: 1; min-height: 1; max-height: 1; content-align: center middle; color: $text-muted; background: $panel; text-style: dim; }
+        #plan-resizer:hover { color: $accent; background: $boost; text-style: bold; }
+        #worklog { height: 1fr; min-height: 5; padding: 0 1; scrollbar-gutter: stable; }
         .activity-entry { width: 100%; margin: 0 0 1 0; padding: 0 1; }
         .message { width: 100%; margin: 0 0 1 0; padding: 1; }
         .agent-message { border-left: thick $primary; background: $panel; }
@@ -851,10 +899,13 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             yield Header(show_clock=True)
             with Horizontal(id="body"):
                 with Vertical(id="conversation-pane"):
-                    yield Static(f"[b]Conversation with {coordinator.identity.display_name()}[/b]   [b]YOU[/b] = human messages", id="conversation-header", markup=True)
+                    with Horizontal(id="conversation-top"):
+                        yield Static(f"[b]Conversation with {coordinator.identity.display_name()}[/b]   [b]YOU[/b] = human messages", id="conversation-header", markup=True)
+                        yield Static("  .-.-.\n /  o  \\\n<  /|\\  >\n \\_/_\\_/", id="entity-art", markup=False)
                     yield VerticalScroll(id="conversation")
                 with Vertical(id="work-pane"):
                     yield Static("Plan loading...", id="plan", markup=True)
+                    yield PlanResizeHandle(self._resize_plan)
                     yield VerticalScroll(id="worklog")
                 with Vertical(id="side"):
                     yield Static("Identity loading...", id="identity", markup=True)
@@ -884,6 +935,13 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             self._agent_running = True
             self.run_worker(self._run_agent, thread=True)
             return True
+
+        def _resize_plan(self, pointer_screen_y: int) -> None:
+            """Resize Plan, leaving the remaining middle-column space to worklog."""
+            plan = self.query_one("#plan", Static)
+            work_pane = self.query_one("#work-pane", Vertical)
+            requested = pointer_screen_y - plan.region.y + PLAN_RESIZER_HEIGHT
+            plan.styles.height = clamped_plan_height(requested, work_pane.size.height)
 
         def _animate_activity(self) -> None:
             active = self._agent_running or self._draining_activity or self._draining_chat
@@ -1045,7 +1103,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             identity = coordinator.identity.load()
             identity_panel = (
                 "[b]Identity[/b]\n"
-                f"Name: {identity.get('name') or 'unnamed'}\n"
+                f"Agent: {identity.get('name') or 'unnamed'}\n"
                 f"Human: {identity.get('human_name') or 'not yet known'}"
             )
             activity_panel = (
