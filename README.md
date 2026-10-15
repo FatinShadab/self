@@ -111,11 +111,13 @@ instead. These accept a comma-separated list or JSON array; for example,
 rate-limit, or authentication failure. Ollama takes priority if both providers
 have keys. Key values are never written to logs.
 
-Set `OLLAMA_MODEL` as the base model and list other models accessible with the
-same API key(s) in `LLM_AVAILABLE_MODELS`, separated by commas or as a JSON
+Set `OLLAMA_MODEL` as the base model and list other Ollama Cloud models accessible
+with the same API key(s) in `LLM_AVAILABLE_MODELS`, separated by commas or as a JSON
 array. For example, `LLM_AVAILABLE_MODELS=small-model,large-model`. The base
 model is included automatically. SELF starts with the base model and can call
 `select_model` to choose another listed model for subsequent primary LLM calls.
+The request uses the same Ollama endpoint and key pool as the base model; no
+separate key is needed. `ask_brain` is unrelated to this model list.
 Only configured models can be selected. With an Anthropic key, use
 `ANTHROPIC_MODEL` for the base model and the same `LLM_AVAILABLE_MODELS` list.
 

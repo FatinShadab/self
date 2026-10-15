@@ -25,14 +25,17 @@ class FakeAnthropic:
 
     def __init__(self, **kwargs: object) -> None:
         self.key = str(kwargs.get("auth_token") or kwargs.get("api_key"))
+        self.base_url = str(kwargs.get("base_url"))
         self.calls = 0
         self.last_model: object = None
+        self.models: list[object] = []
         self.messages = self
         self.instances.append(self)
 
     def create(self, **kwargs: object) -> SimpleNamespace:
         self.calls += 1
         self.last_model = kwargs.get("model")
+        self.models.append(self.last_model)
         if self.key == "first":
             raise ProviderLimitError("rate limit reached")
         return SimpleNamespace(
@@ -59,9 +62,13 @@ class LLMKeyRotationTests(unittest.TestCase):
                 with self.assertRaises(ValueError):
                     client.select_model("unlisted-model")
                 self.assertEqual(client.model, "base-model")
+                client.call(system="system", messages=[{"role": "user", "content": "hello"}], tools=[], max_tokens=128)
                 client.select_model("large-model")
                 client.call(system="system", messages=[{"role": "user", "content": "hello"}], tools=[], max_tokens=128)
-                self.assertEqual(FakeAnthropic.instances[0].last_model, "large-model")
+                self.assertEqual(len(FakeAnthropic.instances), 1)
+                self.assertEqual(FakeAnthropic.instances[0].models, ["base-model", "large-model"])
+                self.assertEqual(FakeAnthropic.instances[0].key, "second")
+                self.assertEqual(FakeAnthropic.instances[0].base_url, "https://ollama.com")
                 client.select_model("base-model")
                 self.assertEqual(client.model, "base-model")
 

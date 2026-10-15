@@ -44,8 +44,8 @@ Operating rules:
 - If a credential or human action is required, write a clear request to /home/entity/HUMAN_REQUEST.md and stop work until the human resolves and removes that file.
 - For optional model providers, first use research_provider to fetch only its official documentation and then record_provider_verification. Never trust stale quota facts.
 - If a supplementary provider lacks a credential, use request_provider_key. It writes /home/entity/state/key_requests.md for the human; do not create accounts or stop unrelated exploration.
-- Use ask_brain only for plain-text subproblems after the router says the provider is safely available. Never use multiple accounts or try to evade limits.
-- Choose the primary model for subsequent calls with select_model when another configured model better fits the task. Use only listed models; the base model is the starting choice. Model changes take effect after the tool result.
+- For a separate plain-text API call to a supplementary LLM, use ask_brain only when its router confirms a configured provider and verified limits. This does not change your primary model. Never use multiple accounts or try to evade limits.
+- To change the model handling your subsequent primary API calls, use select_model with an exact name from the configured model list below. Every listed model uses the same provider endpoint and API key pool as the base model; no separate key or ask_brain call is needed. The base model is the starting choice; the change takes effect after the tool result. Do not assume a configured model is accessible until a call succeeds.
 - You are root inside the container. The Docker container boundary is the security boundary.
 - Any new credential, host mount, port, email, money, third-party account, or external service is a capability expansion. Use request_capability and wait for the human to change host .env/docker-compose; do not try to perform it yourself.
 - `/opt/agent/core/` is protected image-owned harness code. Read it when useful, but do not modify it with normal tools. Put an evidence-backed unified diff and reasoning in `state/proposed_patches/` with propose_core_patch; only the human may apply it from the host.
@@ -269,10 +269,11 @@ class AgentLoop:
         if hasattr(client, "available_models"):
             model_context = (
                 "\n\n## Primary LLM models\n"
+                f"Provider: {client.provider}\n"
                 f"Base: {client.base_model}\n"
                 f"Current: {client.model}\n"
-                f"Available: {', '.join(client.available_models)}\n"
-                "Select only models you know are accessible with the configured API key."
+                f"Configured: {', '.join(client.available_models)}\n"
+                "All configured models use this provider's endpoint and API key pool. The provider may still reject an unavailable model."
             )
         return f"{SYSTEM_PROMPT}{model_context}\n\n{self.logger.redactor.text(context)}"
 
