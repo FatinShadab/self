@@ -288,6 +288,12 @@ default microphone when the local runtime exposes the speech-recognition API;
 the Docker image reports microphone input as unavailable rather than breaking
 the text UI. Ordinary text is durable high-priority context for the next
 iteration. `/stop` writes STOP; remove `workspace/STOP` before a future wake.
+Tool rounds within a cycle are unlimited; the run still observes STOP, token,
+wall-clock, and per-session iteration bounds. Identical tool actions are
+reported back to the model so it can choose a different investigation.
+When a normal session ends, SELF reports what it was trying to do, what it
+achieved, updates the plan, and starts the next session automatically. A human
+STOP or unresolved human request leaves it paused.
 
 The side panel also shows the entity's live presence (`THINKING`, `USING TOOL`,
 `WORKING`, or `WAITING FOR HUMAN`), current AI, total/completed/failed calls,

@@ -73,7 +73,6 @@ class AgentConfig:
     max_iterations: int = 20
     token_budget: int = 50_000
     max_tokens_per_call: int = 4_096
-    max_tool_rounds: int = 8
     top_k_tools: int = 5
     task: str = ""
     base_tool_names: tuple[str, ...] | None = None
@@ -212,7 +211,7 @@ class AgentLoop:
                         "1. Increase `SELF_MAX_TOKENS_PER_DAY` in `.env`, then recreate the container.",
                         "2. If the provider itself is rate-limited or unavailable, replace `OLLAMA_API_KEY` or add a backup provider key such as `ANTHROPIC_API_KEY` to `.env` and configure that provider.",
                         "",
-                        "Never paste an API key into the chat or this file. Edit the host-side `.env` yourself, then remove this file and restart SELF.",
+                        "Never paste an API key into the chat or this file. Edit the host-side `.env` yourself, then remove this file; SELF will resume automatically. Recreate the container only if the changed environment variable is not visible to the running process.",
                         "A backup API key does not bypass SELF's own daily ledger; it is for provider-side failures or quota limits.",
                         "",
                     ]
@@ -273,7 +272,6 @@ class AgentLoop:
             {
                 "max_iterations_per_run": self.config.max_iterations,
                 "token_budget_per_run": self.config.token_budget,
-                "max_tool_rounds_per_cycle": self.config.max_tool_rounds,
                 "tool_output_char_cap": self.tools.output_cap,
             },
         )
@@ -293,6 +291,7 @@ class AgentLoop:
             active_task = self.learning.propose_curriculum()
             self.logger.narrate(f"Idle curriculum selected: {active_task}")
         completed_iterations = 0
+        seen_tool_actions: set[str] = set()
         last_report = str(prior_checkpoint.get("last_report", "No previous cycle report.")) if prior_checkpoint.get("status") == "running" else "No previous cycle report."
         reason = "max_iterations"
         self.logger.log(
@@ -363,7 +362,11 @@ class AgentLoop:
             cycle_actions: list[dict[str, Any]] = []
             self.checkpoint.save(status="running", task=active_task, cycle=cycle, last_report=last_report, tokens_used=self.llm.tokens_used)
 
-            for tool_round in range(self.config.max_tool_rounds + 1):
+            # Continue tool rounds until the model returns a final response or
+            # an outer run bound (STOP, token budget, wall clock, or human
+            # request) is reached. There is intentionally no per-cycle tool
+            # round ceiling.
+            while True:
                 if not self._wait_while_paused():
                     reason = "stop_file"
                     break
@@ -407,7 +410,7 @@ class AgentLoop:
                 except Exception as exc:
                     self.logger.log("run_failed", error_type=type(exc).__name__, provider_error=True)
                     self.logger.narrate(
-                        f"The AI provider failed with {type(exc).__name__}. I paused safely; use /restart to try again."
+                        f"The AI provider failed with {type(exc).__name__}. I paused this session safely and will retry automatically."
                     )
                     reason = "provider_error"
                     break
@@ -419,9 +422,6 @@ class AgentLoop:
                     cycle_report = self.logger.redactor.text(report_text)
                 tool_uses = [block for block in safe_content if block.get("type") == "tool_use"]
                 if not tool_uses:
-                    break
-                if tool_round >= self.config.max_tool_rounds:
-                    self.logger.narrate("This cycle reached its tool-round limit; moving to reflection.")
                     break
 
                 messages.append({"role": "assistant", "content": safe_content})
@@ -435,20 +435,29 @@ class AgentLoop:
                     if not isinstance(arguments, dict):
                         arguments = {}
                     self.logger.narrate(self._tool_narration(name, arguments))
-                    try:
-                        if name not in {tool["name"] for tool in definitions}:
-                            observation = {"ok": False, "error": "Tool not offered in this step; use task keywords to retrieve it."}
-                        else:
-                            observation = self.tools.execute(name, arguments)
-                    except BudgetExceeded as exc:
-                        if exc.kind == "daily":
-                            self._request_daily_budget_action()
-                            self.logger.narrate("I reached today's daily token limit. I paused and left a human request: increase the limit or configure a backup provider.")
-                            reason = "human_request_pending"
-                        else:
-                            self.logger.narrate("Critic cannot run within the remaining token budget; stopping.")
-                            reason = "token_budget"
-                        break
+                    action_key = json.dumps({"name": name, "arguments": arguments}, ensure_ascii=False, sort_keys=True)
+                    if action_key in seen_tool_actions:
+                        observation = {
+                            "ok": False,
+                            "error": "This exact tool action already ran earlier in this run; choose a different investigation or finish with a report.",
+                        }
+                        self.logger.log("repeated_tool_action_blocked", tool=name)
+                    else:
+                        seen_tool_actions.add(action_key)
+                        try:
+                            if name not in {tool["name"] for tool in definitions}:
+                                observation = {"ok": False, "error": "Tool not offered in this step; use task keywords to retrieve it."}
+                            else:
+                                observation = self.tools.execute(name, arguments)
+                        except BudgetExceeded as exc:
+                            if exc.kind == "daily":
+                                self._request_daily_budget_action()
+                                self.logger.narrate("I reached today's daily token limit. I paused and left a human request: increase the limit or configure a backup provider.")
+                                reason = "human_request_pending"
+                            else:
+                                self.logger.narrate("Critic cannot run within the remaining token budget; stopping.")
+                                reason = "token_budget"
+                            break
                     tool_results.append(
                         {
                             "type": "tool_result",

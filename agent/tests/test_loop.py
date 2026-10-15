@@ -101,6 +101,50 @@ class AgentLoopTests(unittest.TestCase):
             self.assertEqual(fake.calls, 2)
             self.assertIn('"event":"tool_result"', logger.path.read_text())
 
+    def test_repeated_tool_action_is_blocked(self) -> None:
+        responses = [
+            LLMResult(content=[{"type": "tool_use", "id": "tool-1", "name": "run_shell", "input": {"cmd": "printf hello"}}], input_tokens=1, output_tokens=1, stop_reason="tool_use", model="fake-model"),
+            LLMResult(content=[{"type": "text", "text": "Finished the check."}], input_tokens=1, output_tokens=1, stop_reason="end_turn", model="fake-model"),
+            LLMResult(content=[{"type": "tool_use", "id": "tool-2", "name": "run_shell", "input": {"cmd": "printf hello"}}], input_tokens=1, output_tokens=1, stop_reason="tool_use", model="fake-model"),
+            LLMResult(content=[{"type": "text", "text": "I will stop repeating this action."}], input_tokens=1, output_tokens=1, stop_reason="end_turn", model="fake-model"),
+        ]
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            logger = EventLogger(workspace / "logs" / "actions.jsonl")
+            summary = AgentLoop(
+                AgentConfig(workspace=workspace, max_iterations=2, token_budget=10_000),
+                logger,
+                FakeLLM(responses),
+                ToolRunner(logger, workspace),
+            ).run()
+            self.assertEqual(summary.iterations, 2)
+            self.assertIn("repeated_tool_action_blocked", logger.path.read_text())
+
+    def test_tool_rounds_are_not_capped(self) -> None:
+        responses = [
+            LLMResult(
+                content=[{"type": "tool_use", "id": f"tool-{index}", "name": "run_shell", "input": {"cmd": f"printf {index}"}}],
+                input_tokens=1,
+                output_tokens=1,
+                stop_reason="tool_use",
+                model="fake-model",
+            )
+            for index in range(10)
+        ]
+        responses.append(LLMResult(content=[{"type": "text", "text": "Completed the extended investigation."}], input_tokens=1, output_tokens=1, stop_reason="end_turn", model="fake-model"))
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            logger = EventLogger(workspace / "logs" / "actions.jsonl")
+            fake = FakeLLM(responses)
+            summary = AgentLoop(
+                AgentConfig(workspace=workspace, max_iterations=1, token_budget=10_000),
+                logger,
+                fake,
+                ToolRunner(logger, workspace),
+            ).run()
+            self.assertEqual(summary.iterations, 1)
+            self.assertEqual(fake.calls, 11)
+
 
 if __name__ == "__main__":
     unittest.main()

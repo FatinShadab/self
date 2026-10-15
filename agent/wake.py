@@ -342,13 +342,20 @@ class WakeCoordinator:
 
     def _reflection(self, purpose: str, extra: str = "") -> dict[str, Any]:
         """One bounded planning/reflection call; deterministic fallback preserves continuity."""
-        fallback = {"plan": self.plan, "summary": self.handoff.get("summary", "State reviewed without an LLM reflection."), "mood_of_run": "exploring", "failures_and_lessons": []}
+        fallback = {
+            "attempted": purpose,
+            "achieved": self.handoff.get("summary", "State reviewed without an LLM reflection."),
+            "plan": self.plan,
+            "summary": self.handoff.get("summary", "State reviewed without an LLM reflection."),
+            "mood_of_run": "exploring",
+            "failures_and_lessons": [],
+        }
         try:
             if self._llm is None:
                 self._llm = LLMClient(self.logger)
             budget = BudgetedLLM(self._llm, self.logger, min(4_000, self.token_budget), DailyTokenLedger(self.workspace, self.logger))
             result = budget.call(
-                system="You are SELF preparing a truthful durable handoff. Return ONLY JSON with summary, plan (objects: step, why, priority, status), mood_of_run, failures_and_lessons, open_questions. Do not invent facts; use only supplied state. Redact secrets.",
+                system="You are SELF preparing a truthful durable handoff. Return ONLY JSON with attempted, achieved, summary, plan (objects: step, why, priority, status), mood_of_run, failures_and_lessons, open_questions. Explain what this session was trying to do, what it actually achieved, and the updated next plan. Do not invent facts; use only supplied state. Redact secrets.",
                 messages=[{"role": "user", "content": self.logger.redactor.text(f"Purpose: {purpose}\nOld handoff: {json.dumps(self.handoff, ensure_ascii=False)[:7000]}\nCurrent plan: {json.dumps(self.plan)}\n{extra}")}],
                 tools=[], max_tokens=900,
             )
@@ -470,23 +477,40 @@ class WakeCoordinator:
         self.status.active_model, self.status.active_provider = getattr(loop.llm.client, "model", "unknown"), getattr(loop.llm.client, "provider", "unknown")
         try:
             summary = loop.run()
+            session_attempt = startup_context or STANDING_GOAL
             if self.stop_requested or summary.reason == "stop_file":
                 # A requested stop must not trigger another provider call. Use
                 # the durable state already collected and finish locally.
                 reflection = {
+                    "attempted": session_attempt,
+                    "achieved": self.handoff.get("summary", "The session stopped at a safe boundary."),
                     "plan": self.plan,
                     "summary": self.handoff.get("summary", "Run stopped at a safe boundary."),
                     "failures_and_lessons": [],
                 }
             else:
-                reflection = self._reflection("shutdown reflection", f"Loop ended with reason={summary.reason}; last report={self.handoff.get('summary', '')}")
+                reflection = self._reflection(
+                    "shutdown reflection",
+                    f"Loop ended with reason={summary.reason}; intended session work: {session_attempt}; last report={self.handoff.get('summary', '')}",
+                )
             self.plan = list(reflection.get("plan") or self.plan)
+            achieved = str(reflection.get("achieved") or reflection.get("summary") or "No textual achievement report was returned.")
+            attempted = str(reflection.get("attempted") or session_attempt)
+            active_plan = visible_plan_items(self.plan)
+            next_plan = "; ".join(str(item.get("step", "")).strip() for item in active_plan if item.get("step")) or "No active plan items remain; the next wake will review the environment again."
+            session_report = (
+                f"Session complete after {summary.iterations} cycle(s).\n"
+                f"Trying to do: {attempted}\n"
+                f"Achieved: {achieved}\n"
+                f"Updated plan: {next_plan}"
+            )
+            self.logger.narrate(session_report)
             self.identity.reflect_session(
                 self.status.session_id,
                 self._session_start,
-                str(reflection.get("summary", "")),
+                achieved,
             )
-            handoff = self._make_handoff(reflection.get("summary", ""), summary.reason)
+            handoff = self._make_handoff(session_report, summary.reason)
             handoff["failures_and_lessons"] = list(handoff["failures_and_lessons"]) + list(reflection.get("failures_and_lessons", []))
             end_reason = "clean_shutdown" if self.stop_requested or summary.reason == "max_iterations" else "stop_file" if summary.reason == "stop_file" else "budget_exhausted" if summary.reason in {"token_budget", "wall_clock_budget"} else "provider_error" if summary.reason == "provider_error" else "clean_shutdown"
             self.sessions.finish(self.status.session_id, handoff, summary.iterations, summary.tokens_used, end_reason)
@@ -514,7 +538,23 @@ def _requests_text(root: Path) -> str:
 
 
 def run_headless(coordinator: WakeCoordinator) -> int:
-    coordinator.run()
+    while True:
+        try:
+            result = coordinator.run()
+        except Exception as exc:
+            coordinator.logger.narrate(f"Wake coordinator failed: {type(exc).__name__}; retrying automatically.")
+            time.sleep(3.0)
+            continue
+        if (coordinator.workspace / "STOP").exists():
+            break
+        if (coordinator.workspace / "HUMAN_REQUEST.md").exists():
+            coordinator.logger.narrate("Waiting for the human request to be resolved; the next session will start automatically afterward.")
+            while (coordinator.workspace / "HUMAN_REQUEST.md").exists() and not (coordinator.workspace / "STOP").exists():
+                time.sleep(2.0)
+            continue
+        delay = 3.0 if result is not None and getattr(result, "reason", "") == "provider_error" else 0.8
+        coordinator.logger.narrate("Session ended; starting the next session automatically.")
+        time.sleep(delay)
     return 0
 
 
@@ -654,26 +694,45 @@ def run_tui(coordinator: WakeCoordinator) -> int:
         def _voice_status(self, message: str | None = None) -> None:
             self._write_narration(message or self.voice.status_text(), "lesson")
 
+        def _watch_human_request(self) -> None:
+            if (coordinator.workspace / "STOP").exists():
+                return
+            if (coordinator.workspace / "HUMAN_REQUEST.md").exists():
+                self.set_timer(2.0, self._watch_human_request)
+            else:
+                self._start_agent()
+
+        def _finish_agent_turn(self, final_message: str | None, restart_delay: float | None) -> None:
+            if final_message:
+                kind = "request" if any(word in final_message.lower() for word in ("paused", "waiting", "human action")) else "lesson"
+                self._write_narration(final_message, kind)
+            if (coordinator.workspace / "STOP").exists():
+                return
+            if (coordinator.workspace / "HUMAN_REQUEST.md").exists():
+                self.set_timer(2.0, self._watch_human_request)
+            else:
+                self.set_timer(restart_delay if restart_delay is not None else 0.8, self._start_agent)
+
         def _run_agent(self) -> None:
             final_message: str | None = None
+            restart_delay: float | None = None
             try:
                 result = coordinator.run()
                 if not (result is None and (coordinator.workspace / "STOP").exists()):
-                    if result is not None and getattr(result, "reason", "") == "provider_error":
-                        final_message = "The AI provider failed after retries, so I paused safely. Use /restart to try the conversation again."
-                    elif (coordinator.workspace / "STOP").exists():
-                        final_message = "I am paused because STOP was requested. Use /restart here, or remove workspace/STOP and launch SELF again."
+                    if (coordinator.workspace / "STOP").exists():
+                        final_message = "I am paused because STOP was requested. Remove workspace/STOP or use /restart when you want me to continue."
                     elif (coordinator.workspace / "HUMAN_REQUEST.md").exists():
-                        final_message = "I am waiting for your decision in HUMAN_REQUEST.md. Resolve it, remove the file, then use /restart."
+                        final_message = "I am waiting for your decision in HUMAN_REQUEST.md. Resolve it and remove the file; I will wake automatically."
                     else:
-                        final_message = "This session ended cleanly. Use /restart to begin another conversation with me."
+                        final_message = "This session ended; I will start the next session automatically."
+                        restart_delay = 0.8 if result is None or getattr(result, "reason", "") != "provider_error" else 3.0
             except Exception as exc:
                 coordinator.logger.narrate(f"Wake coordinator failed: {type(exc).__name__}")
-                final_message = f"I could not continue this session because of {type(exc).__name__}. Review the log, then use /restart."
+                final_message = f"This session failed with {type(exc).__name__}; I will retry automatically unless you stop me."
+                restart_delay = 3.0
             finally:
                 self._agent_running = False
-                if final_message:
-                    self.call_from_thread(self._write_narration, final_message, "request" if "paused" in final_message or "waiting" in final_message else "lesson")
+                self.call_from_thread(self._finish_agent_turn, final_message, restart_delay)
 
         def _refresh(self) -> None:
             telemetry = coordinator.runtime_snapshot()
