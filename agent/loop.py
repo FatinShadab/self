@@ -211,7 +211,7 @@ class AgentLoop:
                         "",
                         "Choose one host-side action:",
                         "1. Increase `SELF_MAX_TOKENS_PER_DAY` in `.env`, then recreate the container.",
-                        "2. If the provider itself is rate-limited or unavailable, replace `OLLAMA_API_KEY` or add a backup provider key such as `ANTHROPIC_API_KEY` to `.env` and configure that provider.",
+                        "2. If the provider itself is rate-limited or unavailable, add another value to `OLLAMA_API_KEYS` or add a backup provider key such as `ANTHROPIC_API_KEYS` to `.env` and configure that provider.",
                         "",
                         "Never paste an API key into the chat or this file. Edit the host-side `.env` yourself, then remove this file; SELF will resume automatically. Recreate the container only if the changed environment variable is not visible to the running process.",
                         "A backup API key does not bypass SELF's own daily ledger; it is for provider-side failures or quota limits.",

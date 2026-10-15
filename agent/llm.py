@@ -1,6 +1,9 @@
 from __future__ import annotations
 
 import os
+import json
+import re
+from threading import Lock
 import time
 from dataclasses import dataclass
 from typing import Any
@@ -129,37 +132,92 @@ def _first_env(*names: str) -> str | None:
     return None
 
 
+def _env_key_list(*names: str) -> list[str]:
+    """Read comma-, semicolon-, newline-, or JSON-array-separated keys."""
+    keys: list[str] = []
+    for name in names:
+        raw = os.getenv(name, "").strip()
+        if not raw:
+            continue
+        values: list[Any] | None = None
+        if raw.startswith("["):
+            try:
+                parsed = json.loads(raw)
+                if isinstance(parsed, list):
+                    values = parsed
+            except json.JSONDecodeError:
+                values = None
+        if values is None:
+            values = re.split(r"[,;\r\n]+", raw)
+        for value in values:
+            cleaned = str(value).strip().strip('"').strip("'")
+            if cleaned and cleaned not in keys:
+                keys.append(cleaned)
+    return keys
+
+
 class LLMClient:
     """Thin provider boundary; Phase 5 can replace this class without changing the loop."""
 
     def __init__(self, logger: EventLogger, timeout: float = 120) -> None:
         self.logger = logger
-        ollama_key = _first_env("OLLAMA_API_KEY", "OLLAM_API_KEY")
-        anthropic_key = _first_env("ANTHROPIC_API_KEY")
+        self._key_lock = Lock()
+        self._key_index = 0
         self.model = _first_env("OLLAMA_MODEL", "OLLAM_MODEL", "ANTHROPIC_MODEL") or "gpt-oss:120b-cloud"
 
-        if ollama_key:
+        ollama_keys = _env_key_list("OLLAMA_API_KEYS", "OLLAMA_API_KEY", "OLLAM_API_KEYS", "OLLAM_API_KEY")
+        anthropic_keys = _env_key_list("ANTHROPIC_API_KEYS", "ANTHROPIC_API_KEY")
+        if ollama_keys:
             self.provider = "ollama"
             self.base_url = _first_env("OLLAMA_BASE_URL", "OLLAM_BASE_URL") or "https://ollama.com"
-            self._client = Anthropic(
-                auth_token=ollama_key,
-                base_url=self.base_url,
-                timeout=timeout,
-                max_retries=0,
-            )
-        elif anthropic_key:
+            self._clients = [
+                Anthropic(auth_token=key, base_url=self.base_url, timeout=timeout, max_retries=0)
+                for key in ollama_keys
+            ]
+        elif anthropic_keys:
             self.provider = "anthropic"
             self.base_url = _first_env("ANTHROPIC_BASE_URL") or "https://api.anthropic.com"
-            self._client = Anthropic(
-                api_key=anthropic_key,
-                base_url=self.base_url,
-                timeout=timeout,
-                max_retries=0,
-            )
+            self._clients = [
+                Anthropic(api_key=key, base_url=self.base_url, timeout=timeout, max_retries=0)
+                for key in anthropic_keys
+            ]
         else:
             raise RuntimeError(
-                "No LLM credential found. Set OLLAMA_API_KEY in the host-side .env file."
+                "No LLM credential found. Set OLLAMA_API_KEYS or OLLAMA_API_KEY in the host-side .env file."
             )
+        self.key_count = len(self._clients)
+        self._client = self._clients[0]  # Compatibility for integrations that inspect the active client.
+
+    def _active_client(self) -> Any:
+        with self._key_lock:
+            return self._clients[self._key_index]
+
+    def _rotate_key(self) -> bool:
+        with self._key_lock:
+            if self._key_index + 1 >= len(self._clients):
+                return False
+            self._key_index += 1
+            self._client = self._clients[self._key_index]
+            index = self._key_index
+        self.logger.log(
+            "llm_key_rotated",
+            provider=self.provider,
+            key_index=index,
+            key_count=self.key_count,
+            reason="provider limit, authentication, or quota failure",
+        )
+        return True
+
+    @staticmethod
+    def _is_key_limit_error(status_code: Any, error: Exception) -> bool:
+        if status_code in {401, 403, 429, "401", "403", "429"}:
+            return True
+        text = str(error).casefold()
+        return any(marker in text for marker in (
+            "rate limit", "rate_limit", "too many requests", "quota", "insufficient_quota",
+            "resource exhausted", "limit reached", "daily limit", "usage limit",
+            "credits exhausted", "credit balance",
+        ))
 
     def call(
         self,
@@ -182,9 +240,13 @@ class LLMClient:
             max_output_tokens=max_tokens,
         )
         response = None
-        for attempt in range(3):
+        attempt = 0
+        transient_retries = 0
+        max_attempts = max(3, self.key_count + 2)
+        while attempt < max_attempts:
+            attempt += 1
             try:
-                response = self._client.messages.create(
+                response = self._active_client().messages.create(
                     model=self.model,
                     max_tokens=max_tokens,
                     system=system,
@@ -194,6 +256,8 @@ class LLMClient:
                 break
             except Exception as exc:
                 status_code = getattr(exc, "status_code", None)
+                if self._is_key_limit_error(status_code, exc) and self._rotate_key():
+                    continue
                 retryable = status_code in {500, 502, 503, 504} or "Internal Server Error" in str(exc)
                 self.logger.log(
                     "llm_call_failed",
@@ -201,11 +265,12 @@ class LLMClient:
                     model=self.model,
                     error_type=type(exc).__name__,
                     error=str(exc),
-                    retry_attempt=attempt + 1,
+                    retry_attempt=attempt,
                     retryable=retryable,
                 )
-                if not retryable or attempt == 2:
+                if not retryable or transient_retries >= 2:
                     raise
+                transient_retries += 1
                 time.sleep(1.5 * (attempt + 1))
 
         if response is None:

@@ -10,10 +10,17 @@ container:
 
 ```powershell
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
-# Edit .env and set OLLAMA_API_KEY.
+# Edit .env and set OLLAMA_API_KEYS (comma-separated for multiple keys).
 docker compose build
 docker compose up -d
 ```
+
+The provider key variables accept either a comma-separated list or a JSON
+array. For example: `OLLAMA_API_KEYS=key_one,key_two`. SELF tries the current
+key and rotates to the next key after a provider quota, rate-limit, or
+authentication failure. The older singular `OLLAMA_API_KEY` and
+`ANTHROPIC_API_KEY` variables remain supported as one-key fallbacks. Key
+values are never written to logs.
 
 Run a five-cycle exploration with a bounded token budget:
 
