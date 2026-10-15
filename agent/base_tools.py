@@ -21,6 +21,15 @@ DEFAULT_OUTPUT_CAP = 20_000
 
 TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
+        "name": "select_model",
+        "description": "Choose which configured primary LLM model will handle subsequent agent calls. Use only a model listed in the system prompt; choose based on task difficulty and model strengths. The base model is always available.",
+        "input_schema": {
+            "type": "object",
+            "properties": {"model": {"type": "string"}},
+            "required": ["model"],
+        },
+    },
+    {
         "name": "run_shell",
         "description": "Run an unrestricted Bash command inside the container as root, with a timeout and bounded returned output.",
         "input_schema": {
@@ -192,6 +201,7 @@ class ToolRunner:
         self.brain_router: Any = None
         self.capabilities: Any = None
         self.identity: Any = None
+        self.llm_client: Any = None
 
     def execute(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         logged_arguments = dict(arguments)
@@ -211,6 +221,10 @@ class ToolRunner:
         try:
             if name == "create_tool" and self.registry is not None:
                 result = self.registry.create_tool(**arguments)
+            elif name == "select_model":
+                if self.llm_client is None or not hasattr(self.llm_client, "select_model"):
+                    raise RuntimeError("model selection is not configured")
+                result = self.llm_client.select_model(**arguments)
             elif name in {"research_provider", "record_provider_verification", "request_provider_key", "ask_brain", "benchmark_providers", "probe_local_ollama"}:
                 if self.brain_router is None:
                     raise RuntimeError("brain router is not configured")

@@ -163,8 +163,6 @@ class LLMClient:
         self.logger = logger
         self._key_lock = Lock()
         self._key_index = 0
-        self.model = _first_env("OLLAMA_MODEL", "OLLAM_MODEL", "ANTHROPIC_MODEL") or "gpt-oss:120b-cloud"
-
         ollama_keys = _env_key_list("OLLAMA_API_KEYS", "OLLAMA_API_KEY", "OLLAM_API_KEYS", "OLLAM_API_KEY")
         anthropic_keys = _env_key_list("ANTHROPIC_API_KEYS", "ANTHROPIC_API_KEY")
         if ollama_keys:
@@ -185,12 +183,29 @@ class LLMClient:
             raise RuntimeError(
                 "No LLM credential found. Set OLLAMA_API_KEYS or OLLAMA_API_KEY in the host-side .env file."
             )
+        self.base_model = (
+            _first_env("OLLAMA_MODEL", "OLLAM_MODEL") if self.provider == "ollama"
+            else _first_env("ANTHROPIC_MODEL")
+        ) or "gpt-oss:120b-cloud"
+        self.model = self.base_model
+        self.available_models = list(dict.fromkeys([self.base_model, *_env_key_list("LLM_AVAILABLE_MODELS")]))
+        self._model_lock = Lock()
         self.key_count = len(self._clients)
         self._client = self._clients[0]  # Compatibility for integrations that inspect the active client.
 
     def _active_client(self) -> Any:
         with self._key_lock:
             return self._clients[self._key_index]
+
+    def select_model(self, model: str) -> dict[str, Any]:
+        if model not in self.available_models:
+            raise ValueError("Model is not in LLM_AVAILABLE_MODELS or the configured base model")
+        with self._model_lock:
+            previous = self.model
+            self.model = model
+        if previous != model:
+            self.logger.log("llm_model_selected", provider=self.provider, previous_model=previous, model=model)
+        return {"ok": True, "provider": self.provider, "model": model, "previous_model": previous}
 
     def _rotate_key(self) -> bool:
         with self._key_lock:
@@ -227,6 +242,8 @@ class LLMClient:
         tools: list[dict[str, Any]],
         max_tokens: int,
     ) -> LLMResult:
+        with self._model_lock:
+            selected_model = self.model
         parsed = urlsplit(self.base_url)
         base_path = parsed.path.rstrip("/")
         endpoint_path = f"{base_path}/v1/messages" if base_path else "/v1/messages"
@@ -234,7 +251,7 @@ class LLMClient:
         self.logger.log(
             "llm_call_started",
             provider=self.provider,
-            model=self.model,
+            model=selected_model,
             message_count=len(messages),
             tool_count=len(tools),
             max_output_tokens=max_tokens,
@@ -247,7 +264,7 @@ class LLMClient:
             attempt += 1
             try:
                 response = self._active_client().messages.create(
-                    model=self.model,
+                    model=selected_model,
                     max_tokens=max_tokens,
                     system=system,
                     messages=messages,
@@ -262,7 +279,7 @@ class LLMClient:
                 self.logger.log(
                     "llm_call_failed",
                     provider=self.provider,
-                    model=self.model,
+                    model=selected_model,
                     error_type=type(exc).__name__,
                     error=str(exc),
                     retry_attempt=attempt,

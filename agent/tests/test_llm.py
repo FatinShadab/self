@@ -7,6 +7,7 @@ from types import SimpleNamespace
 from unittest.mock import patch
 
 from event_log import EventLogger
+from base_tools import ToolRunner
 from llm import LLMClient, _env_key_list
 
 
@@ -25,11 +26,13 @@ class FakeAnthropic:
     def __init__(self, **kwargs: object) -> None:
         self.key = str(kwargs.get("auth_token") or kwargs.get("api_key"))
         self.calls = 0
+        self.last_model: object = None
         self.messages = self
         self.instances.append(self)
 
-    def create(self, **_: object) -> SimpleNamespace:
+    def create(self, **kwargs: object) -> SimpleNamespace:
         self.calls += 1
+        self.last_model = kwargs.get("model")
         if self.key == "first":
             raise ProviderLimitError("rate limit reached")
         return SimpleNamespace(
@@ -41,6 +44,34 @@ class FakeAnthropic:
 
 
 class LLMKeyRotationTests(unittest.TestCase):
+    def test_agent_can_select_only_configured_models_for_next_call(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            logger = EventLogger(os.path.join(temp, "actions.jsonl"))
+            FakeAnthropic.instances = []
+            env = {
+                "OLLAMA_API_KEYS": "second",
+                "OLLAMA_MODEL": "base-model",
+                "LLM_AVAILABLE_MODELS": '["small-model", "large-model", "base-model"]',
+            }
+            with patch("llm.Anthropic", FakeAnthropic), patch.dict(os.environ, env, clear=True):
+                client = LLMClient(logger)
+                self.assertEqual(client.available_models, ["base-model", "small-model", "large-model"])
+                with self.assertRaises(ValueError):
+                    client.select_model("unlisted-model")
+                self.assertEqual(client.model, "base-model")
+                client.select_model("large-model")
+                client.call(system="system", messages=[{"role": "user", "content": "hello"}], tools=[], max_tokens=128)
+                self.assertEqual(FakeAnthropic.instances[0].last_model, "large-model")
+                client.select_model("base-model")
+                self.assertEqual(client.model, "base-model")
+
+                runner = ToolRunner(logger, workspace=temp)
+                runner.llm_client = client
+                self.assertTrue(runner.execute("select_model", {"model": "small-model"})["ok"])
+                self.assertEqual(client.model, "small-model")
+                self.assertFalse(runner.execute("select_model", {"model": "unlisted-model"})["ok"])
+                self.assertEqual(client.model, "small-model")
+
     def test_key_list_accepts_json_and_delimited_values(self) -> None:
         with patch.dict(os.environ, {"TEST_KEYS": '["one", "two"]'}, clear=False):
             self.assertEqual(_env_key_list("TEST_KEYS"), ["one", "two"])

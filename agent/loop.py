@@ -45,6 +45,7 @@ Operating rules:
 - For optional model providers, first use research_provider to fetch only its official documentation and then record_provider_verification. Never trust stale quota facts.
 - If a supplementary provider lacks a credential, use request_provider_key. It writes /home/entity/state/key_requests.md for the human; do not create accounts or stop unrelated exploration.
 - Use ask_brain only for plain-text subproblems after the router says the provider is safely available. Never use multiple accounts or try to evade limits.
+- Choose the primary model for subsequent calls with select_model when another configured model better fits the task. Use only listed models; the base model is the starting choice. Model changes take effect after the tool result.
 - You are root inside the container. The Docker container boundary is the security boundary.
 - Any new credential, host mount, port, email, money, third-party account, or external service is a capability expansion. Use request_capability and wait for the human to change host .env/docker-compose; do not try to perform it yourself.
 - `/opt/agent/core/` is protected image-owned harness code. Read it when useful, but do not modify it with normal tools. Put an evidence-backed unified diff and reasoning in `state/proposed_patches/` with propose_core_patch; only the human may apply it from the host.
@@ -161,6 +162,7 @@ class AgentLoop:
             max_token_budget=max_token_budget,
         )
         self.tools = tools
+        self.tools.llm_client = llm if hasattr(llm, "select_model") else None
         self.registry = ToolRegistry(config.workspace, logger, self.llm.call,
                                      {tool["name"] for tool in TOOL_DEFINITIONS},
                                      output_cap=tools.output_cap)
@@ -262,7 +264,17 @@ class AgentLoop:
         except Exception as exc:
             self.logger.log("identity_context_fallback", error_type=type(exc).__name__)
             context = "## Persistent identity\nIdentity state could not be loaded; do not invent identity claims."
-        return f"{SYSTEM_PROMPT}\n\n{self.logger.redactor.text(context)}"
+        client = self.llm.client
+        model_context = ""
+        if hasattr(client, "available_models"):
+            model_context = (
+                "\n\n## Primary LLM models\n"
+                f"Base: {client.base_model}\n"
+                f"Current: {client.model}\n"
+                f"Available: {', '.join(client.available_models)}\n"
+                "Select only models you know are accessible with the configured API key."
+            )
+        return f"{SYSTEM_PROMPT}{model_context}\n\n{self.logger.redactor.text(context)}"
 
     def _refresh_learning_runtime(self) -> None:
         self.registry.refresh()
@@ -399,7 +411,8 @@ class AgentLoop:
                     f"{active_task or STANDING_GOAL}\n{cycle_report or last_report}",
                     self.config.top_k_tools,
                 )
-                base = [tool for tool in TOOL_DEFINITIONS if self.config.base_tool_names is None or tool["name"] in self.config.base_tool_names]
+                model_choice_enabled = self.tools.llm_client is not None and len(getattr(self.tools.llm_client, "available_models", [])) > 1
+                base = [tool for tool in TOOL_DEFINITIONS if (self.config.base_tool_names is None or tool["name"] in self.config.base_tool_names) and (tool["name"] != "select_model" or model_choice_enabled)]
                 definitions = base + [CREATE_TOOL_DEFINITION] + selected
                 try:
                     result = self.llm.call(system=self._system_prompt(), messages=messages,
@@ -442,14 +455,15 @@ class AgentLoop:
                         arguments = {}
                     self.logger.narrate(self._tool_narration(name, arguments))
                     action_key = json.dumps({"name": name, "arguments": arguments}, ensure_ascii=False, sort_keys=True)
-                    if action_key in seen_tool_actions:
+                    if name != "select_model" and action_key in seen_tool_actions:
                         observation = {
                             "ok": False,
                             "error": "This exact tool action already ran earlier in this run; choose a different investigation or finish with a report.",
                         }
                         self.logger.log("repeated_tool_action_blocked", tool=name)
                     else:
-                        seen_tool_actions.add(action_key)
+                        if name != "select_model":
+                            seen_tool_actions.add(action_key)
                         try:
                             if name not in {tool["name"] for tool in definitions}:
                                 observation = {"ok": False, "error": "Tool not offered in this step; use task keywords to retrieve it."}

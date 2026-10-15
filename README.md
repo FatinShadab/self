@@ -34,6 +34,8 @@ In simple terms, SELF can:
   itself and its code;
 - talk with a human through a terminal interface, including plans, status,
   commands, optional voice features, goals, and stop/pause controls;
+- view explored directories and registered custom tools with `/coverage`, and
+  select from configured primary models during a run;
 - recover from interrupted sessions and leave logs showing what it tried and
   what happened.
 
@@ -56,30 +58,66 @@ small, observable place where that question can be explored honestly—with
 evidence, logs, boundaries, and room for unexpected behavior. The eventual
 direction may become clearer through use.
 
-## Phase 2: run the exploration loop
+## How to run
 
-Keep credentials only in the gitignored `.env` file. Then build and start the
-container:
+You need Docker with the Compose plugin and an Ollama Cloud or Anthropic API
+key. Run these commands from the repository root in PowerShell:
 
 ```powershell
 if (-not (Test-Path .env)) { Copy-Item .env.example .env }
-# Edit .env and set OLLAMA_API_KEYS (comma-separated for multiple keys).
+# Edit .env: set OLLAMA_API_KEY (or ANTHROPIC_API_KEY and ANTHROPIC_MODEL).
 docker compose build
-docker compose up -d
+docker compose run --rm self
 ```
 
-The provider key variables accept either a comma-separated list or a JSON
-array. For example: `OLLAMA_API_KEYS=key_one,key_two`. SELF tries the current
-key and rotates to the next key after a provider quota, rate-limit, or
-authentication failure. The older singular `OLLAMA_API_KEY` and
-`ANTHROPIC_API_KEY` variables remain supported as one-key fallbacks. Key
-values are never written to logs.
+The last command opens SELF's interactive terminal UI. Type `/goal <text>` to
+give the autonomous loop a focus, `/coverage` to inspect explored directories
+and saved tools, and `/stop` to end the session cleanly. The first wake also
+asks you to name SELF and can record your preferred name. If a previous stop
+left `workspace/STOP`, remove that file before starting another session, or
+use `/restart` in the UI. Runtime memory and logs persist under `workspace/`.
 
-Run a five-cycle exploration with a bounded token budget:
+For a bounded run with plain terminal output instead of the UI:
 
 ```powershell
-docker compose exec self python /opt/agent/loop.py --max-iterations 5 --token-budget 20000
+docker compose run --rm self --headless --max-iterations 10 --token-budget 20000
 ```
+
+To run the test suite without starting the agent or requiring an API key:
+
+```powershell
+docker compose run --rm --entrypoint python self -m unittest discover -s /opt/agent/tests -v
+```
+
+See [provider and model configuration](#phase-2-run-the-exploration-loop)
+for key rotation and model selection. [Wake-up sessions and terminal UI](#phase-7-wake-up-sessions-and-terminal-ui)
+has the full command list and service-based startup.
+
+## Phase 2: run the exploration loop
+
+Keep credentials only in the gitignored `.env` file. To run the original
+exploration loop directly rather than the wake-up UI:
+
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+# Edit .env and set OLLAMA_API_KEY.
+docker compose build
+docker compose run --rm --entrypoint python self /opt/agent/loop.py --max-iterations 5 --token-budget 20000
+```
+
+For multiple keys, use `OLLAMA_API_KEYS` or `ANTHROPIC_API_KEYS` in `.env`
+instead. These accept a comma-separated list or JSON array; for example,
+`OLLAMA_API_KEYS=key_one,key_two`. SELF rotates keys after a provider quota,
+rate-limit, or authentication failure. Ollama takes priority if both providers
+have keys. Key values are never written to logs.
+
+Set `OLLAMA_MODEL` as the base model and list other models accessible with the
+same API key(s) in `LLM_AVAILABLE_MODELS`, separated by commas or as a JSON
+array. For example, `LLM_AVAILABLE_MODELS=small-model,large-model`. The base
+model is included automatically. SELF starts with the base model and can call
+`select_model` to choose another listed model for subsequent primary LLM calls.
+Only configured models can be selected. With an Anthropic key, use
+`ANTHROPIC_MODEL` for the base model and the same `LLM_AVAILABLE_MODELS` list.
 
 The readable narration streams to the terminal. Structured events append to
 `workspace/logs/actions.jsonl`. Create `workspace/STOP` on the host to halt at
@@ -363,7 +401,7 @@ docker compose run --rm self --headless --max-iterations 10
 ```
 
 Chat commands: `/pause`, `/resume`, `/stop`, `/plan`, `/journal`, `/tools`,
-`/requests`, `/memory <query>`, `/budget`, `/goal <text>`, `/typing on|off`,
+`/coverage`, `/back`, `/requests`, `/memory <query>`, `/budget`, `/goal <text>`, `/typing on|off`,
 `/voice on|off`, and `/listen`. Voice output is opt-in; native Windows runs
 prefer the first installed female System.Speech voice, while Docker on Windows
 needs a separate audio bridge to reach the host speaker. The conversation also
@@ -380,6 +418,14 @@ Conversation threads are read-only and share the daily token ledger with
 autonomous work. `/goal <text>` remains the explicit way to send a new focus
 to the autonomous loop. `/stop` writes STOP; remove `workspace/STOP` before a
 future wake.
+
+`/coverage` opens a scrollable view of exploration across all recorded sessions;
+`/back` returns to the main UI. It shows distinct directories, visit counts,
+and registered custom tools with their saved descriptions. A visit is one
+successful `list_dir` or a successful `read_file` in that file's parent
+directory. Repeated visits count again; shell commands are excluded because
+their paths cannot be identified reliably. Type `/coverage` again to refresh.
+
 Tool rounds within a cycle are unlimited; the run still observes STOP, token,
 wall-clock, and per-session iteration bounds. Identical tool actions are
 reported back to the model so it can choose a different investigation.

@@ -16,8 +16,9 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any, Callable
 
-from base_tools import ToolRunner
+from base_tools import TOOL_DEFINITIONS, ToolRunner
 from conversation import ConversationManager
+from exploration_coverage import CoverageSummary, build_coverage
 from event_log import EventLogger
 from hardening import DailyTokenLedger
 from identity import IdentityStore
@@ -862,6 +863,8 @@ class WakeCoordinator:
         resume_checkpoint_task = not stale_startup_task
         runner = ToolRunner(self.logger, self.workspace)
         runner.identity = self.identity
+        if self._llm is None:
+            self._llm = LLMClient(self.logger)
         loop = AgentLoop(
             AgentConfig(
                 workspace=self.workspace,
@@ -878,7 +881,7 @@ class WakeCoordinator:
                 identity_context_provider=self.identity.prompt_context,
                 daily_ledger=self.daily_ledger,
             ),
-            self.logger, self._llm or LLMClient(self.logger), runner,
+            self.logger, self._llm, runner,
         )
         self.status.active_model, self.status.active_provider = getattr(loop.llm.client, "model", "unknown"), getattr(loop.llm.client, "provider", "unknown")
         try:
@@ -1012,6 +1015,8 @@ def run_tui(coordinator: WakeCoordinator) -> int:
     class SelfApp(App[None]):
         CSS = """
         #body { height: 1fr; }
+        #coverage { height: 1fr; border: solid $primary; padding: 0 1; scrollbar-gutter: stable; display: none; }
+        #coverage-content { width: 100%; }
         #conversation-pane { width: 2fr; border: solid $primary; }
         #work-pane { width: 1.5fr; border: solid $secondary; }
         #conversation-top { height: 6; }
@@ -1052,6 +1057,10 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             self._agent_running = False
             self._monitor_tick = 0
             self._container_metrics = ContainerMetrics()
+            self._coverage_open = False
+            self._coverage_generation = 0
+            self._main_scroll_positions: tuple[float, float] | None = None
+            self._main_chat_placeholder = "Talk to SELF; /name <your name> /restart /identity /rename <entity name>; /stop pauses safely"
 
         def compose(self) -> ComposeResult:
             yield Header(show_clock=True)
@@ -1071,7 +1080,9 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                     yield Static("Session loading...", id="session", markup=True)
                     yield Static("Usage loading...", id="usage", markup=True)
                     yield Static("Container loading...", id="container", markup=True)
-            yield Input(placeholder="Talk to SELF; /name <your name> /restart /identity /rename <entity name>; /stop pauses safely", id="chat")
+            with VerticalScroll(id="coverage"):
+                yield Static("", id="coverage-content", markup=True)
+            yield Input(placeholder=self._main_chat_placeholder, id="chat")
             yield Footer()
 
         def on_mount(self) -> None:
@@ -1207,6 +1218,78 @@ def run_tui(coordinator: WakeCoordinator) -> int:
         def _write_command(self, message: str) -> None:
             self._queue_activity(f"human command: {message}")
 
+        def _open_coverage(self) -> None:
+            if not self._coverage_open:
+                self._main_scroll_positions = (
+                    self.query_one("#conversation", VerticalScroll).scroll_y,
+                    self.query_one("#worklog", VerticalScroll).scroll_y,
+                )
+            self._coverage_open = True
+            self._coverage_generation += 1
+            generation = self._coverage_generation
+            self.query_one("#body", Horizontal).styles.display = "none"
+            self.query_one("#coverage", VerticalScroll).styles.display = "block"
+            self.query_one("#coverage-content", Static).update("[b]Exploration coverage[/b]\nLoading recorded activity...")
+            self.query_one("#coverage", VerticalScroll).scroll_home(animate=False)
+            self.query_one("#chat", Input).placeholder = "Coverage: /back to main UI; /coverage to refresh"
+            self.run_worker(lambda: self._load_coverage(generation), thread=True, exclusive=False)
+
+        def _load_coverage(self, generation: int) -> None:
+            try:
+                summary = build_coverage(coordinator.workspace, {definition["name"] for definition in TOOL_DEFINITIONS})
+            except OSError as exc:
+                self.call_from_thread(self._coverage_error, generation, type(exc).__name__)
+                return
+            self.call_from_thread(self._show_coverage, generation, summary)
+
+        def _coverage_error(self, generation: int, error: str) -> None:
+            if self._coverage_open and generation == self._coverage_generation:
+                self.query_one("#coverage-content", Static).update(
+                    "[b]Exploration coverage[/b]\nCould not read coverage: " + escape_rich_markup(error)
+                )
+
+        def _show_coverage(self, generation: int, summary: CoverageSummary) -> None:
+            if not self._coverage_open or generation != self._coverage_generation:
+                return
+            lines = [
+                "[b]Exploration coverage[/b]",
+                f"Directories explored: {len(summary.directories)}  |  Visits: {summary.total_visits}  |  Created tools: {len(summary.tools)}",
+                "Visits count successful directory listings and file reads in that directory across all sessions.",
+                "Shell commands are excluded. Type /back to return or /coverage to refresh.",
+                "",
+                "[b]Directories[/b]",
+            ]
+            lines.extend(
+                f"{count:>5}  {escape_rich_markup(path)}"
+                for path, count in summary.directories
+            )
+            if not summary.directories:
+                lines.append("No recorded directory visits yet.")
+            lines.extend(("", "[b]Created tools[/b]"))
+            lines.extend(
+                f"[b]{escape_rich_markup(name)}[/b] — "
+                f"{escape_rich_markup(description[:180] + ('…' if len(description) > 180 else ''))}"
+                for name, description in summary.tools
+            )
+            if not summary.tools:
+                lines.append("No registered custom tools yet.")
+            self.query_one("#coverage-content", Static).update("\n".join(lines))
+
+        def _back_from_coverage(self) -> None:
+            self._coverage_open = False
+            self._coverage_generation += 1
+            self.query_one("#coverage", VerticalScroll).styles.display = "none"
+            self.query_one("#body", Horizontal).styles.display = "block"
+            self.query_one("#chat", Input).placeholder = self._main_chat_placeholder
+            positions = self._main_scroll_positions
+            self._main_scroll_positions = None
+            if positions is not None:
+                self.call_after_refresh(lambda: self._restore_main_scroll(positions))
+
+        def _restore_main_scroll(self, positions: tuple[float, float]) -> None:
+            self.query_one("#conversation", VerticalScroll).scroll_to(y=positions[0], animate=False)
+            self.query_one("#worklog", VerticalScroll).scroll_to(y=positions[1], animate=False)
+
         def _voice_status(self, message: str | None = None) -> None:
             self._queue_activity(message or self.voice.status_text())
 
@@ -1269,6 +1352,9 @@ def run_tui(coordinator: WakeCoordinator) -> int:
 
         def _refresh(self) -> None:
             telemetry = coordinator.runtime_snapshot()
+            active_client = coordinator._llm
+            active_provider = getattr(active_client, "provider", coordinator.status.active_provider)
+            active_model = getattr(active_client, "model", coordinator.status.active_model)
             ai_counts = telemetry["calls_by_ai"]
             calls = "\n".join(
                 f"{escape_rich_markup(name)}: {escape_rich_markup(count)}"
@@ -1306,7 +1392,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                 "[b]Session[/b]\n"
                 f"ID: {escape_rich_markup(coordinator.status.session_id[:12] or 'starting')}\n"
                 f"Iteration: {escape_rich_markup(coordinator.status.iteration)}\n"
-                f"Model: {escape_rich_markup(coordinator.status.active_provider)}/{escape_rich_markup(coordinator.status.active_model)}\n"
+                f"Model: {escape_rich_markup(active_provider)}/{escape_rich_markup(active_model)}\n"
                 f"Tools: {len(coordinator._tool_list())}\n"
                 f"Uptime: {uptime}s\n"
                 f"Since human input: {since_human}s"
@@ -1339,6 +1425,14 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             text = event.value.strip()
             event.input.value = ""
             if not text:
+                return
+            if text == "/coverage":
+                self._write_command(text)
+                self._open_coverage()
+                return
+            if text == "/back" and self._coverage_open:
+                self._write_command(text)
+                self._back_from_coverage()
                 return
             if text == "/voice":
                 self._write_command(text); self._voice_status(); return
