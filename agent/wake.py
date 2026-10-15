@@ -49,6 +49,16 @@ def visible_plan_items(plan: list[dict[str, Any]]) -> list[dict[str, Any]]:
     ]
 
 
+def normalized_plan(plan: list[dict[str, Any]]) -> list[dict[str, Any]]:
+    """Keep only actionable plan entries in durable state.
+
+    Completed/cancelled entries are useful in logs, but retaining them in the
+    handoff invites the next reflection to resurrect stale work.
+    """
+    active = visible_plan_items(plan)
+    return active if active else default_plan()
+
+
 def _read_json(path: Path) -> dict[str, Any]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -350,10 +360,10 @@ class WakeCoordinator:
         elif event == "cycle_completed":
             summary = f"Cycle {record.get('cycle', '?')} summary\n{record.get('report', '')}".strip()
             self._cycle_summaries.append(summary)
-            if self.on_chat:
+            if self.on_chat and not self.stop_requested and not (self.workspace / "STOP").exists():
                 self.on_chat(summary, "cycle")
         elif event == "session_summary":
-            if self.on_chat:
+            if self.on_chat and not self.stop_requested and not (self.workspace / "STOP").exists():
                 self.on_chat(str(record.get("message", "")), "session")
         if activity:
             clean = self.logger.redactor.text(activity).strip()
@@ -537,7 +547,7 @@ class WakeCoordinator:
     def revise_plan(self) -> None:
         self._recover_budget_blocked_plan()
         reflected = self._reflection("wake-up plan review", "Revise the old plan against current state and spot checks.")
-        self.plan = list(reflected.get("plan") or self.plan)
+        self.plan = normalized_plan(list(reflected.get("plan") or self.plan))
         self._recover_budget_blocked_plan()
         self.handoff["long_term_summary"] = reflected.get("summary", self.handoff.get("long_term_summary", ""))
         self.logger.narrate("I reviewed the previous plan against current state and updated the plan.")
@@ -689,7 +699,7 @@ class WakeCoordinator:
                     "shutdown reflection",
                     f"Loop ended with reason={summary.reason}; intended session work: {session_attempt}; last report={self.handoff.get('summary', '')}",
                 )
-            self.plan = list(reflection.get("plan") or self.plan)
+            self.plan = normalized_plan(list(reflection.get("plan") or self.plan))
             achieved = str(reflection.get("achieved") or reflection.get("summary") or "No textual achievement report was returned.")
             attempted = str(reflection.get("attempted") or session_attempt)
             active_plan = visible_plan_items(self.plan)
@@ -784,11 +794,11 @@ def run_tui(coordinator: WakeCoordinator) -> int:
         .typing-message { border-left: thick $secondary; background: $panel; color: $text-muted; }
         #side { width: 1fr; }
         #identity, #activity, #session, #usage, #container { border: solid $secondary; padding: 1; }
-        #identity { height: 1.15fr; }
+        #identity { height: 0.85fr; }
         #activity { height: 0.85fr; }
         #session { height: 1.25fr; }
         #usage { height: 1.35fr; }
-        #container { height: 1.15fr; }
+        #container { height: 1.45fr; }
         #chat { dock: bottom; }
         """
 
@@ -854,6 +864,10 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             self.title = f"SELF — {coordinator.identity.display_name()} {frames[self._activity_frame]} {state}"
 
         def _queue_chat(self, role: str, message: str, kind: str) -> None:
+            # A worker can finish concurrently with /stop. Do not enqueue
+            # late autonomous output once the stop boundary has been set.
+            if role == "agent" and (coordinator.stop_requested or (coordinator.workspace / "STOP").exists()):
+                return
             self._pending_chat.append((role, message, kind))
             if not self._draining_chat:
                 self._draining_chat = True
@@ -880,6 +894,8 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             try:
                 while self._pending_chat:
                     role, message, kind = self._pending_chat.pop(0)
+                    if role == "agent" and (coordinator.stop_requested or (coordinator.workspace / "STOP").exists()):
+                        continue
                     follow = conversation.scroll_y >= conversation.max_scroll_y - 1
                     bubble = Static(self._render_message(role, "" if role == "agent" and self.typing_enabled else message, kind, typing=role == "agent" and self.typing_enabled), classes=f"message {'human' if role == 'human' else 'agent'}-message")
                     await conversation.mount(bubble)
@@ -890,6 +906,8 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                     if role == "agent" and self.typing_enabled:
                         step = max(1, len(message) // 90)
                         for index in range(step, len(message) + step, step):
+                            if coordinator.stop_requested or (coordinator.workspace / "STOP").exists():
+                                break
                             visible = message[:index]
                             if len(visible) >= len(message):
                                 visible = message
@@ -934,6 +952,8 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             self._queue_activity(f"[{kind}] {message}")
 
         def _conversation_result(self, thread_id: str, message: str, kind: str) -> None:
+            if coordinator.stop_requested or (coordinator.workspace / "STOP").exists():
+                return
             self.call_from_thread(self._queue_chat, "agent", message, "conversation" if kind == "assistant" else "error")
 
         def _watch_human_request(self) -> None:
@@ -992,15 +1012,10 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             budget_label = "daily-only" if coordinator.token_budget is None else str(run_budget)
             daily_remaining = max(0, telemetry["daily_cap"] - telemetry["daily_used"] - telemetry["daily_reserved"]) if telemetry["daily_cap"] else "unknown"
             identity = coordinator.identity.load()
-            voice = " ".join(str(identity.get("voice", "")).split())
-            if len(voice) > 150:
-                voice = voice[:147].rstrip() + "..."
             identity_panel = (
                 "[b]Identity[/b]\n"
                 f"Name: {identity.get('name') or 'unnamed'}\n"
-                f"Human: {identity.get('human_name') or 'not yet known'}\n"
-                f"Voice: {voice or 'not set'}\n"
-                f"Output: {self.voice.status_text()}"
+                f"Human: {identity.get('human_name') or 'not yet known'}"
             )
             activity_panel = (
                 "[b]Activity[/b]\n"
@@ -1101,6 +1116,10 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                 coordinator.paused.clear(); self._command_response("Resuming."); return
             if text == "/stop":
                 self._write_command(text)
+                # Drop agent messages queued before the stop command. The
+                # currently rendered bubble is also interrupted by the
+                # stop-aware typing loop above.
+                self._pending_chat.clear()
                 coordinator.stop_requested = True; (coordinator.workspace / "STOP").touch(); self._command_response("Stop requested; finishing the current safe action.", "request"); return
             if text == "/plan":
                 self._write_command(text)

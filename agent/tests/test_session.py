@@ -10,7 +10,7 @@ from event_log import EventLogger
 from identity import IdentityStore
 from llm import LLMResult
 from session import HumanInbox, SessionStore
-from wake import WakeCoordinator, visible_plan_items
+from wake import WakeCoordinator, normalized_plan, visible_plan_items
 
 
 class WakeFakeLLM:
@@ -40,6 +40,16 @@ class SessionTests(unittest.TestCase):
             self.assertEqual(snapshot["current_activity"], "$ printf hello")
             self.assertEqual(snapshot["activity"][-1], "$ printf hello")
 
+    def test_stop_suppresses_late_chat_summaries(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            coordinator = WakeCoordinator(temp, llm_client=WakeFakeLLM())
+            messages: list[tuple[str, str]] = []
+            coordinator.on_chat = lambda message, kind: messages.append((message, kind))
+            coordinator.stop_requested = True
+            coordinator._event_listener({"event": "cycle_completed", "cycle": 1, "report": "retrying test"})
+            coordinator._event_listener({"event": "session_summary", "message": "session complete"})
+            self.assertEqual(messages, [])
+
     def test_plan_panel_filters_completed_items(self) -> None:
         visible = visible_plan_items([
             {"step": "Finished inspection", "status": "completed"},
@@ -47,6 +57,13 @@ class SessionTests(unittest.TestCase):
             {"step": "Achieved check", "status": "achieved"},
         ])
         self.assertEqual([item["step"] for item in visible], ["Continue mapping"])
+
+    def test_normalized_plan_drops_completed_items_from_durable_state(self) -> None:
+        normalized = normalized_plan([
+            {"step": "Finished inspection", "status": "completed"},
+            {"step": "Continue mapping", "status": "todo"},
+        ])
+        self.assertEqual([item["step"] for item in normalized], ["Continue mapping"])
 
     def test_inbox_is_persistent_and_consumed_once(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
