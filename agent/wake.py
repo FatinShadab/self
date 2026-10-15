@@ -471,7 +471,12 @@ class WakeCoordinator:
             self.logger.narrate(message)
         old = self._session_info.get("handoff", {})
         self.handoff = old
-        self.plan = list(old.get("plan") or default_plan())
+        # Prune the persisted plan before either the TUI or the reflection
+        # prompt sees it. Otherwise a stale todo is briefly displayed and can
+        # be copied back by the model during the wake-up reflection.
+        self.plan = normalized_plan(list(old.get("plan") or default_plan()))
+        self._recover_budget_blocked_plan()
+        self.handoff["plan"] = self.plan
         changes = self._orientation_changes()
         checks = self._spot_check_map()
         crash = self._session_info.get("crash")
@@ -556,19 +561,44 @@ class WakeCoordinator:
         """Clear stale budget blockers once the daily ledger has room again."""
         if self.daily_ledger.available_tokens() < 2_048:
             return
+        entries = self.learning._load_map().get("entries", {})
+        packages_value = entries.get("packages", {}).get("value")
+        packages_known = bool(packages_value) and packages_value != "not yet inventoried"
+        environment_known = any(
+            bool(entries.get(key, {}).get("value"))
+            for key in ("disk", "network_reachability", "network_ping_google")
+        )
         changed = False
+        retained: list[dict[str, Any]] = []
         for item in self.plan:
-            if not isinstance(item, dict) or str(item.get("status", "")).lower() not in {"blocked", "stuck"}:
+            if not isinstance(item, dict):
                 continue
             details = f"{item.get('step', '')} {item.get('why', '')}".lower()
-            if not any(marker in details for marker in ("token", "budget", "limit")):
+            token_item = any(marker in details for marker in ("token", "budget", "limit"))
+            package_item = "installed python packages" in details or "python package inventory" in details
+            environment_item = "free disk" in details or "network reachability" in details
+
+            # A daily-only run does not need a human decision about a future
+            # per-run token budget. Remove that stale request even if the
+            # reflection incorrectly returns it as an active todo item.
+            if token_item and self.token_budget is None:
+                changed = True
                 continue
-            item["status"] = "todo"
-            item["why"] = "The previous token-budget blocker is cleared; continue using the remaining daily allowance."
-            changed = True
+            if package_item and packages_known:
+                changed = True
+                continue
+            if environment_item and environment_known:
+                changed = True
+                continue
+            if token_item and str(item.get("status", "")).lower() in {"blocked", "stuck"}:
+                item["status"] = "todo"
+                item["why"] = "The previous token-budget blocker is cleared; continue using the remaining daily allowance."
+                changed = True
+            retained.append(item)
+        self.plan = retained or default_plan()
         if changed:
             self.logger.log("stale_budget_plan_recovered", available_daily_tokens=self.daily_ledger.available_tokens())
-            self.logger.narrate("The previous per-run budget blocker is stale; I restored those plan items and will use the daily allowance.")
+            self.logger.narrate("I removed stale plan items and will continue using the available daily allowance.")
 
     def _make_handoff(self, report: str, reason: str) -> dict[str, Any]:
         map_entries = self.learning._load_map().get("entries", {})
@@ -700,6 +730,7 @@ class WakeCoordinator:
                     f"Loop ended with reason={summary.reason}; intended session work: {session_attempt}; last report={self.handoff.get('summary', '')}",
                 )
             self.plan = normalized_plan(list(reflection.get("plan") or self.plan))
+            self._recover_budget_blocked_plan()
             achieved = str(reflection.get("achieved") or reflection.get("summary") or "No textual achievement report was returned.")
             attempted = str(reflection.get("attempted") or session_attempt)
             active_plan = visible_plan_items(self.plan)

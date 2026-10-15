@@ -50,6 +50,35 @@ class SessionTests(unittest.TestCase):
             coordinator._event_listener({"event": "session_summary", "message": "session complete"})
             self.assertEqual(messages, [])
 
+    def test_recovery_removes_stale_daily_budget_plan_item(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            coordinator = WakeCoordinator(temp, llm_client=WakeFakeLLM())
+            coordinator.plan = [{
+                "priority": 1,
+                "status": "todo",
+                "step": "Obtain a decision from the human on increasing the token budget for the next run.",
+                "why": "The old budget blocker is unresolved.",
+            }]
+            coordinator._recover_budget_blocked_plan()
+            self.assertNotIn("token budget", coordinator.plan[0]["step"].lower())
+
+    def test_boot_prunes_stale_plan_before_the_ui_can_render_it(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            state = root / "state"
+            state.mkdir(parents=True)
+            (state / "handoff.json").write_text(json.dumps({
+                "plan": [{
+                    "priority": 1,
+                    "status": "todo",
+                    "step": "Obtain a decision from the human on increasing the token budget for the next run.",
+                    "why": "Old per-run blocker.",
+                }],
+            }), encoding="utf-8")
+            coordinator = WakeCoordinator(root, llm_client=WakeFakeLLM())
+            coordinator.boot()
+            self.assertNotIn("token budget", coordinator.plan[0]["step"].lower())
+
     def test_plan_panel_filters_completed_items(self) -> None:
         visible = visible_plan_items([
             {"step": "Finished inspection", "status": "completed"},
