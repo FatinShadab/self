@@ -132,6 +132,17 @@ def clamped_plan_height(requested: int, work_pane_height: int) -> int:
     return max(PLAN_MIN_HEIGHT, min(maximum, requested))
 
 
+def escape_rich_markup(value: Any) -> str:
+    """Return untrusted text that is safe to interpolate into Rich markup.
+
+    The TUI uses a few Rich tags for its own headings. Plan entries, identity
+    fields, provider labels, and telemetry, however, can originate with an LLM
+    or command output. A literal ``[`` in any of those values is Rich markup
+    syntax and may otherwise make the entire Textual screen fail to reflow.
+    """
+    return str(value).replace("\\", "\\\\").replace("[", "\\[")
+
+
 def _read_json(path: Path) -> dict[str, Any]:
     try:
         data = json.loads(path.read_text(encoding="utf-8"))
@@ -961,7 +972,6 @@ def run_tui(coordinator: WakeCoordinator) -> int:
         from textual.widgets import Footer, Header, Input, Static
         from rich.console import Group
         from rich.markdown import Markdown
-        from rich.markup import escape
         from rich.text import Text
         from voice import VoiceController
     except ImportError:
@@ -1255,13 +1265,21 @@ def run_tui(coordinator: WakeCoordinator) -> int:
         def _refresh(self) -> None:
             telemetry = coordinator.runtime_snapshot()
             ai_counts = telemetry["calls_by_ai"]
-            calls = "\n".join(f"{name}: {count}" for name, count in sorted(ai_counts.items())) or "No AI calls yet"
+            calls = "\n".join(
+                f"{escape_rich_markup(name)}: {escape_rich_markup(count)}"
+                for name, count in sorted(ai_counts.items())
+            ) or "No AI calls yet"
             active_plan = visible_plan_items(coordinator.plan)
-            plan = "\n".join(f"{item.get('priority', 3)}. [{item.get('status', 'todo')}] {item.get('step', '')}" for item in active_plan)
+            plan = "\n".join(
+                f"{escape_rich_markup(item.get('priority', 3))}. "
+                f"({escape_rich_markup(item.get('status', 'todo'))}) "
+                f"{escape_rich_markup(item.get('step', ''))}"
+                for item in active_plan
+            )
             current_activity = " ".join(str(telemetry.get("current_activity", "")).split())[:220]
             plan_panel = "[b]Plan[/b]\n" + (plan or "No plan")
             if current_activity:
-                plan_panel += "\n\n[b]Now[/b]\n" + escape(current_activity)
+                plan_panel += "\n\n[b]Now[/b]\n" + escape_rich_markup(current_activity)
             uptime = int(time.monotonic() - coordinator.status.started_monotonic)
             since_human = int(time.monotonic() - coordinator.status.last_human_input)
             run_tokens = telemetry["run_tokens_used"] or coordinator.status.tokens_used
@@ -1271,19 +1289,19 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             identity = coordinator.identity.load()
             identity_panel = (
                 "[b]Identity[/b]\n"
-                f"Agent: {identity.get('name') or 'unnamed'}\n"
-                f"Human: {identity.get('human_name') or 'not yet known'}"
+                f"Agent: {escape_rich_markup(identity.get('name') or 'unnamed')}\n"
+                f"Human: {escape_rich_markup(identity.get('human_name') or 'not yet known')}"
             )
             activity_panel = (
                 "[b]Activity[/b]\n"
-                f"Presence: {telemetry['state']}\n"
-                f"AI: {telemetry['current_ai']}"
+                f"Presence: {escape_rich_markup(telemetry['state'])}\n"
+                f"AI: {escape_rich_markup(telemetry['current_ai'])}"
             )
             session_panel = (
                 "[b]Session[/b]\n"
-                f"ID: {coordinator.status.session_id[:12] or 'starting'}\n"
-                f"Iteration: {coordinator.status.iteration}\n"
-                f"Model: {coordinator.status.active_provider}/{coordinator.status.active_model}\n"
+                f"ID: {escape_rich_markup(coordinator.status.session_id[:12] or 'starting')}\n"
+                f"Iteration: {escape_rich_markup(coordinator.status.iteration)}\n"
+                f"Model: {escape_rich_markup(coordinator.status.active_provider)}/{escape_rich_markup(coordinator.status.active_model)}\n"
                 f"Tools: {len(coordinator._tool_list())}\n"
                 f"Uptime: {uptime}s\n"
                 f"Since human input: {since_human}s"
@@ -1300,10 +1318,10 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             metrics = self._container_metrics.snapshot()
             container_panel = (
                 "[b]Container[/b]\n"
-                f"CPU: {metrics['cpu']}\n"
-                f"RAM: {metrics['ram']}\n"
-                f"Network: {metrics['network']}\n"
-                f"Disk read: {metrics['disk_read']}"
+                f"CPU: {escape_rich_markup(metrics['cpu'])}\n"
+                f"RAM: {escape_rich_markup(metrics['ram'])}\n"
+                f"Network: {escape_rich_markup(metrics['network'])}\n"
+                f"Disk read: {escape_rich_markup(metrics['disk_read'])}"
             )
             self.query_one("#identity", Static).update(identity_panel)
             self.query_one("#activity", Static).update(activity_panel)

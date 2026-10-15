@@ -10,7 +10,7 @@ from event_log import EventLogger
 from identity import IdentityStore
 from llm import LLMResult
 from session import HumanInbox, SessionStore
-from wake import cardiac_monitor_frame, cardiac_monitor_intensity, WakeCoordinator, clamped_plan_height, normalized_plan, visible_plan_items
+from wake import cardiac_monitor_frame, cardiac_monitor_intensity, escape_rich_markup, WakeCoordinator, clamped_plan_height, normalized_plan, visible_plan_items
 
 
 class WakeFakeLLM:
@@ -32,6 +32,16 @@ class WakeFakeLLM:
 
 
 class SessionTests(unittest.TestCase):
+    def test_escape_rich_markup_keeps_bracketed_tool_output_literal(self) -> None:
+        from rich.text import Text
+
+        path = "[/usr/lib/apt/apt.systemd.daily update]"
+        panel = "[b]Plan[/b]\n1. (todo) " + escape_rich_markup(path)
+
+        rendered = Text.from_markup(panel)
+
+        self.assertIn(path, rendered.plain)
+
     def test_cardiac_monitor_frame_keeps_a_fixed_ascii_canvas(self) -> None:
         blank = cardiac_monitor_frame(0)
         pulse = cardiac_monitor_frame(6)
