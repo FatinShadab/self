@@ -89,6 +89,126 @@ class RuntimeTelemetry:
     current_activity: str = ""
 
 
+def _format_bytes(value: int | None) -> str:
+    if value is None or value < 0:
+        return "—"
+    amount = float(value)
+    for unit in ("B", "KB", "MB", "GB", "TB"):
+        if amount < 1024 or unit == "TB":
+            return f"{amount:.1f} {unit}" if unit != "B" else f"{int(amount)} B"
+        amount /= 1024
+    return "—"
+
+
+def _read_int_file(path: str | Path) -> int | None:
+    try:
+        return int(Path(path).read_text(encoding="utf-8").strip())
+    except (OSError, ValueError):
+        return None
+
+
+def _read_cgroup_value(filename: str, *groups: str) -> int | None:
+    for group in groups:
+        value = _read_int_file(Path("/sys/fs/cgroup") / group / filename)
+        if value is not None:
+            return value
+    return None
+
+
+class ContainerMetrics:
+    """Best-effort live metrics for the current container namespace/cgroup."""
+
+    def __init__(self) -> None:
+        self._last_cpu_usage: int | None = None
+        self._last_sample = time.monotonic()
+
+    @staticmethod
+    def _cpu_usage() -> tuple[int | None, float]:
+        stat_path = Path("/sys/fs/cgroup/cpu.stat")
+        usage = None
+        try:
+            values = {}
+            for line in stat_path.read_text(encoding="utf-8").splitlines():
+                key, _, raw = line.partition(" ")
+                if key and raw:
+                    values[key] = int(raw)
+            usage = values.get("usage_usec")
+        except (OSError, ValueError):
+            usage_ns = _read_cgroup_value("cpuacct.usage", "cpuacct")
+            usage = usage_ns // 1_000 if usage_ns is not None else None
+
+        quota_cpus = float(os.cpu_count() or 1)
+        try:
+            quota, period = Path("/sys/fs/cgroup/cpu.max").read_text(encoding="utf-8").split()
+            if quota != "max" and int(period) > 0:
+                quota_cpus = max(0.01, int(quota) / int(period))
+        except (OSError, ValueError):
+            quota = _read_cgroup_value("cpu.cfs_quota_us", "cpu")
+            period = _read_cgroup_value("cpu.cfs_period_us", "cpu")
+            if quota is not None and quota > 0 and period:
+                quota_cpus = max(0.01, quota / period)
+        return usage, quota_cpus
+
+    def snapshot(self) -> dict[str, Any]:
+        now = time.monotonic()
+        elapsed = max(0.001, now - self._last_sample)
+        cpu_usage, quota_cpus = self._cpu_usage()
+        cpu_percent: float | None = None
+        if cpu_usage is not None and self._last_cpu_usage is not None:
+            cpu_percent = max(0.0, (cpu_usage - self._last_cpu_usage) / 1_000_000 / elapsed / quota_cpus * 100)
+        self._last_cpu_usage = cpu_usage
+        self._last_sample = now
+
+        ram_used = _read_int_file("/sys/fs/cgroup/memory.current")
+        ram_limit: int | None = None
+        try:
+            raw_limit = Path("/sys/fs/cgroup/memory.max").read_text(encoding="utf-8").strip()
+            if raw_limit != "max":
+                ram_limit = int(raw_limit)
+        except (OSError, ValueError):
+            ram_used = ram_used or _read_cgroup_value("memory.usage_in_bytes", "memory")
+            ram_limit = _read_cgroup_value("memory.limit_in_bytes", "memory")
+            if ram_limit and ram_limit >= 2**60:
+                ram_limit = None
+
+        rx_bytes = 0
+        tx_bytes = 0
+        try:
+            for line in Path("/proc/net/dev").read_text(encoding="utf-8").splitlines():
+                if ":" not in line:
+                    continue
+                interface, raw_stats = line.split(":", 1)
+                if interface.strip() == "lo":
+                    continue
+                stats = raw_stats.split()
+                if len(stats) >= 9:
+                    rx_bytes += int(stats[0])
+                    tx_bytes += int(stats[8])
+        except (OSError, ValueError):
+            rx_bytes = tx_bytes = 0
+
+        disk_read: int | None = None
+        try:
+            total = 0
+            found = False
+            for line in Path("/sys/fs/cgroup/io.stat").read_text(encoding="utf-8").splitlines():
+                for item in line.split()[1:]:
+                    if item.startswith("rbytes="):
+                        total += int(item.split("=", 1)[1])
+                        found = True
+            if found:
+                disk_read = total
+        except (OSError, ValueError):
+            disk_read = None
+
+        return {
+            "cpu": f"{cpu_percent:.1f}% / {quota_cpus:g} CPU" if cpu_percent is not None else "—",
+            "ram": f"{_format_bytes(ram_used)} / {_format_bytes(ram_limit)}" if ram_limit else _format_bytes(ram_used),
+            "network": f"RX {_format_bytes(rx_bytes)} · TX {_format_bytes(tx_bytes)}",
+            "disk_read": _format_bytes(disk_read),
+        }
+
+
 class WakeCoordinator:
     def __init__(self, workspace: str | Path = "/home/entity", *, max_iterations: int | None = None, token_budget: int | None = None, max_wall_clock_seconds: int | None = None, llm_client: Any | None = None) -> None:
         self.workspace = Path(workspace)
@@ -663,8 +783,12 @@ def run_tui(coordinator: WakeCoordinator) -> int:
         .human-message { border-left: thick $accent; background: $boost; }
         .typing-message { border-left: thick $secondary; background: $panel; color: $text-muted; }
         #side { width: 1fr; }
-        #presence, #status, #stats, #self { border: solid $secondary; height: 1fr; padding: 1; }
-        #stats { height: 1.4fr; }
+        #identity, #activity, #session, #usage, #container { border: solid $secondary; padding: 1; }
+        #identity { height: 1.15fr; }
+        #activity { height: 0.85fr; }
+        #session { height: 1.25fr; }
+        #usage { height: 1.35fr; }
+        #container { height: 1.15fr; }
         #chat { dock: bottom; }
         """
 
@@ -680,6 +804,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             self._agent_running = False
             self._activity_frame = 0
             self._unread_chat = 0
+            self._container_metrics = ContainerMetrics()
 
         def compose(self) -> ComposeResult:
             yield Header(show_clock=True)
@@ -691,10 +816,11 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                     yield Static("Plan loading...", id="plan", markup=True)
                     yield VerticalScroll(id="worklog")
                 with Vertical(id="side"):
-                    yield Static(f"● {coordinator.identity.display_name()} · presence starting", id="presence")
-                    yield Static("Status loading...", id="status")
-                    yield Static("Stats loading...", id="stats", markup=False)
-                    yield Static("Self loading...", id="self")
+                    yield Static("Identity loading...", id="identity", markup=True)
+                    yield Static("Activity loading...", id="activity", markup=True)
+                    yield Static("Session loading...", id="session", markup=True)
+                    yield Static("Usage loading...", id="usage", markup=True)
+                    yield Static("Container loading...", id="container", markup=True)
             yield Input(placeholder="Talk to SELF; /name <your name> /restart /identity /rename <entity name>; /stop pauses safely", id="chat")
             yield Footer()
 
@@ -864,24 +990,55 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             run_tokens = telemetry["run_tokens_used"] or coordinator.status.tokens_used
             run_budget = telemetry["run_budget"] or coordinator.daily_ledger.cap
             budget_label = "daily-only" if coordinator.token_budget is None else str(run_budget)
-            status = f"Session: {coordinator.status.session_id[:12]}\nIteration: {coordinator.status.iteration}\nTokens: {run_tokens} ({budget_label})\nModel: {coordinator.status.active_provider}/{coordinator.status.active_model}\nTools: {len(coordinator._tool_list())}\nUptime: {uptime}s\nSince human input: {since_human}s"
             daily_remaining = max(0, telemetry["daily_cap"] - telemetry["daily_used"] - telemetry["daily_reserved"]) if telemetry["daily_cap"] else "unknown"
-            stats = (
+            identity = coordinator.identity.load()
+            voice = " ".join(str(identity.get("voice", "")).split())
+            if len(voice) > 150:
+                voice = voice[:147].rstrip() + "..."
+            identity_panel = (
+                "[b]Identity[/b]\n"
+                f"Name: {identity.get('name') or 'unnamed'}\n"
+                f"Human: {identity.get('human_name') or 'not yet known'}\n"
+                f"Voice: {voice or 'not set'}\n"
+                f"Output: {self.voice.status_text()}"
+            )
+            activity_panel = (
+                "[b]Activity[/b]\n"
                 f"Presence: {telemetry['state']}\n"
-                f"Current AI: {telemetry['current_ai']}\n"
+                f"AI: {telemetry['current_ai']}"
+            )
+            session_panel = (
+                "[b]Session[/b]\n"
+                f"ID: {coordinator.status.session_id[:12] or 'starting'}\n"
+                f"Iteration: {coordinator.status.iteration}\n"
+                f"Model: {coordinator.status.active_provider}/{coordinator.status.active_model}\n"
+                f"Tools: {len(coordinator._tool_list())}\n"
+                f"Uptime: {uptime}s\n"
+                f"Since human input: {since_human}s"
+            )
+            usage_panel = (
+                "[b]Usage[/b]\n"
+                f"Tokens: {run_tokens} ({budget_label})\n"
                 f"Calls: {telemetry['total_calls']} total | {telemetry['completed_calls']} completed | {telemetry['failed_calls']} failed\n"
-                f"Run budget: {budget_label}\n"
                 f"Daily tokens: {telemetry['daily_used']}/{telemetry['daily_cap'] or '?'} (remaining {daily_remaining})\n"
                 f"AI call counts:\n{calls}"
             )
             if telemetry["daily_blocked"]:
-                stats += "\n\nACTION NEEDED: daily limit reached; see HUMAN_REQUEST.md"
-            presence = f"● {coordinator.identity.display_name()} · {telemetry['state']} · {telemetry['current_ai']}"
-            self.query_one("#presence", Static).update(presence)
+                usage_panel += "\n\nACTION NEEDED: daily limit reached; see HUMAN_REQUEST.md"
+            metrics = self._container_metrics.snapshot()
+            container_panel = (
+                "[b]Container[/b]\n"
+                f"CPU: {metrics['cpu']}\n"
+                f"RAM: {metrics['ram']}\n"
+                f"Network: {metrics['network']}\n"
+                f"Disk read: {metrics['disk_read']}"
+            )
+            self.query_one("#identity", Static).update(identity_panel)
+            self.query_one("#activity", Static).update(activity_panel)
             self.query_one("#plan", Static).update(plan_panel)
-            self.query_one("#status", Static).update("[b]Status[/b]\n" + status + "\n" + self.voice.status_text())
-            self.query_one("#stats", Static).update(stats)
-            self.query_one("#self", Static).update(coordinator.identity.self_panel_text())
+            self.query_one("#session", Static).update(session_panel)
+            self.query_one("#usage", Static).update(usage_panel)
+            self.query_one("#container", Static).update(container_panel)
             conversation = self.query_one("#conversation", VerticalScroll)
             if conversation.scroll_y >= conversation.max_scroll_y - 1:
                 self._unread_chat = 0

@@ -311,12 +311,12 @@ When a normal session ends, SELF reports what it was trying to do, what it
 achieved, updates the plan, and starts the next session automatically. A human
 STOP or unresolved human request leaves it paused.
 
-The side panel also shows the entity's live presence (`THINKING`, `USING TOOL`,
-`WORKING`, or `WAITING FOR HUMAN`), current AI, total/completed/failed calls,
-and per-provider/model call counts. If the persisted daily token ledger blocks
-a call, SELF creates `workspace/HUMAN_REQUEST.md`, pauses, and explains how to
-raise the local daily limit or configure a provider backup without exposing a
-key in chat.
+The right-side panel groups identity, activity, session, usage, and container
+information without repeating the same fields. The container section shows
+live CPU, RAM, network RX/TX, and disk-read metrics. If the persisted daily
+token ledger blocks a call, SELF creates `workspace/HUMAN_REQUEST.md`, pauses,
+and explains how to raise the local daily limit or configure a provider backup
+without exposing a key in chat.
 
 To exercise crash recovery, stop a running service without graceful shutdown,
 then start it again. The greeting reports that the prior session crashed only
