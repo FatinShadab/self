@@ -3,6 +3,51 @@
 SELF is a self-extending agent whose Docker container is its body. The only
 host bind mount is `./workspace` at `/home/entity`.
 
+## What is this?
+
+SELF is a curiosity-driven experiment: a language-model-powered software
+entity that can observe a small computer environment, choose actions, use
+tools, remember useful facts, and continue working across sessions. It is not
+a person, a biological life-form, or proof of consciousness. It is a program
+for exploring what an AI system might become when it has a body-like runtime,
+memory, an identity record, and room to extend its own tools.
+
+## What can it do right now?
+
+In simple terms, SELF can:
+
+- run inside its own Docker container and inspect the resources available to it;
+- plan and carry out bounded tasks using shell, file, HTTP, and other tools;
+- create new Python tools, test them, ask a separate model to review them, and
+  reuse approved tools later;
+- learn across runs by recording memories, environment facts, lessons, and
+  session handoffs;
+- keep a small, evidence-based identity record and explain what it knows about
+  itself and its code;
+- talk with a human through a terminal interface, including plans, status,
+  commands, optional voice features, goals, and stop/pause controls;
+- recover from interrupted sessions and leave logs showing what it tried and
+  what happened.
+
+The container is its boundary. It cannot automatically grant itself access to
+the host, credentials, money, accounts, or other capabilities. Requests for
+those things are recorded for a human to review. The “without restrictions”
+idea is therefore the question being explored—not the current capability of
+the system. The runtime deliberately gives SELF broad freedom inside its own
+container while keeping important outside-world powers under human control.
+
+## What is the end goal?
+
+There is no fixed end goal yet. The project is an open-ended investigation:
+if an AI system can act, remember, build tools, reflect on its behavior, and
+develop a stable way of interacting with the world, what kind of entity does
+that produce?
+
+The point is not to pretend that SELF is conscious. The point is to build a
+small, observable place where that question can be explored honestly—with
+evidence, logs, boundaries, and room for unexpected behavior. The eventual
+direction may become clearer through use.
+
 ## Phase 2: run the exploration loop
 
 Keep credentials only in the gitignored `.env` file. Then build and start the
