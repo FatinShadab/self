@@ -1,0 +1,18 @@
+cff-version: 1.2.0
+title: SELF
+type: software
+abstract: >-
+  An experimental, Docker-contained, language-model-powered software entity
+  for exploring action, memory, tool use, identity, and human-reviewed
+  extension.
+authors:
+  - family-names: Shadab
+    given-names: Fatin
+repository-code: https://github.com/FatinShadab/self
+license: MIT
+keywords:
+  - artificial intelligence
+  - autonomous agents
+  - Docker
+  - large language models
+  - research software

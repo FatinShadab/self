@@ -1,7 +1,15 @@
 # SELF
 
+[![CI](https://github.com/FatinShadab/self/actions/workflows/ci.yml/badge.svg)](https://github.com/FatinShadab/self/actions/workflows/ci.yml)
+[![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
+
 SELF is a self-extending agent whose Docker container is its body. The only
 host bind mount is `./workspace` at `/home/entity`.
+
+This repository is an experimental open-source project. It is suitable for
+local research and inspection, not for production workloads or as a hardened
+security sandbox. See [SECURITY.md](SECURITY.md) before supplying credentials
+or granting the container access to anything important.
 
 ## What is this?
 
@@ -448,3 +456,15 @@ it clears the repository's workspace, checks A–E output, writes a name through
 the identity API, validates a later
 named greeting and protected-core rejection, and confirms a proposed patch is
 saved for human review.
+
+## Contributing and project policies
+
+- [Contributing guide](CONTRIBUTING.md)
+- [Code of Conduct](CODE_OF_CONDUCT.md)
+- [Security policy](SECURITY.md)
+- [Support](SUPPORT.md)
+- [Changelog](CHANGELOG.md)
+
+Bug reports and feature requests can be opened through the repository's GitHub
+issue templates. Please remove credentials and generated runtime state before
+sharing logs. Contributions are released under the [MIT License](LICENSE).

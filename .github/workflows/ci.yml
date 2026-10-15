@@ -1,0 +1,27 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    name: Unit tests and image build
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check out repository
+        uses: actions/checkout@v4
+
+      - name: Build Docker image
+        run: docker build --tag self-ci .
+
+      - name: Run unit tests in the image
+        run: >-
+          docker run --rm --entrypoint python
+          --env PYTHONPATH=/opt/agent:/opt/agent/core
+          self-ci -m unittest discover -s /opt/agent/tests -v

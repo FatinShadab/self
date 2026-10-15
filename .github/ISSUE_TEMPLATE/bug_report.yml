@@ -1,0 +1,42 @@
+name: Bug report
+description: Report a reproducible problem with SELF.
+title: "[Bug]: "
+body:
+  - type: markdown
+    attributes:
+      value: |
+        Please remove API keys, credentials, personal data, and sensitive runtime state before submitting.
+  - type: textarea
+    id: summary
+    attributes:
+      label: What happened?
+      description: Describe the observed behavior and the behavior you expected.
+    validations:
+      required: true
+  - type: textarea
+    id: reproduce
+    attributes:
+      label: Steps to reproduce
+      description: Include the smallest command sequence or example that demonstrates the problem.
+      placeholder: |
+        1. Build ...
+        2. Run ...
+        3. Observe ...
+    validations:
+      required: true
+  - type: input
+    id: commit
+    attributes:
+      label: Commit or version
+      placeholder: e.g. main at abc1234
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      placeholder: OS, Docker version, and relevant provider/model
+  - type: textarea
+    id: logs
+    attributes:
+      label: Relevant logs
+      description: Paste redacted logs or error output. Do not include secrets.
+      render: shell
