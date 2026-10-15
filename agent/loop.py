@@ -490,6 +490,7 @@ class AgentLoop:
                 cycle=cycle,
                 tokens_used=self.llm.tokens_used,
                 report=last_report,
+                actions=cycle_actions,
             )
             self.learning.record_cycle(active_task, cycle, cycle_actions, last_report)
             self.checkpoint.save(status="running", task=active_task, cycle=cycle + 1, last_report=last_report, tokens_used=self.llm.tokens_used)

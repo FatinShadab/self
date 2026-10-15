@@ -24,6 +24,7 @@ from identity import IdentityStore
 from learning import LearningStore
 from llm import BudgetedLLM, LLMClient
 from loop import AgentConfig, AgentLoop, STANDING_GOAL
+from reflection import ReflectionManager
 from session import HumanInbox, SessionStore, default_plan
 
 
@@ -42,6 +43,65 @@ COMPLETED_PLAN_STATUSES = frozenset({
 PLAN_MIN_HEIGHT = 5
 WORKLOG_MIN_HEIGHT = 5
 PLAN_RESIZER_HEIGHT = 1
+CARDIAC_MONITOR_WIDTH = 6
+CARDIAC_MONITOR_BEAT_INTERVAL = 13
+
+
+@dataclass(frozen=True)
+class CardiacMonitorIntensity:
+    """Visual tempo and amplitude for one agent-presence state."""
+
+    name: str
+    beat_interval: int
+    pulse_height: int
+    tick_divisor: int
+    tick_stride: int
+
+
+MONITOR_STOPPED = CardiacMonitorIntensity("stopped", 1, 0, 1, 0)
+MONITOR_THINKING = CardiacMonitorIntensity("thinking", 21, 2, 3, 1)
+MONITOR_WORKING = CardiacMonitorIntensity("working", 9, 3, 1, 2)
+MONITOR_IDLE = CardiacMonitorIntensity("idle", 17, 2, 4, 1)
+
+
+def cardiac_monitor_intensity(state: str, *, stopped: bool = False) -> CardiacMonitorIntensity:
+    """Choose a monitor profile from the coordinator's live state."""
+    if stopped:
+        return MONITOR_STOPPED
+    state = state.strip().upper()
+    if "THINK" in state:
+        return MONITOR_THINKING
+    if state in {"WORKING", "USING TOOL"}:
+        return MONITOR_WORKING
+    return MONITOR_IDLE
+
+
+def cardiac_monitor_frame(
+    frame: int,
+    width: int = CARDIAC_MONITOR_WIDTH,
+    *,
+    beat_interval: int = CARDIAC_MONITOR_BEAT_INTERVAL,
+    pulse_height: int = 3,
+) -> str:
+    """Render a full-width ECG trace at the requested intensity."""
+    width = max(6, width)
+    rows = [[" "] * width for _ in range(3)]
+    rows[2] = ["_"] * width
+    if pulse_height <= 0:
+        return "\n".join("".join(row) for row in rows)
+
+    # Thinking has a short, quiet peak. Work has a taller and more frequent
+    # spike. Both sweep across the full available header width.
+    pulse = ((0, 2, "/"), (1, 1, "/"), (2, 1, "\\"), (3, 2, "\\")) if pulse_height < 3 else (
+        (0, 2, "/"), (1, 1, "/"), (2, 0, "|"), (3, 1, "\\"), (4, 2, "\\")
+    )
+    phase = frame % max(5, beat_interval)
+    for pulse_x in range(width - phase, -len(pulse), -max(5, beat_interval)):
+        for offset, row, character in pulse:
+            column = pulse_x + offset
+            if 0 <= column < width:
+                rows[row][column] = character
+    return "\n".join("".join(row) for row in rows)
 
 
 def visible_plan_items(plan: list[dict[str, Any]]) -> list[dict[str, Any]]:
@@ -78,6 +138,14 @@ def _read_json(path: Path) -> dict[str, Any]:
         return data if isinstance(data, dict) else {}
     except (OSError, json.JSONDecodeError):
         return {}
+
+
+def _env_int(name: str, default: int, minimum: int, maximum: int) -> int:
+    try:
+        value = int(os.getenv(name, str(default)))
+    except ValueError:
+        value = default
+    return max(minimum, min(value, maximum))
 
 
 @dataclass
@@ -266,6 +334,17 @@ class WakeCoordinator:
         self.on_activity: Callable[[str], None] | None = None
         self.conversations = ConversationManager(self.workspace, self.logger, self.daily_ledger, llm_client,
                                                  max_workers=int(os.getenv("SELF_MAX_CONVERSATION_WORKERS", "2")))
+        self.reflections = ReflectionManager(
+            self.workspace,
+            self.logger,
+            self.daily_ledger,
+            llm_client,
+            enabled=os.getenv("SELF_REFLECTION_ENABLED", "1").lower() not in {"0", "false", "no", "off"},
+            max_per_session=_env_int("SELF_REFLECTION_MAX_PER_SESSION", 3, 1, 20),
+            min_cycles=_env_int("SELF_REFLECTION_MIN_CYCLES", 3, 1, 100),
+            max_tokens=_env_int("SELF_REFLECTION_MAX_TOKENS", 384, 64, 1_024),
+            stop_provider=lambda: self.stop_requested or (self.workspace / "STOP").exists(),
+        )
         self.logger.add_listener(self._event_listener)
 
     def _update_telemetry(self, record: dict[str, Any]) -> None:
@@ -375,6 +454,7 @@ class WakeCoordinator:
             self._cycle_summaries.append(summary)
             if self.on_chat and not self.stop_requested and not (self.workspace / "STOP").exists():
                 self.on_chat(summary, "cycle")
+            self._schedule_reflection(record)
         elif event == "session_summary":
             if self.on_chat and not self.stop_requested and not (self.workspace / "STOP").exists():
                 self.on_chat(str(record.get("message", "")), "session")
@@ -388,6 +468,67 @@ class WakeCoordinator:
                     self.on_activity(clean[:4_000])
                 elif self.on_narration:
                     self.on_narration(clean[:4_000], "activity")
+
+    @staticmethod
+    def _reflection_triggers(actions: list[dict[str, Any]]) -> list[str]:
+        triggers: list[str] = []
+        for action in actions:
+            name = str(action.get("name", ""))
+            ok = bool(action.get("ok", False))
+            if not ok:
+                triggers.append(f"tool failed: {name or 'unknown'}")
+            elif name == "update_environment_map":
+                triggers.append("verified environment map updated")
+            elif name == "create_tool":
+                triggers.append("tested tool created")
+        return triggers
+
+    def reflection_context(self, cycle: int, report: str, actions: list[dict[str, Any]], triggers: list[str]) -> str:
+        """A small read-only snapshot for a background reflection candidate."""
+        identity = self.identity.prompt_context()[:2_000]
+        plan = json.dumps(visible_plan_items(self.plan), ensure_ascii=False)[:2_000]
+        map_context = self.learning.map_context()[:2_000]
+        activity = "\n".join(list(self._activity)[-12:])[:1_000]
+        return (
+            f"Cycle: {cycle}\nTriggers: {', '.join(triggers)}\nActions: {json.dumps(actions, ensure_ascii=False)[:1_000]}\n"
+            f"Cycle report:\n{report[:2_500]}\n\nActive plan:\n{plan}\n\nVerified map:\n{map_context}\n"
+            f"\nRecent activity:\n{activity}\n\nIdentity operating record:\n{identity}"
+        )
+
+    def _schedule_reflection(self, record: dict[str, Any]) -> None:
+        if self.stop_requested or (self.workspace / "STOP").exists():
+            return
+        raw_actions = record.get("actions")
+        actions = [item for item in raw_actions if isinstance(item, dict)] if isinstance(raw_actions, list) else []
+        triggers = self._reflection_triggers(actions)
+        self.reflections.submit(
+            session_id=self.status.session_id,
+            cycle=int(record.get("cycle", 0) or 0),
+            report=str(record.get("report", "")),
+            actions=actions,
+            triggers=triggers,
+            context_provider=self.reflection_context,
+            on_result=self._reflection_ready,
+        )
+
+    def _reflection_ready(self, reflection: dict[str, Any]) -> None:
+        if self.stop_requested or (self.workspace / "STOP").exists():
+            return
+        message = str(reflection.get("message", "")).strip()
+        if self.on_chat and message:
+            self.on_chat(message, "reflection")
+        elif message:
+            self.logger.narrate("Reflection: " + message)
+
+    def accept_reflection_reply(self, text: str) -> dict[str, str] | None:
+        """Persist a reply and inject it into the next safe autonomous turn."""
+        reply = self.reflections.record_human_reply(text)
+        if reply is None:
+            return None
+        self.receive_human_input(
+            f"Reply to SELF's reflection question ({reply['question']}): {reply['text']}"
+        )
+        return reply
 
     def _pending_requests(self) -> list[str]:
         pending: list[str] = []
@@ -477,6 +618,7 @@ class WakeCoordinator:
             return message
         self._session_info = self.sessions.start()
         self.status.session_id = self._session_info["session_id"]
+        self.reflections.begin_session(self.status.session_id)
         self._session_start = now_utc()
         self.identity.ensure_editable_layer()
         self._first_awakening_messages = self.identity.run_first_awakening(self.status.session_id)
@@ -523,6 +665,9 @@ class WakeCoordinator:
             greeting += f" I remember that you prefer to be called {identity.get('human_name')}."
         else:
             greeting += " I do not know your name yet. What should I call you? Say `My name is ...` or use `/name <name>` and I will save it for future conversations."
+        open_question = self.reflections.open_question()
+        if open_question:
+            greeting += f" I still have an open reflection question: {open_question['question']}"
         if pending:
             greeting = "Pending human requests: " + " | ".join(pending) + "\n" + greeting
         self.logger.narrate(greeting)
@@ -859,8 +1004,10 @@ def run_tui(coordinator: WakeCoordinator) -> int:
         #conversation-pane { width: 2fr; border: solid $primary; }
         #work-pane { width: 1.5fr; border: solid $secondary; }
         #conversation-top { height: 6; }
-        #conversation-header { width: 1fr; height: 6; padding: 1; color: $text-muted; }
-        #entity-art { width: 14; height: 6; padding: 0 1; color: $accent; content-align: center middle; }
+        #entity-art { width: 7; height: 6; color: $accent; content-align: center middle; text-style: dim; }
+        #entity-monitor { width: 1fr; height: 6; color: $text-muted; content-align: left middle; text-style: dim; }
+        #entity-monitor.monitor-thinking { color: $accent; }
+        #entity-monitor.monitor-working { color: $accent; text-style: bold; }
         #conversation { height: 1fr; padding: 0 1; scrollbar-gutter: stable; }
         #plan { height: 10; min-height: 5; padding: 1; }
         #plan-resizer { height: 1; min-height: 1; max-height: 1; content-align: center middle; color: $text-muted; background: $panel; text-style: dim; }
@@ -869,6 +1016,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
         .activity-entry { width: 100%; margin: 0 0 1 0; padding: 0 1; }
         .message { width: 100%; margin: 0 0 1 0; padding: 1; }
         .agent-message { border-left: thick $primary; background: $panel; }
+        .reflection-message { border-left: thick $success; background: $boost; }
         .human-message { border-left: thick $accent; background: $boost; }
         .typing-message { border-left: thick $secondary; background: $panel; color: $text-muted; }
         #side { width: 1fr; }
@@ -891,8 +1039,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             self._draining_chat = False
             self._draining_activity = False
             self._agent_running = False
-            self._activity_frame = 0
-            self._unread_chat = 0
+            self._monitor_tick = 0
             self._container_metrics = ContainerMetrics()
 
         def compose(self) -> ComposeResult:
@@ -900,8 +1047,8 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             with Horizontal(id="body"):
                 with Vertical(id="conversation-pane"):
                     with Horizontal(id="conversation-top"):
-                        yield Static(f"[b]Conversation with {coordinator.identity.display_name()}[/b]   [b]YOU[/b] = human messages", id="conversation-header", markup=True)
-                        yield Static("  .-.-.\n /  o  \\\n<  /|\\  >\n \\_/_\\_/", id="entity-art", markup=False)
+                        yield Static(" .-.\n(o o)\n /|\\", id="entity-art", markup=False)
+                        yield Static(cardiac_monitor_frame(0), id="entity-monitor", markup=False)
                     yield VerticalScroll(id="conversation")
                 with Vertical(id="work-pane"):
                     yield Static("Plan loading...", id="plan", markup=True)
@@ -944,13 +1091,25 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             plan.styles.height = clamped_plan_height(requested, work_pane.size.height)
 
         def _animate_activity(self) -> None:
+            self._monitor_tick += 1
+            monitor = self.query_one("#entity-monitor", Static)
+            stopped = coordinator.stop_requested or coordinator.paused.is_set() or (coordinator.workspace / "STOP").exists()
+            state = str(coordinator.runtime_snapshot()["state"])
+            intensity = cardiac_monitor_intensity(state, stopped=stopped)
+            for mode in ("stopped", "thinking", "working", "idle"):
+                monitor.set_class(mode == intensity.name, f"monitor-{mode}")
+            frame = (self._monitor_tick // intensity.tick_divisor) * intensity.tick_stride
+            monitor.update(cardiac_monitor_frame(
+                frame,
+                monitor.size.width,
+                beat_interval=intensity.beat_interval,
+                pulse_height=intensity.pulse_height,
+            ))
             active = self._agent_running or self._draining_activity or self._draining_chat
             if not active:
                 return
             frames = ("[>   ]", "[>>  ]", "[>>> ]", "[ >>>]", "[  >>]", "[   >]")
-            self._activity_frame = (self._activity_frame + 1) % len(frames)
-            state = str(coordinator.runtime_snapshot()["state"]).lower()
-            self.title = f"SELF — {coordinator.identity.display_name()} {frames[self._activity_frame]} {state}"
+            self.title = f"SELF — {coordinator.identity.display_name()} {frames[self._monitor_tick % len(frames)]} {state.lower()}"
 
         def _queue_chat(self, role: str, message: str, kind: str) -> None:
             # A worker can finish concurrently with /stop. Do not enqueue
@@ -986,12 +1145,11 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                     if role == "agent" and (coordinator.stop_requested or (coordinator.workspace / "STOP").exists()):
                         continue
                     follow = conversation.scroll_y >= conversation.max_scroll_y - 1
-                    bubble = Static(self._render_message(role, "" if role == "agent" and self.typing_enabled else message, kind, typing=role == "agent" and self.typing_enabled), classes=f"message {'human' if role == 'human' else 'agent'}-message")
+                    message_class = "human" if role == "human" else "reflection" if kind == "reflection" else "agent"
+                    bubble = Static(self._render_message(role, "" if role == "agent" and self.typing_enabled else message, kind, typing=role == "agent" and self.typing_enabled), classes=f"message {message_class}-message")
                     await conversation.mount(bubble)
                     if follow:
                         conversation.scroll_end(animate=False)
-                    else:
-                        self._unread_chat += 1
                     if role == "agent" and self.typing_enabled:
                         step = max(1, len(message) // 90)
                         for index in range(step, len(message) + step, step):
@@ -1044,6 +1202,16 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             if coordinator.stop_requested or (coordinator.workspace / "STOP").exists():
                 return
             self.call_from_thread(self._queue_chat, "agent", message, "conversation" if kind == "assistant" else "error")
+
+        def _ordinary_human_message(self, text: str) -> None:
+            """Route the next ordinary response to an open reflection first."""
+            self._queue_chat("human", text, "human")
+            reply = coordinator.accept_reflection_reply(text)
+            if reply is not None:
+                self._command_response("Reflection reply saved; I will use it at the next safe work step.", "request")
+                return
+            self._command_response("Conversation thread started; autonomous work continues separately.")
+            coordinator.start_conversation(text, self._conversation_result)
 
         def _watch_human_request(self) -> None:
             if (coordinator.workspace / "STOP").exists():
@@ -1143,18 +1311,6 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             self.query_one("#session", Static).update(session_panel)
             self.query_one("#usage", Static).update(usage_panel)
             self.query_one("#container", Static).update(container_panel)
-            conversation = self.query_one("#conversation", VerticalScroll)
-            if conversation.scroll_y >= conversation.max_scroll_y - 1:
-                self._unread_chat = 0
-            if self._unread_chat:
-                self.query_one("#conversation-header", Static).update(
-                    f"[b]Conversation with {coordinator.identity.display_name()}[/b]   "
-                    f"[b]YOU[/b] = human messages   [yellow]{self._unread_chat} new message(s); scroll to follow[/yellow]",
-                )
-            else:
-                self.query_one("#conversation-header", Static).update(
-                    f"[b]Conversation with {coordinator.identity.display_name()}[/b]   [b]YOU[/b] = human messages"
-                )
 
         def on_input_submitted(self, event: Input.Submitted) -> None:
             text = event.value.strip()
@@ -1294,11 +1450,9 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                     self._command_response("The previous session had ended, so I am waking to work on it now.", "request")
                     self._start_agent()
                 return
-            # Ordinary messages are conversation threads, not autonomous inbox
-            # entries. They appear immediately and are answered independently.
-            self._queue_chat("human", text, "human")
-            self._command_response("Conversation thread started; autonomous work continues separately.")
-            coordinator.start_conversation(text, self._conversation_result)
+            # An open reflection receives the next ordinary human message;
+            # otherwise ordinary chat remains separate from autonomous input.
+            self._ordinary_human_message(text)
 
         def _listen_for_human(self) -> None:
             text, error = self.voice.listen()
@@ -1306,8 +1460,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                 self.call_from_thread(self._command_response, error, "error")
                 return
             if text:
-                self.call_from_thread(self._queue_chat, "human", text, "human")
-                coordinator.start_conversation(text, self._conversation_result)
+                self.call_from_thread(self._ordinary_human_message, text)
 
     SelfApp().run()
     return 0

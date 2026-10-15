@@ -10,7 +10,7 @@ from event_log import EventLogger
 from identity import IdentityStore
 from llm import LLMResult
 from session import HumanInbox, SessionStore
-from wake import WakeCoordinator, clamped_plan_height, normalized_plan, visible_plan_items
+from wake import cardiac_monitor_frame, cardiac_monitor_intensity, WakeCoordinator, clamped_plan_height, normalized_plan, visible_plan_items
 
 
 class WakeFakeLLM:
@@ -32,6 +32,28 @@ class WakeFakeLLM:
 
 
 class SessionTests(unittest.TestCase):
+    def test_cardiac_monitor_frame_keeps_a_fixed_ascii_canvas(self) -> None:
+        blank = cardiac_monitor_frame(0)
+        pulse = cardiac_monitor_frame(6)
+        wide_pulse = cardiac_monitor_frame(6, 48)
+
+        self.assertEqual([len(row) for row in blank.splitlines()], [6, 6, 6])
+        self.assertEqual([len(row) for row in pulse.splitlines()], [6, 6, 6])
+        self.assertEqual([len(row) for row in wide_pulse.splitlines()], [48, 48, 48])
+        self.assertIn("|", pulse)
+        self.assertIn("/", pulse)
+        self.assertIn("\\", pulse)
+
+    def test_cardiac_monitor_intensity_tracks_agent_state(self) -> None:
+        stopped = cardiac_monitor_intensity("WORKING", stopped=True)
+        thinking = cardiac_monitor_intensity("THINKING")
+        working = cardiac_monitor_intensity("USING TOOL")
+
+        self.assertEqual((stopped.pulse_height, stopped.tick_stride), (0, 0))
+        self.assertLess(thinking.pulse_height, working.pulse_height)
+        self.assertLess(thinking.tick_stride / thinking.tick_divisor, working.tick_stride / working.tick_divisor)
+        self.assertNotIn("|", cardiac_monitor_frame(0, 48, pulse_height=stopped.pulse_height))
+
     def test_runtime_snapshot_tracks_current_activity(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             coordinator = WakeCoordinator(temp, llm_client=WakeFakeLLM())

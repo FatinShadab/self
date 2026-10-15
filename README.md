@@ -287,10 +287,11 @@ not configured by this project.
 
 The container now wakes into `python -m agent.wake`. Its Textual UI has a
 scrollable conversation pane, a combined Plan/live-work pane, and a right-side
-presence/status column. Chat contains human messages, cycle summaries, and
-read-only conversation replies; commands, tool steps, terminal commands, and
-streamed command output stay in the live-work pane. The conversation pane does
-not force-scroll when the human is reviewing earlier answers.
+presence/status column. Chat contains human messages, cycle summaries,
+agent-initiated background reflections, and read-only conversation replies;
+commands, tool steps, terminal commands, and streamed command output stay in
+the live-work pane. The conversation pane does not force-scroll when the human
+is reviewing earlier answers.
 
 Persistent session state stays under the workspace mount:
 
@@ -304,6 +305,10 @@ Persistent session state stays under the workspace mount:
   by the next safe loop iteration.
 - `state/conversation_threads.jsonl` — bounded records for independent,
   read-only human conversation threads.
+- `state/reflection_threads.jsonl` — agent-initiated, evidence-grounded
+  reflections and any human replies, kept separate from ordinary chat.
+- `state/reflection_state.json` — the latest open reflection question and the
+  per-session reflection throttle, so questions are not repeated after a wake.
 
 At wake, SELF checks STOP and durable state, loads its handoff, notes tracked
 changes, spot-checks OS/CPU/disk facts from `map.json`, greets you, performs a
@@ -313,6 +318,24 @@ On a clean stop, budget exhaustion, or STOP file it reflects once more, writes
 the handoff/journal/session record, and exits. If insufficient LLM budget is
 left for a reflection, it preserves a clearly marked deterministic checkpoint
 instead of inventing a summary.
+
+### Background reflection conversations
+
+After a cycle that updates the verified environment map, creates a tested tool,
+or records a failed tool action, SELF may start one separate, read-only
+reflection worker. It receives only the recorded cycle analysis, plan, verified
+map, recent activity, and identity operating record. The worker can decline to
+post; when it does post, it may offer a concise observation and one question
+without stopping exploration. It cannot use tools, edit plans, request a
+capability, or make unsupported claims about consciousness or feelings.
+
+Reflections are throttled to one every three cycles and three per wake session
+by default. Configure `SELF_REFLECTION_*` in `.env` to disable them or adjust
+the limits. A reflection question remains open across restarts. The next
+ordinary human message answers it, is persisted, and is supplied as
+high-priority context at the next safe autonomous decision; formal approval
+requests for credentials, budgets, and capabilities remain separate, blocking
+paths.
 
 Use an interactive disposable session (recommended):
 
