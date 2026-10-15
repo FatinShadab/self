@@ -460,11 +460,12 @@ class WakeCoordinator:
 
     def conversation_context(self) -> str:
         """Build a bounded read-only snapshot for an independent conversation."""
+        identity = self.identity.prompt_context()
         handoff = json.dumps(self.handoff, ensure_ascii=False)[:6_000]
         plan = json.dumps(visible_plan_items(self.plan), ensure_ascii=False)[:4_000]
         activity = "\n".join(list(self._activity)[-40:])[:6_000]
         summaries = "\n\n".join(list(self._cycle_summaries)[-6:])[:8_000]
-        return f"Current handoff:\n{handoff}\n\nActive plan:\n{plan}\n\nRecent cycle summaries:\n{summaries}\n\nRecent activity:\n{activity}"
+        return f"{identity}\n\nCurrent handoff:\n{handoff}\n\nActive plan:\n{plan}\n\nRecent cycle summaries:\n{summaries}\n\nRecent activity:\n{activity}"
 
     def start_conversation(self, text: str, on_result: Callable[[str, str, str], None]) -> str:
         return self.conversations.submit(text, self.conversation_context, on_result)
@@ -930,7 +931,12 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                 try:
                     identity = coordinator.identity.set_name(text[8:].strip(), coordinator.status.session_id, named_by="human")
                     self.title = f"SELF — {identity.get('name')}"
-                    self._command_response(f"Name saved as {identity.get('name')}.")
+                    context = identity.get("name_context") or {}
+                    self._command_response(
+                        f"Name saved as {identity.get('name')}. "
+                        f"Context: {context.get('meaning', 'no verified meaning found')}. "
+                        f"Style cue: {context.get('style_cue', 'use observed behavior and the stored voice.')}"
+                    )
                 except ValueError as exc:
                     self._command_response(f"Could not rename: {exc}", "error")
                 return

@@ -344,7 +344,10 @@ The durable identity is intentionally a small operating record, not a claim
 that the model has feelings, hidden continuity, or changed weights:
 
 - `state/identity.json` holds its optional name, voice, evidence-backed traits,
-  values, interests, and open questions.
+  name context, values, interests, and open questions. When a name is chosen,
+  SELF stores a bounded local reference for its meaning, origin, and common
+  cultural associations. These are soft style cues only: a name never proves
+  a personality or ability, and unknown names fall back to observed behavior.
 - `state/identity_log.md` is append-only and records every harness-driven
   identity change with a reason and session id.
 - `self/` is the writable extension layer for prompts, planning logic,
@@ -380,7 +383,7 @@ Use a fresh workspace to see the full awakening, then name SELF from the TUI:
 ```powershell
 docker compose build
 docker compose run --rm self
-# In the TUI: /rename Atlas       # choose the entity's name
+# In the TUI: /rename Atlas       # choose the entity's name and load its context
 # Or: My name is Sam              # save the human's preferred name
 # Then: /identity
 # Finally: /stop

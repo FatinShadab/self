@@ -54,6 +54,8 @@ class IdentityTests(unittest.TestCase):
         renamed = self.identity.set_name("Atlas", "session-a")
         self.assertEqual(renamed["name"], "Atlas")
         self.assertEqual(renamed["named_by"], "human")
+        self.assertEqual(renamed["name_context"]["status"], "matched")
+        self.assertIn("mapping", renamed["name_context"]["associations"])
         self.assertFalse(self.identity.awaiting_name())
         self.assertTrue(self.identity.record_human_answer("Please keep updates concise.", "session-a"))
         about_lines = self.identity.about_human_text().splitlines()
@@ -134,7 +136,14 @@ class IdentityTests(unittest.TestCase):
         ).run()
         self.assertEqual(len(fake.systems), 1)
         self.assertIn('"name": "Atlas"', fake.systems[0])
+        self.assertIn('"name_context"', fake.systems[0])
+        self.assertIn("dependable support", fake.systems[0])
         self.assertIn("not evidence of sentience", fake.systems[0])
+
+    def test_unknown_name_gets_honest_non_inferential_context(self) -> None:
+        identity = self.identity.set_name("Xylophonic", "session-a")
+        self.assertEqual(identity["name_context"]["status"], "unresolved")
+        self.assertIn("Do not infer personality", identity["name_context"]["style_cue"])
 
 
 if __name__ == "__main__":

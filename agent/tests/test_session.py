@@ -125,6 +125,14 @@ class SessionTests(unittest.TestCase):
             self.assertTrue(any("Atlas is awake" in message for message in narrations))
             self.assertTrue(any("I speak plainly about what I observed" in message for message in narrations))
 
+    def test_name_context_is_included_in_read_only_conversation_context(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            coordinator = WakeCoordinator(root, llm_client=WakeFakeLLM())
+            coordinator.identity.set_name("Atlas", "session-a")
+            self.assertIn("mapping", coordinator.conversation_context())
+            self.assertIn("soft cultural/style cue", coordinator.conversation_context())
+
 
 if __name__ == "__main__":
     unittest.main()

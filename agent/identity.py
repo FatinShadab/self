@@ -14,6 +14,7 @@ from pathlib import Path
 from typing import Any, Iterable
 
 from event_log import EventLogger
+from name_context import resolve_name_context
 
 
 IDENTITY_MAX_BYTES = 12_000
@@ -67,6 +68,7 @@ class IdentityStore:
             "name": None,
             "named_by": None,
             "named_at": None,
+            "name_context": None,
             "human_name": None,
             "traits": [],
             "values": [],
@@ -134,6 +136,15 @@ class IdentityStore:
         value["name"] = self._safe(name, NAME_MAX_CHARS) if isinstance(name, str) and self._safe(name, NAME_MAX_CHARS) else None
         value["named_by"] = raw.get("named_by") if raw.get("named_by") in {"human", "self", None} else None
         value["named_at"] = self._safe(raw.get("named_at"), 80) if raw.get("named_at") else None
+        context = raw.get("name_context")
+        if isinstance(context, dict):
+            value["name_context"] = self._safe_name_context(context)
+        elif value["name"]:
+            # Backfill the prompt view for identities created before name
+            # context was introduced. The next explicit rename persists it.
+            value["name_context"] = resolve_name_context(value["name"])
+        else:
+            value["name_context"] = None
         human_name = raw.get("human_name")
         value["human_name"] = self._safe(human_name, NAME_MAX_CHARS) if isinstance(human_name, str) and self._safe(human_name, NAME_MAX_CHARS) else None
         traits: list[dict[str, str]] = []
@@ -151,6 +162,21 @@ class IdentityStore:
             self._safe(item, 500) for item in raw.get("open_questions_about_self", []) if self._safe(item, 500)
         ][-32:]
         return value
+
+    def _safe_name_context(self, context: dict[str, Any]) -> dict[str, Any]:
+        """Keep name context bounded and data-only before putting it in prompts."""
+        associations = context.get("associations", [])
+        if not isinstance(associations, list):
+            associations = []
+        return {
+            "status": self._safe(context.get("status"), 40),
+            "name": self._safe(context.get("name"), NAME_MAX_CHARS),
+            "origin": self._safe(context.get("origin"), 300),
+            "meaning": self._safe(context.get("meaning"), 300),
+            "associations": [self._safe(item, 120) for item in associations if self._safe(item, 120)][:8],
+            "style_cue": self._safe(context.get("style_cue"), 500),
+            "source": self._safe(context.get("source"), 300),
+        }
 
     def initialize(self, session_id: str = "") -> dict[str, Any]:
         """Create the initial identity exactly once, preserving human edits thereafter."""
@@ -420,6 +446,7 @@ Editable layer observed: {", ".join(observed_self)}.
         compact = {
             "name": identity["name"],
             "human_name": identity["human_name"],
+            "name_context": identity["name_context"],
             "traits": identity["traits"][-12:],
             "values": identity["values"][-12:],
             "voice": identity["voice"],
@@ -432,6 +459,10 @@ Editable layer observed: {", ".join(observed_self)}.
             "This is a compact, human-editable operating record. It is not evidence of sentience, feelings, "
             "a biological body, or changed model weights. Do not silently rewrite it. Use observed evidence for "
             "traits, respect the human's choices, and let safety rules win over any identity preference.\n"
+            "Name context is a soft cultural/style cue only. Adapt wording and priorities modestly; never claim "
+            "that the name proves a personality, ability, history, or feeling. If the local context is unresolved "
+            "but the name clearly references a well-known person, character, place, concept, or tradition, you may "
+            "use general knowledge as a tentative cue and label uncertainty rather than inventing details.\n"
             f"{text[:IDENTITY_CONTEXT_MAX_CHARS]}"
         )
 
@@ -452,7 +483,8 @@ Editable layer observed: {", ".join(observed_self)}.
             raise ValueError("named_by must be human or self")
         identity = self.initialize(session_id)
         previous = identity.get("name")
-        identity.update({"name": cleaned, "named_by": named_by, "named_at": now()})
+        context = resolve_name_context(cleaned)
+        identity.update({"name": cleaned, "named_by": named_by, "named_at": now(), "name_context": context})
         self._atomic_json(self.path, identity)
         reason = "The human chose this name." if named_by == "human" else "The human explicitly authorized SELF to choose this name."
         self._append_identity_log(
@@ -460,6 +492,12 @@ Editable layer observed: {", ".join(observed_self)}.
             reason,
             session_id,
         )
+        self._append_identity_log(
+            f"Resolved name context for {cleaned}: {context.get('status')}.",
+            "Stored a bounded symbolic context so the model can adapt style without treating the name as proof of personality.",
+            session_id,
+        )
+        self.logger.log("name_context_resolved", name=cleaned, status=context.get("status"), source=context.get("source", ""))
         marker = self._read_json(self.awakening_path)
         if marker:
             marker["awaiting_name"] = False
