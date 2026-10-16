@@ -45,13 +45,17 @@ def _json_request(url: str, payload: dict[str, Any], headers: dict[str, str], ti
 
 
 class OpenAICompatibleAdapter:
+    """Send chat requests to an OpenAI-compatible API."""
+
     def __init__(self, provider: str, base_url: str, env_names: tuple[str, ...]) -> None:
         self.provider, self.base_url, self.env_names = provider, base_url.rstrip("/"), env_names
 
     def is_configured(self) -> bool:
+        """Return whether this provider has the required configuration."""
         return bool(_env(*self.env_names))
 
     def chat(self, messages: list[dict[str, Any]], model: str, max_tokens: int) -> ProviderResponse:
+        """Send a chat request and return a normalized provider response."""
         key = _env(*self.env_names)
         if not key:
             raise ProviderUnavailable(f"Missing {self.env_names[0]}")
@@ -69,37 +73,51 @@ class OpenAICompatibleAdapter:
 
 
 class GroqAdapter(OpenAICompatibleAdapter):
+    """Configure the Groq OpenAI-compatible API."""
+
     def __init__(self) -> None:
         super().__init__("groq", "https://api.groq.com/openai/v1", ("GROQ_API_KEY",))
 
 
 class OpenRouterAdapter(OpenAICompatibleAdapter):
+    """Configure the OpenRouter OpenAI-compatible API."""
+
     def __init__(self) -> None:
         super().__init__("openrouter", "https://openrouter.ai/api/v1", ("OPENROUTER_API_KEY",))
 
 
 class MistralAdapter(OpenAICompatibleAdapter):
+    """Configure the Mistral OpenAI-compatible API."""
+
     def __init__(self) -> None:
         super().__init__("mistral", "https://api.mistral.ai/v1", ("MISTRAL_API_KEY",))
 
 
 class CerebrasAdapter(OpenAICompatibleAdapter):
+    """Configure the Cerebras OpenAI-compatible API."""
+
     def __init__(self) -> None:
         super().__init__("cerebras", "https://api.cerebras.ai/v1", ("CEREBRAS_API_KEY",))
 
 
 class HuggingFaceAdapter(OpenAICompatibleAdapter):
+    """Configure the Hugging Face OpenAI-compatible API."""
+
     def __init__(self) -> None:
         super().__init__("huggingface", "https://router.huggingface.co/v1", ("HF_TOKEN", "HUGGINGFACEHUB_API_TOKEN"))
 
 
 class GeminiAdapter:
+    """Send chat requests to the Gemini API."""
+
     provider = "gemini"
 
     def is_configured(self) -> bool:
+        """Return whether this provider has the required configuration."""
         return bool(_env("GOOGLE_API_KEY", "GEMINI_API_KEY"))
 
     def chat(self, messages: list[dict[str, Any]], model: str, max_tokens: int) -> ProviderResponse:
+        """Send a chat request and return a normalized provider response."""
         key = _env("GOOGLE_API_KEY", "GEMINI_API_KEY")
         if not key:
             raise ProviderUnavailable("Missing GOOGLE_API_KEY")
@@ -129,12 +147,16 @@ class GeminiAdapter:
 
 
 class CloudflareAdapter:
+    """Send chat requests to the Cloudflare Workers AI API."""
+
     provider = "cloudflare_workers_ai"
 
     def is_configured(self) -> bool:
+        """Return whether this provider has the required configuration."""
         return bool(_env("CLOUDFLARE_API_TOKEN") and _env("CLOUDFLARE_ACCOUNT_ID"))
 
     def chat(self, messages: list[dict[str, Any]], model: str, max_tokens: int) -> ProviderResponse:
+        """Send a chat request and return a normalized provider response."""
         token, account = _env("CLOUDFLARE_API_TOKEN"), _env("CLOUDFLARE_ACCOUNT_ID")
         if not token or not account:
             raise ProviderUnavailable("Missing CLOUDFLARE_API_TOKEN or CLOUDFLARE_ACCOUNT_ID")
@@ -149,15 +171,19 @@ class CloudflareAdapter:
 
 
 class OllamaLocalAdapter:
+    """Send chat requests to a local Ollama server."""
+
     provider = "ollama_local"
 
     def __init__(self, base_url: str | None = None) -> None:
         self.base_url = (base_url or os.getenv("OLLAMA_LOCAL_BASE_URL") or "http://127.0.0.1:11434").rstrip("/")
 
     def is_configured(self) -> bool:
+        """Return whether this provider has the required configuration."""
         return True
 
     def chat(self, messages: list[dict[str, Any]], model: str, max_tokens: int) -> ProviderResponse:
+        """Send a chat request and return a normalized provider response."""
         started = time.monotonic()
         data, headers = _json_request(f"{self.base_url}/api/chat", {"model": model, "messages": messages, "stream": False, "options": {"num_predict": max_tokens}}, {})
         text = ((data.get("message") or {}).get("content"))

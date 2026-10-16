@@ -52,6 +52,8 @@ def _first_json_object(raw: str) -> dict[str, Any] | None:
 
 
 class ModelDecisions:
+    """Persist model-routing decisions and delegation outcomes."""
+
     def __init__(self, workspace: str | Path, logger: EventLogger,
                  registry: ModelRegistry, llm: Any, session_id: str) -> None:
         self.path = Path(workspace) / "state" / "model_decisions.jsonl"
@@ -155,6 +157,7 @@ class ModelDecisions:
                 temporary.unlink(missing_ok=True)
 
     def last_decisions(self, limit: int | None = 10) -> list[dict[str, Any]]:
+        """Return the most recent persisted model decisions."""
         rows: deque[dict[str, Any]] = deque(maxlen=limit)
         try:
             with self.path.open("r", encoding="utf-8") as handle:
@@ -178,12 +181,14 @@ class ModelDecisions:
                  now - float(entry["last_failure_at"]) >= self.failure_cooldown_seconds)}
 
     def start_task(self, task_id: str) -> None:
+        """Start a tracked task so later outcomes can be attributed to it."""
         self.active_task_id = task_id
         self.task_calls = []
         self.successful_helper_calls = set()
         self.extra_provider_errors = 0
 
     def record_provider_error(self) -> None:
+        """Associate a provider error with the active tracked task."""
         if self.active_task_id:
             self.extra_provider_errors += 1
 
@@ -192,6 +197,7 @@ class ModelDecisions:
             self.task_calls.append((call_id, model, source))
 
     def record_delegation_outcome(self, call_id: str, usefulness: str, note: str) -> dict[str, Any]:
+        """Persist the observed result of a helper-model delegation."""
         if usefulness not in SELF_REPORTED_USEFULNESS:
             raise ValueError("Invalid delegation usefulness")
         if not isinstance(note, str) or len(note) > 1_000:
@@ -210,6 +216,7 @@ class ModelDecisions:
 
     def record_task_outcomes(self, task_id: str, *, completed: bool, iterations: int,
                              tool_errors: int, provider_errors: int) -> None:
+        """Persist task-level outcome signals after a tracked run."""
         helper_used = bool(self.successful_helper_calls)
         helper_used |= any(model != self.registry.base_model and source.startswith("checkpoint:")
                            for _, model, source in self.task_calls)
@@ -225,6 +232,7 @@ class ModelDecisions:
                                      session_id=self.session_id, task_id=task_id)
 
     def task_provider_errors(self) -> int:
+        """Return provider errors recorded for a task."""
         ids = {call_id for call_id, _, _ in self.task_calls}
         return self.extra_provider_errors + sum(
             1 for row in self.last_decisions(limit=None)
@@ -236,6 +244,7 @@ class ModelDecisions:
                             critic_call_id: str | None, critic_model: str,
                             critic_approved: bool | None, tests_passed: bool | None,
                             registered: bool) -> None:
+        """Persist an outcome signal for a generated tool."""
         targets = [(call_id, model, source) for call_id, model, source in self.task_calls
                    if source == "agent_tool" and call_id in self.successful_helper_calls]
         if critic_call_id:
@@ -270,6 +279,7 @@ class ModelDecisions:
 
     def record_task_observation(self, task_id: str, task: str,
                                 ask_model_followed: bool) -> None:
+        """Record an objective observation for delegated or baseline work."""
         record = {"call_id": task_id, "timestamp": datetime.now(timezone.utc).isoformat(),
                       "session_id": self.session_id, "model": self.registry.base_model,
                       "task_type": str(task)[:120], "reason": "", "expected_benefit": "",
@@ -305,6 +315,7 @@ class ModelDecisions:
 
     def ask_model(self, model: str, prompt: str, task_type: str,
                   reason: str, expected_benefit: str) -> dict[str, Any]:
+        """Delegate a task to an eligible helper and persist the decision."""
         available = self._available()
         if model not in available or model == self.registry.base_model:
             raise ValueError("Model must be an enabled configured helper")
@@ -447,6 +458,7 @@ class ModelDecisions:
 
     def decide_model(self, context: str, options: list[str] | None = None,
                      *, moment: str) -> str:
+        """Choose a model for a checkpoint and record the choice origin."""
         available = self._available()
         allowed = set(options if options is not None else available.keys()) & set(available)
         allowed.add(self.registry.base_model)

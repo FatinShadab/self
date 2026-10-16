@@ -113,6 +113,7 @@ def _official_url(provider: str, name: str) -> str | None:
 
 
 def fetch_official_page(url: str, logger: EventLogger) -> dict[str, Any]:
+    """Fetch and extract text from an official model page."""
     original_host = urllib.parse.urlsplit(url).hostname
 
     class OfficialRedirect(urllib.request.HTTPRedirectHandler):
@@ -144,6 +145,8 @@ def fetch_official_page(url: str, logger: EventLogger) -> dict[str, Any]:
 
 
 class ModelProber:
+    """Probe configured helper models and research their capabilities."""
+
     def __init__(self, registry: ModelRegistry, llm: Any, logger: EventLogger,
                  session_id: str, provider: str, *, clock: Callable[[], float] = time.time,
                  code_checker: Callable[[str], dict[str, Any]] = check_code_output,
@@ -159,6 +162,7 @@ class ModelProber:
         self.client_records_stats = getattr(getattr(llm, "client", None), "model_registry", None) is registry
 
     def probe_model(self, name: str) -> dict[str, Any]:
+        """Probe a configured model and store observed capability results."""
         probe_id = self.registry.begin_probe(name, self.session_id, now=self.clock())
         cases: list[dict[str, Any]] = []
         failed = True
@@ -279,6 +283,7 @@ class ModelProber:
         return self.code_checker(text)
 
     def research_model(self, name: str) -> dict[str, Any]:
+        """Research official model information and save verified findings."""
         entry = self.registry.get_model(name)
         if entry["status"] == "disabled":
             raise ValueError("Model is disabled")

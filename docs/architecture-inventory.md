@@ -2,6 +2,9 @@
 
 Captured from `HEAD` before the move. `Imports` lists every static `import` and `from` module found by Python AST. `Importers` lists repository modules importing the flat harness module; dynamic imports and imports inside generated strings are not included.
 
+These flat paths are historical evidence, not active import or test commands.
+Use `scripts/run-tests.ps1` or `scripts/run-tests.sh` for current tests.
+
 | Module | Lines | Imports | Importers |
 | --- | ---: | --- | --- |
 | `agent/__init__.py` | 1 | — | — |

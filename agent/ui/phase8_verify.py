@@ -22,6 +22,7 @@ class VerificationLLM:
     """Enough of the LLM protocol to exercise wake/session behavior offline."""
 
     def call(self, **kwargs: Any) -> LLMResult:
+        """Send a bounded model request and return its response."""
         system = str(kwargs.get("system", ""))
         if "durable handoff" in system:
             text = json.dumps(
@@ -39,6 +40,7 @@ class VerificationLLM:
 
 
 def verify(workspace: Path) -> list[str]:
+    """Check the phase-eight behavior against its expected results."""
     first = WakeCoordinator(workspace, max_iterations=1, token_budget=10_000, llm_client=VerificationLLM())
     first.run()
     identity = IdentityStore(workspace, EventLogger(workspace / "logs" / "actions.jsonl"))
@@ -93,6 +95,7 @@ def verify(workspace: Path) -> list[str]:
 
 
 def main() -> int:
+    """Parse command-line arguments and run this module's entry point."""
     parser = argparse.ArgumentParser(description="Run the offline Phase 8 acceptance check.")
     parser.add_argument("--workspace", default="/home/entity")
     args = parser.parse_args()

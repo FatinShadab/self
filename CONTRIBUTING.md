@@ -19,13 +19,25 @@ make the runtime easier to understand and operate.
 SELF is developed and tested in Docker. From the repository root:
 
 ```powershell
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }
-docker compose build
-docker compose run --rm --entrypoint python self -m unittest discover -s /opt/agent/tests -v
+.\scripts\run-tests.ps1
 ```
 
-The test suite is designed to run without provider credentials. Do not add
+On a Unix shell, use `bash scripts/run-tests.sh`. The scripts build the
+image and run both the harness and eval-only suites without starting the
+agent or requiring provider credentials. Do not add
 real credentials to `.env.example`, source files, tests, or logs.
+
+## Python documentation
+
+Follow PEP 257 for module, class, and public function or method docstrings.
+Start with a short summary ending in a period; describe functions as actions
+and classes by their responsibility. Add a blank line after a class docstring.
+For APIs with non-obvious inputs, results, side effects, or safety boundaries,
+add a short paragraph or labeled `Args` and `Returns` sections. Keep
+docstrings accurate when behavior changes.
+
+Run `python scripts/check_docstrings.py` to check documentation coverage.
+The check uses the Python standard library and does not call a model.
 
 ## Making changes
 

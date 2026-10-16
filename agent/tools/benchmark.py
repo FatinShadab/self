@@ -18,6 +18,7 @@ EVALS = [
 
 
 def run_benchmark(workspace: str | Path, logger: EventLogger, router: BrainRouter, providers: list[str] | None = None) -> dict[str, Any]:
+    """Run the small transparent provider checks and save their scores."""
     root = Path(workspace)
     selected = providers or router.registry.configured()
     scores: dict[str, Any] = {"schema_version": 1, "updated_at": datetime.now(timezone.utc).isoformat(), "providers": {}}

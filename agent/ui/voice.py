@@ -31,6 +31,7 @@ class VoiceController:
 
     @property
     def output_available(self) -> bool:
+        """Return whether voice output can be used."""
         return self._tts is not None
 
     @property
@@ -38,9 +39,11 @@ class VoiceController:
         # System.Speech.Recognition is available on Windows desktop installs.
         # Docker/Linux intentionally reports this as unavailable unless a
         # future dedicated microphone backend is added.
+        """Return whether voice input can be used."""
         return os.name == "nt" and self._powershell is not None
 
     def status_text(self) -> str:
+        """Return a human-readable voice availability summary."""
         output = "available" if self.output_available else "unavailable"
         input_status = "available" if self.input_available else "unavailable"
         state = "on" if self.enabled else "off"
@@ -49,6 +52,7 @@ class VoiceController:
         return f"Voice: {state} (output {output}, input {input_status}, {backend}; {preference})"
 
     def set_enabled(self, enabled: bool) -> str:
+        """Enable or disable optional voice features."""
         self.enabled = enabled
         if enabled and not self.output_available:
             return "Voice output is unavailable here. Docker cannot reach Windows audio; run SELF natively on Windows or install/configure a container audio backend."

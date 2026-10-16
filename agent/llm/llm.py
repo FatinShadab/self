@@ -19,6 +19,8 @@ from agent.llm.model_registry import ModelRegistry
 
 
 class BudgetExceeded(RuntimeError):
+    """Signal that a model call would exceed its token allowance."""
+
     def __init__(self, message: str, *, kind: str = "run") -> None:
         super().__init__(message)
         self.kind = kind
@@ -74,6 +76,7 @@ class BudgetedLLM:
     def call(self, *, system: str, messages: list[dict[str, Any]],
              tools: list[dict[str, Any]], max_tokens: int,
              model: str | None = None, min_output_tokens: int = 64) -> LLMResult:
+        """Send a bounded model request and return its response."""
         if model is not None and model not in getattr(self.client, "available_models", []):
             raise ValueError("Model is not in the configured allowlist")
         import json
@@ -125,6 +128,8 @@ class BudgetedLLM:
 
 @dataclass
 class LLMResult:
+    """Model response content and measured token usage."""
+
     content: list[dict[str, Any]]
     input_tokens: int
     output_tokens: int
@@ -134,6 +139,7 @@ class LLMResult:
 
     @property
     def total_tokens(self) -> int:
+        """Return the combined input and output token count."""
         return self.input_tokens + self.output_tokens
 
 
@@ -266,6 +272,7 @@ class LLMClient:
         max_tokens: int,
         model: str | None = None,
     ) -> LLMResult:
+        """Reserve a provider attempt, send the request, and record measured usage."""
         if model is not None and model not in self.available_models:
             raise ValueError("Model is not in the configured allowlist")
         selected_model = model or self.base_model

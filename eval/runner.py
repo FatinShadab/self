@@ -101,6 +101,7 @@ def _session_guard(workspace: Path):
 
 
 def load_benchmark(path: Path = HERE / "benchmark.json") -> dict[str, Any]:
+    """Load the hidden benchmark definition."""
     data = json.loads(path.read_text(encoding="utf-8"))
     items = data["items"]
     counts = Counter(item["category"] for item in items)
@@ -112,10 +113,12 @@ def load_benchmark(path: Path = HERE / "benchmark.json") -> dict[str, Any]:
 
 
 def planned_call_count(data: dict[str, Any], models: list[str]) -> int:
+    """Return the number of planned benchmark model calls."""
     return len(models) * len(data["items"]) * data["repetitions"]
 
 
 def check_code(item: dict[str, Any], output: str, *, timeout: float = CODE_TIMEOUT) -> bool:
+    """Check code output against the benchmark's expected behavior."""
     source = output.strip()
     if source.startswith("```"):
         source = re.sub(r"^```(?:python)?\s*|\s*```$", "", source, flags=re.I)
@@ -134,6 +137,7 @@ def check_code(item: dict[str, Any], output: str, *, timeout: float = CODE_TIMEO
 
 
 def check_item(item: dict[str, Any], output: str) -> bool:
+    """Check a model response against one benchmark item."""
     kind = item["kind"]
     if kind == "exact":
         return output.strip() == item["answer"]
@@ -172,6 +176,8 @@ def _env_keys(*names: str) -> list[str]:
 
 
 class EvalClient:
+    """Issue benchmark requests through the configured provider."""
+
     def __init__(self) -> None:
         ollama = _env_keys("OLLAMA_API_KEYS", "OLLAMA_API_KEY", "OLLAM_API_KEYS", "OLLAM_API_KEY")
         anthropic = _env_keys("ANTHROPIC_API_KEYS", "ANTHROPIC_API_KEY")
@@ -188,6 +194,7 @@ class EvalClient:
         self.key_index = 0
 
     def call(self, model: str, prompt: str, cap: int) -> LLMResult:
+        """Send a bounded model request and return its response."""
         while True:
             try:
                 response = self.clients[self.key_index].messages.create(
@@ -214,6 +221,7 @@ class EvalClient:
 
 
 def run_item(item: dict[str, Any], model: str, client: Any, repetition: int) -> dict[str, Any]:
+    """Run one benchmark item and record its attempts."""
     attempts = []
     for number, cap in ((1, CODE_CAP if item["kind"] == "code" else INITIAL_CAP),
                         (2, RETRY_CAP)):
@@ -244,6 +252,7 @@ def run_item(item: dict[str, Any], model: str, client: Any, repetition: int) -> 
 
 
 def score_records(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
+    """Aggregate benchmark records by model and category."""
     grouped: dict[str, dict[str, list[dict[str, Any]]]] = defaultdict(lambda: defaultdict(list))
     for record in records:
         grouped[record["model"]][record["category"]].append(record)
@@ -267,6 +276,7 @@ def score_records(records: list[dict[str, Any]]) -> dict[str, dict[str, Any]]:
 
 
 def run_benchmark(data: dict[str, Any], models: list[str], client: Any) -> dict[str, Any]:
+    """Run all benchmark items for the selected models."""
     started = datetime.now(timezone.utc).isoformat()
     records = [run_item(item, model, client, repetition)
                for model in models for repetition in (1, 2, 3) for item in data["items"]]
@@ -277,6 +287,7 @@ def run_benchmark(data: dict[str, Any], models: list[str], client: Any) -> dict[
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Parse command-line arguments and run this module's entry point."""
     parser = argparse.ArgumentParser()
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args(argv)

@@ -1,5 +1,9 @@
 # Architecture migration
 
+The flat paths and direct test commands in the baseline and inventory below
+record the pre-migration state; they are not current instructions. Run both
+current suites through `scripts/run-tests.ps1` or `scripts/run-tests.sh`.
+
 ## Progress
 
 - [x] A0 inventory, dependency review, and provider-free baseline captured.

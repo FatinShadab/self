@@ -22,6 +22,7 @@ VALID_CONFIDENCE = {"unknown", "low", "medium", "high"}
 
 
 def utc_now() -> str:
+    """Return the current UTC timestamp."""
     return datetime.now(timezone.utc).isoformat()
 
 
@@ -42,6 +43,7 @@ class LearningStore:
         self.logger = logger
 
     def initialize(self) -> None:
+        """Create any missing workspace state files with defaults."""
         self.state_dir.mkdir(parents=True, exist_ok=True)
         data = self._load_map()
         entries = data.setdefault("entries", {})
@@ -155,6 +157,7 @@ class LearningStore:
         return {"ok": True, "updated": updated, "map_path": str(self.map_path)}
 
     def update_runtime(self, tool_names: list[str], limits: dict[str, Any]) -> None:
+        """Refresh verified tool and limit facts in the environment map."""
         self.update_map(
             [
                 {"key": "available_tools", "value": sorted(set(tool_names)), "confidence": "high", "evidence": "harness registry refresh"},
@@ -164,6 +167,7 @@ class LearningStore:
         )
 
     def append_memory(self, what_was_tried: str, outcome: str, lesson: str, tags: list[str]) -> dict[str, Any]:
+        """Append one redacted learning record to persistent memory."""
         self.state_dir.mkdir(parents=True, exist_ok=True)
         record = self.logger.redactor.value(
             {
@@ -184,6 +188,7 @@ class LearningStore:
         return record
 
     def memory_entries(self) -> list[dict[str, Any]]:
+        """Return persistent memory records."""
         records: list[dict[str, Any]] = []
         try:
             with self.memory_path.open("r", encoding="utf-8", errors="replace") as handle:
@@ -199,6 +204,7 @@ class LearningStore:
         return records
 
     def retrieve_memories(self, query: str, limit: int = 6) -> str:
+        """Rank persistent memories against a query and return a bounded excerpt."""
         terms = _words(query)
         ranked: list[tuple[int, int, dict[str, Any]]] = []
         entries = self.memory_entries()
@@ -220,6 +226,7 @@ class LearningStore:
         )[:12_000]
 
     def map_context(self) -> str:
+        """Return verified environment-map context for a prompt."""
         entries = self._load_map().get("entries", {})
         if not entries:
             return "Environment map is empty."
@@ -231,6 +238,7 @@ class LearningStore:
         return "\n".join(lines)
 
     def load_notes(self) -> str:
+        """Load persistent self notes from the workspace."""
         try:
             notes = self.notes_path.read_text(encoding="utf-8", errors="replace")
         except OSError:
@@ -239,6 +247,7 @@ class LearningStore:
         return self.logger.redactor.text(notes[:self.notes_cap])
 
     def rewrite_notes(self) -> None:
+        """Replace the persistent self notes with validated content."""
         recent = self.memory_entries()[-6:]
         lessons = [str(entry.get("lesson", "")).replace("\n", " ")[:300] for entry in recent if entry.get("lesson")]
         body = [
@@ -259,6 +268,7 @@ class LearningStore:
         self.logger.log("self_notes_rewritten", chars=len(notes))
 
     def record_cycle(self, task: str, cycle: int, actions: list[dict[str, Any]], report: str) -> None:
+        """Summarize one cycle as a memory and refresh notes when needed."""
         action_names = [str(action.get("name", "tool")) for action in actions]
         failures = [name for name, action in zip(action_names, actions) if not action.get("ok", False)]
         outcome = "completed" if not failures else f"completed with tool failures: {', '.join(failures)}"
@@ -270,6 +280,7 @@ class LearningStore:
             self.rewrite_notes()
 
     def propose_curriculum(self) -> str:
+        """Choose a bounded practice task from recent successes."""
         successes = sum(1 for entry in self.memory_entries()[-12:] if str(entry.get("outcome", "")).startswith("completed"))
         difficulty = min(5, 1 + successes // 3)
         tasks = [

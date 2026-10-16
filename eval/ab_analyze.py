@@ -19,6 +19,12 @@ def _rate(rows: list[dict]) -> float:
 
 
 def summarize(rows: list[dict], *, bootstrap_seed: int = 7, draws: int = 3000) -> dict[str, Any]:
+    """Separate valid runs and calculate arm-comparison statistics.
+
+    Exclude contaminated and infrastructure-error runs, identify tasks
+    with a ceiling or floor in every arm, and bootstrap success-rate
+    differences by resampling runs within each informative task.
+    """
     excluded = [row for row in rows if row.get("contaminated") or row.get("infra_error")]
     clean = [row for row in rows if not (row.get("contaminated") or row.get("infra_error"))]
     grouped: dict[tuple[str, str], list[dict]] = defaultdict(list)
@@ -67,6 +73,11 @@ def summarize(rows: list[dict], *, bootstrap_seed: int = 7, draws: int = 3000) -
 
 
 def render(rows: list[dict], *, calibration: dict | None = None) -> str:
+    """Format randomized arm results and observational helper-use summaries.
+
+    Keep sample sizes visible and state whether the bootstrap interval
+    excludes zero. Optional calibration scores remain descriptive.
+    """
     data = summarize(rows)
     lines = [f"A/B results: valid_runs={len(data['clean'])} excluded={len(data['excluded'])}",
              "Off arm prompt is slightly shorter by design.", "", "Per task and arm:"]
@@ -130,6 +141,7 @@ def render(rows: list[dict], *, calibration: dict | None = None) -> str:
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Parse command-line arguments and run this module's entry point."""
     parser = argparse.ArgumentParser(description="Analyze A/B result records.")
     parser.add_argument("--results", type=Path, default=RESULTS)
     args = parser.parse_args(argv)

@@ -28,6 +28,7 @@ tools. Do not read environment variables, files, directories, logs, or memories.
 
 
 def main() -> int:
+    """Build and then reuse the disk tool in a live acceptance run."""
     workspace = Path("/home/entity")
     logger = EventLogger(workspace / "logs" / "actions.jsonl")
     for task in (BUILD_TASK, REUSE_TASK):

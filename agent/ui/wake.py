@@ -190,6 +190,8 @@ def _env_int(name: str, default: int, minimum: int, maximum: int) -> int:
 
 @dataclass
 class WakeStatus:
+    """Current identity, timing, and usage of the wake session."""
+
     session_id: str = ""
     iteration: int = 0
     tokens_used: int = 0
@@ -281,6 +283,7 @@ class ContainerMetrics:
         return usage, quota_cpus
 
     def snapshot(self) -> dict[str, Any]:
+        """Return a read-only snapshot of current state."""
         now = time.monotonic()
         elapsed = max(0.001, now - self._last_sample)
         cpu_usage, quota_cpus = self._cpu_usage()
@@ -341,6 +344,8 @@ class ContainerMetrics:
 
 
 class WakeCoordinator:
+    """Coordinate wake sessions, UI events, and the agent loop."""
+
     def __init__(self, workspace: str | Path = "/home/entity", *, max_iterations: int | None = None, token_budget: int | None = None, max_wall_clock_seconds: int | None = None, llm_client: Any | None = None) -> None:
         self.workspace = Path(workspace)
         self.logger = EventLogger(self.workspace / "logs" / "actions.jsonl")
@@ -450,6 +455,7 @@ class WakeCoordinator:
                 self.telemetry.state = "IDLE" if record.get("reason") != "human_request_pending" else "WAITING FOR HUMAN"
 
     def runtime_snapshot(self) -> dict[str, Any]:
+        """Return current runtime telemetry for the UI."""
         with self.lock:
             return {
                 "state": self.telemetry.state,
@@ -644,6 +650,7 @@ class WakeCoordinator:
         return f"One evidence-backed self-observation: {latest.get('trait')}; {latest.get('evidence')}"
 
     def boot(self) -> str:
+        """Load persistent state and prepare a new wake session."""
         self.workspace.mkdir(parents=True, exist_ok=True)
         self.learning.initialize()
         ledger = self.daily_ledger
@@ -757,6 +764,7 @@ class WakeCoordinator:
             return fallback
 
     def models_snapshot(self) -> dict[str, Any]:
+        """Return model registry data and recent decisions."""
         registry = getattr(self._llm, "model_registry", None)
         if registry is not None:
             models = registry.list_models()
@@ -781,6 +789,7 @@ class WakeCoordinator:
         return self.logger.redactor.value({"registry": models, "last_ten_decisions": list(recent)})
 
     def revise_plan(self) -> None:
+        """Replace the active plan with validated, actionable entries."""
         self._recover_budget_blocked_plan()
         reflected = self._reflection("wake-up plan review", "Revise the old plan against current state and spot checks.")
         self.plan = normalized_plan(list(reflected.get("plan") or self.plan))
@@ -859,6 +868,7 @@ class WakeCoordinator:
             self._last_checkpoint = time.monotonic()
 
     def receive_human_input(self, text: str) -> None:
+        """Queue human input for the next safe agent turn."""
         self.inbox.add(text)
         self.status.last_human_input = time.monotonic()
         if self.identity.awaiting_name():
@@ -883,6 +893,7 @@ class WakeCoordinator:
         return f"{identity}\n\nCurrent handoff:\n{handoff}\n\nActive plan:\n{plan}\n\nRecent cycle summaries:\n{summaries}\n\nRecent activity:\n{activity}"
 
     def start_conversation(self, text: str, on_result: Callable[[str, str, str], None]) -> str:
+        """Start an independent read-only conversation thread."""
         return self.conversations.submit(text, self.conversation_context, on_result)
 
     @staticmethod
@@ -904,6 +915,7 @@ class WakeCoordinator:
         return clean
 
     def run(self) -> Any:
+        """Run the current wake session within its configured limits."""
         with locked_file(self.workspace / "state" / "eval_session.lock", shared=True):
             return self._run_session()
 
@@ -998,6 +1010,7 @@ class WakeCoordinator:
 
 
 def now_utc() -> str:
+    """Return the current UTC timestamp."""
     from datetime import datetime, timezone
     return datetime.now(timezone.utc).isoformat()
 
@@ -1013,6 +1026,7 @@ def _requests_text(root: Path) -> str:
 
 
 def run_headless(coordinator: WakeCoordinator) -> int:
+    """Run a wake session without the terminal UI."""
     while True:
         try:
             result = coordinator.run()
@@ -1034,6 +1048,7 @@ def run_headless(coordinator: WakeCoordinator) -> int:
 
 
 def run_tui(coordinator: WakeCoordinator) -> int:
+    """Run a wake session with the terminal UI."""
     try:
         from textual import events
         from textual.app import App, ComposeResult
@@ -1664,6 +1679,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
 
 
 def main() -> int:
+    """Parse command-line arguments and run this module's entry point."""
     parser = argparse.ArgumentParser(description="Wake SELF with a persistent session and optional terminal UI.")
     parser.add_argument("--headless", action="store_true")
     parser.add_argument("--workspace", default="/home/entity")

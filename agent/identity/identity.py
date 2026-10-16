@@ -23,6 +23,7 @@ NAME_MAX_CHARS = 80
 
 
 def now() -> str:
+    """Return the current UTC timestamp."""
     return datetime.now(timezone.utc).isoformat()
 
 
@@ -60,10 +61,12 @@ class IdentityStore:
 
     @property
     def exists(self) -> bool:
+        """Return whether a persistent identity record exists."""
         return self.path.exists()
 
     @staticmethod
     def default_identity() -> dict[str, Any]:
+        """Return a new identity record with default fields."""
         return {
             "name": None,
             "named_by": None,
@@ -411,6 +414,7 @@ Editable layer observed: {", ".join(observed_self)}.
         return narration
 
     def display_name(self) -> str:
+        """Return the identity name shown to the human."""
         return str(self.load().get("name") or "unnamed")
 
     def awaiting_name(self) -> bool:
@@ -423,6 +427,7 @@ Editable layer observed: {", ".join(observed_self)}.
         return str(value) if value else None
 
     def set_human_name(self, name: str, session_id: str = "") -> str:
+        """Persist the human's explicitly supplied preferred name."""
         cleaned = self._safe(name, NAME_MAX_CHARS)
         if not cleaned or len(cleaned) > NAME_MAX_CHARS:
             raise ValueError(f"Your name must contain 1-{NAME_MAX_CHARS} visible characters.")
@@ -440,6 +445,7 @@ Editable layer observed: {", ".join(observed_self)}.
         return cleaned
 
     def voice(self) -> str:
+        """Return the identity's configured voice description."""
         return str(self.load().get("voice") or self.default_identity()["voice"])
 
     def prompt_context(self) -> str:
@@ -486,6 +492,7 @@ Editable layer observed: {", ".join(observed_self)}.
             return False
 
     def set_name(self, name: str, session_id: str = "", named_by: str = "human") -> dict[str, Any]:
+        """Update SELF's display name with an audit entry."""
         cleaned = self._safe(name, NAME_MAX_CHARS)
         if not cleaned or len(cleaned) > NAME_MAX_CHARS:
             raise ValueError(f"Name must contain 1-{NAME_MAX_CHARS} visible characters.")
@@ -526,12 +533,14 @@ Editable layer observed: {", ".join(observed_self)}.
         return True
 
     def about_human_text(self, limit: int = 6_000) -> str:
+        """Return the identity's human-facing context."""
         try:
             return self.logger.redactor.text(self.human_path.read_text(encoding="utf-8", errors="replace")[-max(1, limit):])
         except OSError:
             return "No volunteered information is stored about the human yet."
 
     def delete_human_line(self, line_number: int, session_id: str = "") -> str:
+        """Remove one line of human context while preserving the audit trail."""
         if line_number < 1:
             raise ValueError("Line number must be positive.")
         try:
@@ -559,6 +568,7 @@ Editable layer observed: {", ".join(observed_self)}.
         return any(str(item.get("trait", "")).casefold() == trait.casefold() for item in self.load().get("traits", []))
 
     def add_trait(self, trait: str, evidence: str, session_id: str) -> bool:
+        """Record an evidence-backed identity trait."""
         trait_text, evidence_text = self._safe(trait, 160), self._safe(evidence, 1_000)
         if not trait_text or not evidence_text or self._identity_has_trait(trait_text):
             return False
@@ -649,6 +659,7 @@ Editable layer observed: {", ".join(observed_self)}.
         return True
 
     def proposed_patches(self) -> list[Path]:
+        """Return proposed source changes from identity state."""
         try:
             return sorted(self.proposals_path.glob("*.patch"), key=lambda path: path.name, reverse=True)
         except OSError:
@@ -686,6 +697,7 @@ Editable layer observed: {", ".join(observed_self)}.
         return {"ok": True, "status": "human_review_required", "path": str(path), "applied": False}
 
     def self_panel_text(self) -> str:
+        """Return identity text for the terminal UI panel."""
         identity = self.load()
         traits = identity.get("traits", [])
         values = identity.get("values", [])

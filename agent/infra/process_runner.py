@@ -14,6 +14,7 @@ def run_process(argv: list[str], *, cwd: Path, timeout: float, cap: int,
                 env: dict[str, str] | None = None, stdin: str | None = None,
                 on_output: Callable[[str], None] | None = None,
                 on_complete: Callable[[dict[str, Any]], None] | None = None) -> dict[str, Any]:
+    """Execute a bounded child process and capture its output."""
     process = subprocess.Popen(argv, cwd=cwd, env=env, stdin=subprocess.PIPE,
                                stdout=subprocess.PIPE, stderr=subprocess.STDOUT,
                                start_new_session=True)

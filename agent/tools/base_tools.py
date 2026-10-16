@@ -232,6 +232,8 @@ class _LoggingRedirectHandler(urllib.request.HTTPRedirectHandler):
 
 
 class ToolRunner:
+    """Execute built-in tools subject to workspace and harness boundaries."""
+
     def __init__(
         self,
         logger: EventLogger,
@@ -256,6 +258,7 @@ class ToolRunner:
         self.model_decisions: Any = None
 
     def execute(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        """Execute a named tool with its supplied arguments."""
         if os.getenv("SELF_HELPER_MODELS", "on").strip().lower() != "on" and name in HELPER_TOOL_NAMES:
             return {"ok": False, "error": f"{name} is disabled in this experiment arm"}
         logged_arguments = dict(arguments)
@@ -328,6 +331,7 @@ class ToolRunner:
         return safe_result
 
     def run_shell(self, cmd: str, timeout: float = 30) -> dict[str, Any]:
+        """Run a bounded shell command inside the container."""
         stream_id = uuid.uuid4().hex[:12]
         safe_command = self.logger.redactor.text(cmd)
         self.logger.log("command_started", stream_id=stream_id, command=safe_command[:2_000], timeout=float(timeout))
@@ -346,33 +350,42 @@ class ToolRunner:
                            on_output=on_output, on_complete=on_complete)
 
     def update_environment_map(self, entries: list[dict[str, Any]]) -> dict[str, Any]:
+        """Record observed environment facts through the learning store."""
         if self.learning is None:
             raise RuntimeError("persistent learning store is not configured")
         return self.learning.update_map(entries, source="agent tool observation")
 
     def research_provider(self, provider: str) -> dict[str, Any]:
+        """Fetch official provider information through the router."""
         return self.brain_router.research_provider(provider)
 
     def record_provider_verification(self, provider: str, free_tier: dict[str, Any], models: list[str], strengths: list[str], source_url: str) -> dict[str, Any]:
+        """Store provider limits verified against its official source."""
         return self.brain_router.record_provider_verification(provider, free_tier, models, strengths, source_url)
 
     def request_provider_key(self, provider: str) -> dict[str, Any]:
+        """Ask the human to configure a missing provider credential."""
         return self.brain_router.request_key(provider)
 
     def ask_brain(self, prompt: str, task_type: str = "simple", model: str | None = None, preferred_provider: str | None = None, max_tokens: int = 512) -> dict[str, Any]:
+        """Send a bounded plain-text request through a supplemental provider."""
         return self.brain_router.chat([{"role": "user", "content": prompt}], model, max(32, min(int(max_tokens), 4_096)), task_type, preferred_provider)
 
     def benchmark_providers(self, providers: list[str] | None = None) -> dict[str, Any]:
+        """Run the small built-in provider comparison and persist scores."""
         from agent.tools.benchmark import run_benchmark
         return run_benchmark(self.workspace, self.logger, self.brain_router, providers)
 
     def probe_local_ollama(self) -> dict[str, Any]:
+        """Check local Ollama availability without starting or pulling a model."""
         return self.brain_router.probe_local_ollama()
 
     def request_capability(self, kind: str, summary: str, reason: str, provider: str = "", env_names: list[str] | None = None, signup_url: str = "") -> dict[str, Any]:
+        """Record a human-facing request for expanded capabilities."""
         return self.capabilities.request(kind, summary, reason, provider, env_names, signup_url)
 
     def propose_core_patch(self, name: str, diff: str, reasoning: str) -> dict[str, Any]:
+        """Reject direct harness changes and record a proposed patch instead."""
         return self.identity.propose_core_patch(name, diff, reasoning)
 
     def _is_core_path(self, path: Path) -> bool:
@@ -384,6 +397,7 @@ class ToolRunner:
             return False
 
     def read_file(self, path: str, max_chars: int = DEFAULT_OUTPUT_CAP) -> dict[str, Any]:
+        """Read a file that passes the runner's path checks."""
         limit = max(1, min(int(max_chars), self.output_cap))
         file_path = Path(path)
         with file_path.open("r", encoding="utf-8", errors="replace") as handle:
@@ -395,6 +409,7 @@ class ToolRunner:
         }
 
     def write_file(self, path: str, content: str, append: bool = False) -> dict[str, Any]:
+        """Write a workspace file after enforcing path and size limits."""
         file_path = Path(path)
         if self._is_core_path(file_path):
             raise PermissionError(
@@ -417,6 +432,7 @@ class ToolRunner:
         return {"path": str(file_path), "chars_written": written, "append": bool(append)}
 
     def list_dir(self, path: str, max_entries: int = 500) -> dict[str, Any]:
+        """List directory entries up to a bounded count without following links."""
         limit = max(1, min(int(max_entries), 5_000))
         entries: list[dict[str, Any]] = []
         truncated = False
@@ -448,6 +464,7 @@ class ToolRunner:
         )
 
     def http_get(self, url: str, timeout: float = 20, max_chars: int = DEFAULT_OUTPUT_CAP) -> dict[str, Any]:
+        """Fetch a URL and record observable network access."""
         parsed = urllib.parse.urlsplit(url)
         if parsed.scheme not in {"http", "https"} or not parsed.hostname:
             raise ValueError("http_get requires an http:// or https:// URL with a host")

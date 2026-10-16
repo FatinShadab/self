@@ -49,3 +49,7 @@ Read [infra](infra/README.md) for event and state safety, [llm](llm/README.md) f
 | Arm | A fixed harness configuration used for a randomized A/B run. |
 
 The host-only evaluator lives in `../eval/` and is never mounted into the `self` service. See [migration notes](../docs/architecture-migration.md) for the old-to-new path map and baseline, and the [helper-model experiment](../docs/helper-model-experiment.md) for the run sequence.
+
+Public module, class, and function docstrings follow the conventions in the
+[contributing guide](../CONTRIBUTING.md). Run
+`python scripts/check_docstrings.py` from the repository root to audit them.

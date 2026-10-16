@@ -12,11 +12,14 @@ from typing import Any
 
 @dataclass(frozen=True)
 class CoverageSummary:
+    """Summarize visits to exploration areas."""
+
     directories: tuple[tuple[str, int], ...]
     tools: tuple[tuple[str, str], ...]
 
     @property
     def total_visits(self) -> int:
+        """Return the number of recorded exploration visits."""
         return sum(count for _, count in self.directories)
 
 
@@ -87,6 +90,7 @@ def registered_tools(tools_root: Path, reserved_names: set[str] | None = None) -
 
 
 def build_coverage(workspace: Path, reserved_names: set[str] | None = None) -> CoverageSummary:
+    """Build an exploration summary from recorded activity."""
     return CoverageSummary(
         directories=directory_visits(workspace / "logs" / "actions.jsonl"),
         tools=registered_tools(workspace / "tools", reserved_names),

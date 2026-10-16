@@ -6,6 +6,13 @@ The hidden task definitions and verifiers stay under `eval/` on the host. Each r
 
 Run these commands from the repository root in PowerShell. Steps 2, 4, 7, and 8 spend provider quota. Read each dry-run count and your provider's remaining quota first; the hidden benchmark plans 840 calls before possible retries, while the full A/B plan caps at 864 attempts with the default 12 per run.
 
+Before the live steps, run both provider-free test suites with the shared
+entry point:
+
+```powershell
+.\scripts\run-tests.ps1
+```
+
 1. Correct model names in the private `.env`, then rebuild and recreate the stopped image. Set the base name in `OLLAMA_MODEL` (or `ANTHROPIC_MODEL`) and comma-separated eligible helpers in `LLM_AVAILABLE_MODELS`. Keep `SELF_HELPER_MODELS=on` for the preparation session.
 
    ```powershell

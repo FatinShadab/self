@@ -1,3 +1,5 @@
+"""Preserve the legacy disk-tool demonstration entry point."""
+
 # Compatibility shim: implementation lives in agent.ui.disk_tool_demo.
 from agent.ui.disk_tool_demo import *  # noqa: F401,F403
 from agent.ui.disk_tool_demo import main

@@ -51,19 +51,28 @@ Any flagged issue requires approved=false. Do not execute code or reveal credent
 
 
 def digest(text: str) -> str:
+    """Return the SHA-256 digest of text."""
     return hashlib.sha256(text.encode("utf-8")).hexdigest()
 
 
 def timestamp() -> str:
+    """Return the current UTC timestamp."""
     return datetime.now(timezone.utc).isoformat()
 
 
 class ToolSearch(Protocol):
-    def search(self, query: str, tools: list[dict[str, Any]], top_k: int) -> list[dict[str, Any]]: ...
+    """Interface for ranking registered tools against a query."""
+
+    def search(self, query: str, tools: list[dict[str, Any]], top_k: int) -> list[dict[str, Any]]:
+        """Rank candidate tools for a query and return the best matches."""
+        ...
 
 
 class KeywordToolSearch:
+    """Rank tools using words in their names and descriptions."""
+
     def search(self, query: str, tools: list[dict[str, Any]], top_k: int) -> list[dict[str, Any]]:
+        """Rank candidate tools for a query and return the best matches."""
         terms = set(re.findall(r"[a-z0-9]+", query.lower()))
         ranked = []
         for tool in tools:
@@ -76,6 +85,7 @@ class KeywordToolSearch:
 
 
 def schema_from_code(code: str) -> dict[str, Any]:
+    """Derive a tool argument schema from Python source."""
     tree = ast.parse(code)
     explicit = None
     for node in tree.body:
@@ -118,6 +128,8 @@ def schema_from_code(code: str) -> dict[str, Any]:
 
 
 class ToolRegistry:
+    """Load, search, create, and execute workspace tools."""
+
     def __init__(self, workspace: Path, logger: EventLogger, review_call: Callable[..., Any],
                  reserved_names: set[str], *, test_timeout: float = 15,
                  execution_timeout: float = 30, output_cap: int = 20000,
@@ -154,6 +166,7 @@ class ToolRegistry:
         temporary.replace(folder / "meta.json")
 
     def refresh(self) -> None:
+        """Reload workspace tools and their metadata."""
         loaded = {}
         for folder in self.root.iterdir():
             if not folder.is_dir() or not re.fullmatch(r"[a-z][a-z0-9_]{0,63}", folder.name):
@@ -174,6 +187,7 @@ class ToolRegistry:
             self.logger.log("tool_loaded", name=name, version=loaded[name]["version"])
 
     def retrieve(self, query: str, top_k: int) -> list[dict[str, Any]]:
+        """Return relevant records for the current query."""
         self.refresh()
         selected = self.search.search(query, list(self.tools.values()), top_k)
         self.logger.log("tool_retrieval", query=query, top_k=top_k, selected=[t["name"] for t in selected])
@@ -203,6 +217,7 @@ class ToolRegistry:
                 if not any(marker in key.upper() for marker in SECRET_NAME_MARKERS)}
 
     def create_tool(self, name: str, description: str, code: str, test_code: str) -> dict[str, Any]:
+        """Validate, test, and register a generated workspace tool."""
         if not re.fullmatch(r"[a-z][a-z0-9_]{0,63}", name) or name in self.reserved_names:
             raise ValueError("Tool name must be lowercase snake_case and not a built-in name")
         folder = self.root / name
@@ -345,6 +360,7 @@ class ToolRegistry:
                     tests_passed=tests_passed, registered=entry["passed"])
 
     def execute(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        """Execute a registered tool through the isolated worker."""
         self.refresh()
         if name not in self.tools:
             raise ValueError(f"Tool {name} is not registered with passing tests and critic")

@@ -88,8 +88,11 @@ docker compose run --rm self --headless --max-iterations 10 --token-budget 20000
 To run the test suite without starting the agent or requiring an API key:
 
 ```powershell
-docker compose run --rm --entrypoint python self -m unittest discover -s /opt/agent/tests -v
+.\scripts\run-tests.ps1
 ```
+
+This entry point builds the image and runs both the harness and host-only
+evaluation suites. On a Unix shell, use `bash scripts/run-tests.sh`.
 
 See [provider and model configuration](#phase-2-run-the-exploration-loop)
 for key rotation and model selection. [Wake-up sessions and terminal UI](#phase-7-wake-up-sessions-and-terminal-ui)
@@ -190,9 +193,9 @@ pass testing and review. The actor and critic share the run token budget.
 Build and run regression tests:
 
 ```powershell
+.\scripts\run-tests.ps1
 docker compose build
 docker compose up -d
-docker compose exec -T self python -m unittest discover -s /opt/agent/tests -v
 ```
 
 Ask the live agent to create a disk usage tool and reuse it in a separate run:
@@ -238,9 +241,9 @@ task from recent successful cycles.
 Build, test, and run a short learning cycle:
 
 ```powershell
+.\scripts\run-tests.ps1
 docker compose build
 docker compose up -d
-docker compose exec -T self python -m unittest discover -s /opt/agent/tests -v
 docker compose exec self python /opt/agent/loop.py --max-iterations 2 --token-budget 20000 --task "Inspect disk capacity and record verified facts in the environment map."
 docker compose exec self python -m agent.report
 ```
@@ -275,10 +278,10 @@ to workspace state or emitted in logs.
 Build and inspect the registry:
 
 ```powershell
+.\scripts\run-tests.ps1
 docker compose build
 docker compose up -d
-docker compose exec -T self python -m unittest discover -s /opt/agent/tests -v
-docker compose exec self python -c "from pathlib import Path; from event_log import EventLogger; from providers.registry import ProviderRegistry; p=ProviderRegistry(Path('/home/entity'), EventLogger('/home/entity/logs/actions.jsonl')); p.initialize(); print(p.providers())"
+docker compose exec self python -c "from pathlib import Path; from agent.infra.event_log import EventLogger; from agent.llm.providers.registry import ProviderRegistry; p=ProviderRegistry(Path('/home/entity'), EventLogger('/home/entity/logs/actions.jsonl')); p.initialize(); print(p.providers())"
 ```
 
 To let a normal agent run research before requesting a key:

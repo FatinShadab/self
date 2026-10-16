@@ -37,6 +37,8 @@ def _env_limit(name: str, default: int, minimum: int, maximum: int) -> int:
 
 
 class ModelRegistry:
+    """Track configured models, assessments, ratings, and measured use."""
+
     def __init__(self, workspace: str | Path, logger: EventLogger,
                  base_model: str, available_models: list[str]) -> None:
         self.path = Path(workspace) / "state" / "models.json"
@@ -189,10 +191,12 @@ class ModelRegistry:
                 self._write(data)
 
     def list_models(self) -> dict[str, Any]:
+        """Return all configured models with assessments and measured stats."""
         with self._locked():
             return self.logger.redactor.value(self._read())
 
     def get_model(self, name: str) -> dict[str, Any]:
+        """Return one configured model by name, if present."""
         if name not in self.names:
             raise ValueError("Model is not configured")
         with self._locked():
@@ -201,6 +205,7 @@ class ModelRegistry:
 
     def record_model_assessment(self, name: str, assessment: str, evidence: str,
                                 ratings: dict[str, str] | None = None) -> dict[str, Any]:
+        """Persist the agent's assessment and category ratings for a model."""
         if name not in self.names:
             raise ValueError("Model is not configured")
         if not isinstance(assessment, str) or not assessment.strip():
@@ -236,6 +241,7 @@ class ModelRegistry:
                 "ratings": entry["ratings"], "ratings_at": entry["ratings_at"]}
 
     def record_probe_outcome(self, name: str, outcome: str) -> None:
+        """Update a model's status and probe history from observed results."""
         if outcome not in {"passed", "failed", "inconclusive"}:
             raise ValueError("Invalid probe outcome")
         with self._locked():
@@ -251,6 +257,7 @@ class ModelRegistry:
 
     def record_call(self, name: str, *, failed: bool, latency_ms: int,
                     not_found: bool = False) -> None:
+        """Update measured call, token, latency, and failure statistics."""
         if name not in self.names:
             return
         latency = min(MAX_COUNTER, max(0, int(latency_ms)))
@@ -272,6 +279,7 @@ class ModelRegistry:
             self._write(data)
 
     def mark_not_found(self, name: str) -> None:
+        """Mark a configured model as unavailable after a failed lookup."""
         with self._locked():
             data = self._read()
             entry = next(item for item in data["models"] if item["name"] == name)
@@ -294,6 +302,7 @@ class ModelRegistry:
             self._write(data)
 
     def begin_probe(self, name: str, session_id: str, *, now: float | None = None) -> str:
+        """Mark a model probe as in progress."""
         if name not in self.names:
             raise ValueError("Model is not configured")
         if not session_id or len(session_id) > 80:
@@ -321,6 +330,7 @@ class ModelRegistry:
 
     def finish_probe(self, name: str, probe_id: str, *, failed: bool,
                      inconclusive: bool = False) -> None:
+        """Store the final status of a completed model probe."""
         with self._locked():
             data = self._read()
             entry = next(item for item in data["models"] if item["name"] == name)
@@ -330,6 +340,7 @@ class ModelRegistry:
 
     def record_research(self, name: str, *, status: str, source_url: str | None,
                         facts: list[dict[str, Any]]) -> dict[str, Any]:
+        """Store official research evidence for a configured model."""
         if name not in self.names:
             raise ValueError("Model is not configured")
         checked = datetime.now(timezone.utc).isoformat()

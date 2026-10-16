@@ -51,6 +51,7 @@ class ConversationManager:
 
     def submit(self, text: str, context_provider: Callable[[], str],
                on_result: Callable[[str, str, str], None]) -> str:
+        """Queue a read-only reply and return the new conversation ID."""
         thread_id = uuid.uuid4().hex
         self._append({"timestamp": _now(), "thread_id": thread_id, "role": "human", "text": text})
         self.logger.log("conversation_thread_started", thread_id=thread_id, chars=len(text))
@@ -104,4 +105,5 @@ class ConversationManager:
         return response
 
     def close(self) -> None:
+        """Shut down the conversation executor without cancelling active replies."""
         self.executor.shutdown(wait=False, cancel_futures=False)

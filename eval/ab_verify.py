@@ -46,6 +46,12 @@ except Exception as exc:
 
 
 def verify_task(task: dict, workspace: Path, facts: dict[str, Any]) -> dict[str, Any]:
+    """Score one workspace against deterministic hidden checks.
+
+    Generated tools run in isolated, time-limited child interpreters.
+    Other task outputs are compared with expected JSON values or captured
+    container facts; no model judges a result.
+    """
     spec = task["verifier"]
     checks: dict[str, bool] = {}
     kind = spec["kind"]
@@ -105,6 +111,12 @@ def verify_task(task: dict, workspace: Path, facts: dict[str, Any]) -> dict[str,
 def collect_result(run: dict, task: dict, workspace: Path, seed_hash: str,
                    facts: dict[str, Any], *, exit_code: int = 0,
                    wall_seconds: float = 0.0, plan_seed: int = 0) -> dict:
+    """Combine hidden checks and run logs into one result record.
+
+    Count reserved provider attempts conservatively if a process stopped
+    before writing its attempt event. Mark off-arm helper calls and
+    infrastructure failures so analysis can exclude them explicitly.
+    """
     verified = verify_task(task, workspace, facts)
     events = _jsonl(workspace / "logs" / "actions.jsonl")
     decisions = _jsonl(workspace / "state" / "model_decisions.jsonl")
@@ -164,6 +176,7 @@ def collect_result(run: dict, task: dict, workspace: Path, seed_hash: str,
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Parse command-line arguments and run this module's entry point."""
     parser = argparse.ArgumentParser(description="Verify one completed A/B run without provider calls.")
     parser.add_argument("--run-id", required=True)
     parser.add_argument("--exit-code", type=int, default=0)

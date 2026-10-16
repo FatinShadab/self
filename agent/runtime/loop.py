@@ -72,6 +72,8 @@ WORD = re.compile(r"[a-zA-Z0-9_.-]{2,}")
 
 
 class LLMProtocol(Protocol):
+    """Interface required by the autonomous loop for model calls."""
+
     def call(
         self,
         *,
@@ -79,11 +81,15 @@ class LLMProtocol(Protocol):
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
         max_tokens: int,
-    ) -> LLMResult: ...
+    ) -> LLMResult:
+        """Send a bounded model request and return its response."""
+        ...
 
 
 @dataclass
 class AgentConfig:
+    """Runtime limits and model settings for one agent loop."""
+
     workspace: Path = Path("/home/entity")
     max_iterations: int | None = None
     token_budget: int | None = None
@@ -106,12 +112,15 @@ class AgentConfig:
 
 @dataclass
 class RunSummary:
+    """Usage and stop reason returned by an agent loop."""
+
     iterations: int
     tokens_used: int
     reason: str
 
 
 def retrieve_context(workspace: Path, query: str, logger: EventLogger, limit: int = 8) -> str:
+    """Retrieve relevant workspace context for a task."""
     roots = [workspace / "memory"]
     query_terms = {term.lower() for term in WORD.findall(query)}
     candidates: list[tuple[int, str, str]] = []
@@ -151,6 +160,8 @@ def retrieve_context(workspace: Path, query: str, logger: EventLogger, limit: in
 
 
 class AgentLoop:
+    """Run bounded autonomous cycles against an isolated workspace."""
+
     def __init__(
         self,
         config: AgentConfig,
@@ -331,6 +342,7 @@ class AgentLoop:
         )
 
     def run(self) -> RunSummary:
+        """Run autonomous cycles until a limit, stop request, or task completion."""
         self.config.workspace.mkdir(parents=True, exist_ok=True)
         (self.config.workspace / "memory").mkdir(exist_ok=True)
         (self.config.workspace / "tools").mkdir(exist_ok=True)
@@ -604,6 +616,7 @@ class AgentLoop:
 
 
 def parse_args() -> argparse.Namespace:
+    """Parse autonomous-loop command-line options."""
     parser = argparse.ArgumentParser(description="Run the SELF exploration loop.")
     parser.add_argument("--task", default="", help="Specific task within the standing goal")
     parser.add_argument("--top-k-tools", type=int, default=int(os.getenv("SELF_TOP_K_TOOLS", "5")))
@@ -633,6 +646,7 @@ def parse_args() -> argparse.Namespace:
 
 
 def main() -> int:
+    """Parse command-line arguments and run this module's entry point."""
     args = parse_args()
     workspace = Path("/home/entity")
     logger = EventLogger(workspace / "logs" / "actions.jsonl")

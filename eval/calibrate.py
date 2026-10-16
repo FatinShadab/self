@@ -30,6 +30,7 @@ def _ranks(values: list[float]) -> list[float]:
 
 
 def spearman(pairs: list[tuple[float, float]]) -> float | None:
+    """Compute Spearman rank correlation for paired values."""
     if len(pairs) < 2:
         return None
     left = _ranks([pair[0] for pair in pairs])
@@ -42,6 +43,7 @@ def spearman(pairs: list[tuple[float, float]]) -> float | None:
 
 
 def matching_category(task_type: str) -> str | None:
+    """Map a decision task type to a benchmark category."""
     value = task_type.casefold().replace("-", "_")
     if "json" in value:
         return "json_output"
@@ -62,6 +64,7 @@ def _fmt(value: float | None) -> str:
 
 def report(registry: dict[str, Any], benchmark: dict[str, Any],
            decisions: list[dict[str, Any]], *, output: Any = None) -> None:
+    """Print calibration between agent ratings and measured benchmark scores."""
     stream = output or sys.stdout
     started = datetime.fromisoformat(benchmark["started_at"].replace("Z", "+00:00"))
     entries = {entry["name"]: entry for entry in registry["models"]}
@@ -126,6 +129,7 @@ def report(registry: dict[str, Any], benchmark: dict[str, Any],
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Parse command-line arguments and run this module's entry point."""
     args = argv or []
     workspace = Path(args[0]) if args else HERE.parent / "workspace"
     results = sorted((HERE / "results").glob("*.json"))

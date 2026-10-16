@@ -44,7 +44,7 @@ Write-Host 'Building the Phase 8 image...' -ForegroundColor Cyan
 docker compose build
 
 Write-Host 'Running the complete offline regression suite...' -ForegroundColor Cyan
-docker compose run --rm --no-deps --entrypoint python self -m unittest discover -s /opt/agent/tests -v
+& (Join-Path $PSScriptRoot 'run-tests.ps1')
 
 Write-Host 'Running the fresh-workspace Phase 8 acceptance check...' -ForegroundColor Cyan
 docker compose run --rm --no-deps --entrypoint python self -m agent.phase8_verify --workspace /home/entity

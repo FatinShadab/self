@@ -77,6 +77,7 @@ class ReflectionManager:
             handle.write(json.dumps(safe, ensure_ascii=False) + "\n")
 
     def begin_session(self, session_id: str) -> None:
+        """Reset reflection counters when a new session begins."""
         with self._lock:
             if self._state.get("session_id") == session_id:
                 return
@@ -86,6 +87,7 @@ class ReflectionManager:
             self._save_state_locked()
 
     def open_question(self) -> dict[str, str] | None:
+        """Return the pending reflection question, if any."""
         with self._lock:
             thread_id = str(self._state.get("open_thread_id", "")).strip()
             question = str(self._state.get("open_question", "")).strip()
@@ -282,6 +284,7 @@ class ReflectionManager:
         return {"thread_id": thread_id, "message": display, "question": question, "cycle": candidate["cycle"]}
 
     def record_human_reply(self, text: str) -> dict[str, str] | None:
+        """Persist a reply to the open question and clear its pending state."""
         clean = self.logger.redactor.text(text).strip()[:4_000]
         if not clean:
             return None
@@ -301,4 +304,5 @@ class ReflectionManager:
         return {"thread_id": thread_id, "question": question, "text": clean}
 
     def close(self) -> None:
+        """Shut down the reflection executor without waiting for active work."""
         self._executor.shutdown(wait=False, cancel_futures=False)

@@ -14,6 +14,7 @@ else:
 
 @contextmanager
 def locked_file(path: str | Path, *, shared: bool = False) -> Iterator[None]:
+    """Hold an exclusive lock while accessing a workspace file."""
     lock_path = Path(path)
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     with lock_path.open("a+b") as handle:

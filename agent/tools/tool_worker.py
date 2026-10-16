@@ -9,6 +9,7 @@ from pathlib import Path
 
 
 def main() -> None:
+    """Load a tool, invoke it with JSON from stdin, and emit a result envelope."""
     arguments = json.load(sys.stdin)
     spec = importlib.util.spec_from_file_location("tool", Path.cwd() / "tool.py")
     if spec is None or spec.loader is None:

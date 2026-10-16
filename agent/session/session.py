@@ -15,6 +15,7 @@ HANDOFF_CAP = 12_000
 
 
 def now() -> str:
+    """Return the current UTC timestamp."""
     return datetime.now(timezone.utc).isoformat()
 
 
@@ -26,6 +27,7 @@ class HumanInbox:
         self.path, self.cursor_path, self.logger = state / "human_input.jsonl", state / "human_input_cursor.json", logger
 
     def add(self, text: str) -> None:
+        """Append a human message to the durable inbox."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
         record = {"timestamp": now(), "text": self.logger.redactor.text(text)[:4_000]}
         fd = os.open(self.path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
@@ -36,6 +38,7 @@ class HumanInbox:
         self.logger.log("human_input_received", chars=len(record["text"]))
 
     def consume(self) -> list[str]:
+        """Return unread human messages and advance the inbox cursor."""
         try:
             offset = int(json.loads(self.cursor_path.read_text(encoding="utf-8")).get("line", 0))
         except (OSError, json.JSONDecodeError, ValueError):
@@ -59,6 +62,8 @@ class HumanInbox:
 
 
 class SessionStore:
+    """Persist session checkpoints and handoff state."""
+
     def __init__(self, workspace: str | Path, logger: EventLogger, handoff_cap: int = HANDOFF_CAP) -> None:
         self.workspace, self.logger, self.handoff_cap = Path(workspace), logger, max(2_000, handoff_cap)
         self.state = self.workspace / "state"
@@ -82,6 +87,7 @@ class SessionStore:
             return None
 
     def load_handoff(self) -> tuple[dict[str, Any], bool]:
+        """Load a resumable handoff record, if one exists."""
         value = self._read_json(self.handoff)
         if value is not None:
             return value, False
@@ -92,6 +98,7 @@ class SessionStore:
         return {}, self.handoff.exists()
 
     def start(self) -> dict[str, Any]:
+        """Create a persistent session record and initial checkpoint."""
         self.state.mkdir(parents=True, exist_ok=True)
         previous_active = self._read_json(self.active)
         crash = None
@@ -111,6 +118,7 @@ class SessionStore:
         return {"session_id": session_id, "handoff": handoff, "crash": crash, "handoff_recovered": recovered_backup}
 
     def checkpoint(self, session_id: str, handoff: dict[str, Any], iteration_count: int, token_spend: int) -> None:
+        """Persist the current session state for recovery."""
         handoff = self._bounded_handoff(handoff)
         self._atomic_json(self.handoff, handoff)
         self._atomic_json(self.handoff_backup, handoff)
@@ -118,6 +126,7 @@ class SessionStore:
         self.logger.log("session_handoff_checkpoint", session_id=session_id, iteration_count=iteration_count)
 
     def finish(self, session_id: str, handoff: dict[str, Any], iteration_count: int, token_spend: int, end_reason: str) -> None:
+        """Mark a session complete and persist its final state."""
         self.checkpoint(session_id, handoff, iteration_count, token_spend)
         active = self._read_json(self.active) or {}
         self._append_session({"session_id": session_id, "start_time": active.get("start_time", now()), "end_time": now(), "end_reason": end_reason, "iteration_count": iteration_count, "token_spend": token_spend})
@@ -180,4 +189,5 @@ class SessionStore:
 
 
 def default_plan() -> list[dict[str, Any]]:
+    """Return the initial persistent plan."""
     return [{"step": "Inspect current state and verify one environment fact.", "why": "Maintain an accurate model of the container.", "priority": 2, "status": "todo"}]

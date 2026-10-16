@@ -19,6 +19,7 @@ SEED_ROOT = Path(os.getenv("AB_SEED_ROOT", "/opt/ab_seed"))
 
 
 def load_tasks(path: Path = TASKS_PATH) -> list[dict]:
+    """Load and validate the hidden A/B task definitions."""
     tasks = json.loads(path.read_text(encoding="utf-8"))["tasks"]
     if len({task["id"] for task in tasks}) != len(tasks):
         raise ValueError("A/B task IDs must be unique")
@@ -26,6 +27,7 @@ def load_tasks(path: Path = TASKS_PATH) -> list[dict]:
 
 
 def content_hash(root: Path) -> str:
+    """Hash the seed workspace contents in stable path order."""
     digest = hashlib.sha256()
     for path in sorted(p for p in root.rglob("*") if p.is_file()):
         digest.update(path.relative_to(root).as_posix().encode("utf-8") + b"\0")
@@ -34,6 +36,7 @@ def content_hash(root: Path) -> str:
 
 
 def container_facts() -> dict[str, object]:
+    """Capture stable container facts for investigation tasks."""
     os_release = {}
     for line in Path("/etc/os-release").read_text(encoding="utf-8").splitlines():
         if "=" in line:
@@ -53,6 +56,15 @@ def container_facts() -> dict[str, object]:
 
 
 def make_seed(source: Path, destination: Path = SEED_ROOT) -> dict:
+    """Copy stable workspace state into a fresh experiment seed.
+
+    Copy identity and environment state, reset model measurements, and omit
+    run-specific logs, memories, and tools. Refuse to overwrite an existing
+    seed so a saved plan keeps referring to the same source state.
+
+    Returns:
+        Seed content hash and captured container facts.
+    """
     workspace = destination / "workspace"
     if workspace.exists():
         raise FileExistsError(f"Seed already exists: {workspace}; preserve it for reproducibility")
@@ -89,6 +101,12 @@ def make_seed(source: Path, destination: Path = SEED_ROOT) -> dict:
 def make_plan(tasks: list[dict], arms: list[str], repetitions: int, seed: int,
               max_total_calls: int, seed_hash: str | None = None,
               campaign: str = "full") -> dict:
+    """Randomize task, arm, and repetition combinations into a campaign.
+
+    The returned plan records its random seed and the upper bound on
+    provider attempts. Each repetition contains every selected task-arm
+    pair once, shuffled without changing the task definitions.
+    """
     if repetitions < 1 or max_total_calls < 1 or not arms:
         raise ValueError("repetitions, call cap, and arms must be positive")
     if len(set(arms)) != len(arms) or any(
@@ -117,6 +135,7 @@ def make_plan(tasks: list[dict], arms: list[str], repetitions: int, seed: int,
 
 
 def main(argv: list[str] | None = None) -> int:
+    """Parse command-line arguments and run this module's entry point."""
     parser = argparse.ArgumentParser(description="Plan a randomized helper-model A/B campaign.")
     parser.add_argument("--tasks", default="all", help="Comma-separated task IDs or all")
     parser.add_argument("--arms", default="off,on", help="Comma-separated arms")

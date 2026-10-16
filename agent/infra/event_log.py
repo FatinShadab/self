@@ -28,16 +28,19 @@ class SecretRedactor:
         self._values = sorted(values, key=len, reverse=True)
 
     def known(self, value: Any) -> str:
+        """Replace known environment credential values in text."""
         text = str(value)
         for secret in self._values:
             text = text.replace(secret, "<redacted>")
         return text
 
     def text(self, value: Any) -> str:
+        """Redact known credentials and secret assignments from text."""
         text = self.known(value)
         return SECRET_ASSIGNMENT.sub(lambda match: f"{match.group(1)}{match.group(2)}<redacted>", text)
 
     def value(self, value: Any) -> Any:
+        """Redact strings recursively within a JSON-like value."""
         if isinstance(value, str):
             return self.text(value)
         if isinstance(value, dict):
@@ -74,6 +77,7 @@ class EventLogger:
             os.close(fd)
 
     def log(self, event: str, **data: Any) -> None:
+        """Append a redacted event and notify in-process listeners."""
         record = {
             "timestamp": datetime.now(timezone.utc).isoformat(),
             "event": event,
@@ -96,6 +100,7 @@ class EventLogger:
                 pass
 
     def narrate(self, message: str) -> None:
+        """Print and record a short redacted narration."""
         clean = " ".join(self.redactor.text(message).split())
         if clean:
             print(f"[SELF] {clean[:500]}", flush=True)

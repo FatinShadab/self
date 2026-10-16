@@ -21,6 +21,7 @@ from agent.llm.providers.adapters import (
 
 
 def now() -> str:
+    """Return the current UTC timestamp."""
     return datetime.now(timezone.utc).isoformat()
 
 
@@ -40,6 +41,8 @@ SEEDS: dict[str, dict[str, Any]] = {
 
 
 class ProviderRegistry:
+    """Track configured providers and their verification status."""
+
     def __init__(self, workspace: str | Path, logger: EventLogger) -> None:
         self.workspace = Path(workspace)
         self.path = self.workspace / "state" / "providers.json"
@@ -51,6 +54,7 @@ class ProviderRegistry:
         }
 
     def initialize(self) -> None:
+        """Create any missing workspace state files with defaults."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
         data = self._read()
         providers = data.setdefault("providers", {})
@@ -90,20 +94,24 @@ class ProviderRegistry:
         os.replace(temporary, self.path)
 
     def providers(self) -> dict[str, dict[str, Any]]:
+        """Return the known provider adapters."""
         self.initialize()
         return self._read()["providers"]
 
     def configured(self) -> list[str]:
+        """Return providers with usable configuration."""
         self.initialize()
         return sorted(name for name, adapter in self.adapters.items() if adapter.is_configured())
 
     def metadata(self, provider: str) -> dict[str, Any]:
+        """Return stored metadata for a provider."""
         try:
             return self.providers()[provider]
         except KeyError as exc:
             raise ValueError(f"Unknown provider: {provider}") from exc
 
     def fetch_official_docs(self, provider: str, max_chars: int = 12_000) -> dict[str, Any]:
+        """Fetch a provider's official documentation and record its source."""
         meta = self.metadata(provider)
         url = str(meta["source_url"])
         parsed = urlsplit(url)
@@ -131,6 +139,7 @@ class ProviderRegistry:
         return {"provider": provider, "source_url": url, "status": status, "content_type": content_type, "body": text, "truncated": len(raw) > max_chars}
 
     def record_verification(self, provider: str, free_tier: dict[str, Any], models: list[str], strengths: list[str], source_url: str) -> dict[str, Any]:
+        """Persist provider claims checked against its official documentation."""
         meta = self.metadata(provider)
         expected = urlsplit(str(meta["source_url"])).hostname
         actual = urlsplit(source_url).hostname
@@ -151,6 +160,7 @@ class ProviderRegistry:
         return {"ok": True, "provider": provider, "last_verified": record["last_verified"]}
 
     def request_key(self, provider: str) -> dict[str, Any]:
+        """Write instructions for a human to configure a missing API key."""
         meta = self.metadata(provider)
         if self.adapters[provider].is_configured():
             return {"ok": True, "provider": provider, "status": "already_configured"}

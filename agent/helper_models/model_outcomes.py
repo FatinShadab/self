@@ -16,6 +16,8 @@ SELF_REPORTED_USEFULNESS = {"used", "partly_used", "not_used", "wrong"}
 
 
 class ModelOutcomes:
+    """Store outcome signals associated with model choices."""
+
     def __init__(self, workspace: str | Path, logger: EventLogger) -> None:
         self.path = Path(workspace) / "state" / "model_outcomes.jsonl"
         self.lock_path = self.path.with_suffix(".lock")
@@ -25,6 +27,7 @@ class ModelOutcomes:
                value: Any, provenance: str, *, session_id: str,
                task_id: str | None = None, tool_name: str | None = None,
                attempt: int | None = None) -> None:
+        """Append a validated, redacted outcome signal to the JSONL log."""
         if provenance not in {"objective", "self_reported"}:
             raise ValueError("Outcome provenance must be objective or self_reported")
         if not call_id or not signal or not session_id:

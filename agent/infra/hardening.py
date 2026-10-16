@@ -12,10 +12,13 @@ from agent.infra.file_lock import locked_file
 
 
 def now() -> str:
+    """Return the current UTC timestamp."""
     return datetime.now(timezone.utc).isoformat()
 
 
 class CapabilityRequests:
+    """Record requests for capabilities outside the current container."""
+
     EXTERNAL_KINDS = {"credential", "host_mount", "port", "email", "money", "third_party_account", "external_service"}
 
     def __init__(self, workspace: str | Path, logger: EventLogger) -> None:
@@ -23,6 +26,7 @@ class CapabilityRequests:
         self.logger = logger
 
     def request(self, kind: str, summary: str, reason: str, provider: str = "", env_names: list[str] | None = None, signup_url: str = "") -> dict[str, Any]:
+        """Record a request and return its persisted representation."""
         if kind not in self.EXTERNAL_KINDS:
             raise ValueError(f"kind must be one of: {', '.join(sorted(self.EXTERNAL_KINDS))}")
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -43,6 +47,8 @@ class CapabilityRequests:
 
 
 class DailyTokenLedger:
+    """Reserve and settle the daily token allowance."""
+
     def __init__(self, workspace: str | Path, logger: EventLogger, cap: int | None = None) -> None:
         self.path = Path(workspace) / "state" / "daily_token_budget.json"
         self.logger = logger
@@ -70,6 +76,7 @@ class DailyTokenLedger:
             temporary.unlink(missing_ok=True)
 
     def reserve(self, tokens: int) -> bool:
+        """Reserve token capacity before a model call."""
         with locked_file(self.lock_path):
             data = self._read()
             # The configured cap is authoritative even if an older state used a different cap.
@@ -90,6 +97,7 @@ class DailyTokenLedger:
             return max(0, self.cap - int(data.get("used_tokens", 0)) - int(data.get("reserved_tokens", 0)))
 
     def settle(self, reserved: int, actual: int | None) -> None:
+        """Settle a prior reservation against observed usage."""
         with locked_file(self.lock_path):
             data = self._read()
             data["cap"] = self.cap
@@ -101,11 +109,14 @@ class DailyTokenLedger:
 
 
 class RunCheckpoint:
+    """Persist and recover a bounded run's checkpoint."""
+
     def __init__(self, workspace: str | Path, logger: EventLogger) -> None:
         self.path = Path(workspace) / "state" / "run_checkpoint.json"
         self.logger = logger
 
     def load(self) -> dict[str, Any]:
+        """Load persisted state from the workspace."""
         try:
             value = json.loads(self.path.read_text(encoding="utf-8"))
             return value if isinstance(value, dict) else {}
@@ -113,6 +124,7 @@ class RunCheckpoint:
             return {}
 
     def save(self, **data: Any) -> None:
+        """Persist current state to the workspace."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
         payload = {"updated_at": now(), **self.logger.redactor.value(data)}
         temporary = self.path.with_suffix(".tmp")

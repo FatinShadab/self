@@ -127,6 +127,12 @@ def helper_model_section(root: Path, events: list[dict[str, Any]], since: str | 
 def create_report(workspace: str | Path, *, advance_cursor: bool = True,
                   calibration_file: str | Path | None = None,
                   ab_comparison_file: str | Path | None = None) -> str:
+    """Summarize learning since the last report and return redacted text.
+
+    The cursor advances only when requested. Calibration and A/B text may
+    be supplied by a host invocation; the agent container does not read
+    those host-only evaluation files.
+    """
     root = Path(workspace)
     logger = EventLogger(root / "logs" / "actions.jsonl")
     learning = LearningStore(root, logger)
@@ -220,6 +226,7 @@ def create_report(workspace: str | Path, *, advance_cursor: bool = True,
 
 
 def main() -> int:
+    """Parse command-line arguments and run this module's entry point."""
     parser = argparse.ArgumentParser(description="Summarize SELF learning since the prior report.")
     parser.add_argument("--workspace", default="/home/entity")
     parser.add_argument("--no-advance", action="store_true", help="Do not advance the report cursor.")

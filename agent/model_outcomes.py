@@ -1,3 +1,5 @@
+"""Preserve the legacy model-outcome summary entry point."""
+
 # Compatibility shim: implementation lives in agent.helper_models.model_outcomes.
 from agent.helper_models.model_outcomes import *  # noqa: F401,F403
 import sys

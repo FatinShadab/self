@@ -28,6 +28,8 @@ def _now() -> str:
 
 
 class BrainRouter:
+    """Route provider research and chat requests through configured adapters."""
+
     def __init__(self, workspace: str | Path, logger: EventLogger, registry: ProviderRegistry | None = None) -> None:
         self.workspace = Path(workspace)
         self.logger = logger
@@ -83,6 +85,7 @@ class BrainRouter:
         self._save_usage(data)
 
     def candidates(self, task_type: str, preferred_provider: str | None = None) -> list[str]:
+        """Return configured provider candidates for routing."""
         self.registry.initialize()
         if preferred_provider:
             if preferred_provider not in self.registry.adapters:
@@ -91,6 +94,7 @@ class BrainRouter:
         return TASK_PREFERENCES.get(task_type, TASK_PREFERENCES["simple"])
 
     def chat(self, messages: list[dict[str, Any]], model: str | None, max_tokens: int, task_type: str = "simple", preferred_provider: str | None = None) -> dict[str, Any]:
+        """Select a configured provider and send a bounded chat request."""
         if task_type not in TASK_PREFERENCES:
             raise ValueError("task_type must be reasoning, simple, or summarization")
         estimated = self._estimate_tokens(messages, max_tokens)
@@ -151,12 +155,15 @@ class BrainRouter:
         self.logger.log("provider_backoff", provider=provider, seconds=seconds, detail=detail)
 
     def request_key(self, provider: str) -> dict[str, Any]:
+        """Write a human-facing request for a missing provider credential."""
         return self.registry.request_key(provider)
 
     def research_provider(self, provider: str) -> dict[str, Any]:
+        """Fetch configured official documentation for a provider."""
         return self.registry.fetch_official_docs(provider)
 
     def record_provider_verification(self, provider: str, free_tier: dict[str, Any], models: list[str], strengths: list[str], source_url: str) -> dict[str, Any]:
+        """Store provider limits and strengths verified from official docs."""
         return self.registry.record_verification(provider, free_tier, models, strengths, source_url)
 
     def probe_local_ollama(self) -> dict[str, Any]:
