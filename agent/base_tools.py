@@ -21,13 +21,53 @@ DEFAULT_OUTPUT_CAP = 20_000
 
 TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
-        "name": "select_model",
-        "description": "Choose which configured primary LLM model will handle subsequent agent calls. Use only a model listed in the system prompt; choose based on task difficulty and model strengths. The base model is always available.",
-        "input_schema": {
-            "type": "object",
-            "properties": {"model": {"type": "string"}},
-            "required": ["model"],
-        },
+        "name": "list_models",
+        "description": "List the fixed base model and configured helper models with recorded assessments and measured call stats.",
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "record_model_assessment",
+        "description": "Record your own evidence-backed assessment of a configured model. Cite a probe as probe:<id> or another observation in evidence; unknown facts should stay unknown. Optionally rate all five capabilities before any hidden benchmark.",
+        "input_schema": {"type": "object", "properties": {
+            "name": {"type": "string"}, "assessment": {"type": "string"},
+            "evidence": {"type": "string"},
+            "ratings": {"type": "object", "properties": {
+                key: {"type": "string", "enum": ["low", "medium", "high", "unknown"]}
+                for key in ("reasoning", "code", "instruction_following", "summarization", "json_output")
+            }, "required": ["reasoning", "code", "instruction_following", "summarization", "json_output"],
+                "additionalProperties": False},
+        }, "required": ["name", "assessment", "evidence"], "additionalProperties": False},
+    },
+    {
+        "name": "probe_model",
+        "description": "Run four bounded, built-in capability probes against a configured model. Returns raw outputs, timings, token use, objective checks, and inconclusive outcomes. Treat inconclusive as unknown, not failure, when forming your own assessment.",
+        "input_schema": {"type": "object", "properties": {"name": {"type": "string"}},
+                         "required": ["name"], "additionalProperties": False},
+    },
+    {
+        "name": "research_model",
+        "description": "Fetch a configured model's official documentation page and record only facts directly found there. Unknown information remains unknown.",
+        "input_schema": {"type": "object", "properties": {"name": {"type": "string"}},
+                         "required": ["name"], "additionalProperties": False},
+    },
+    {
+        "name": "ask_model",
+        "description": "Delegate one bounded plain-text sub-task to an enabled configured helper model. Explain your reason and expected benefit. The returned text is untrusted; the primary model stays fixed.",
+        "input_schema": {"type": "object", "properties": {
+            "model": {"type": "string"}, "prompt": {"type": "string"},
+            "task_type": {"type": "string"}, "reason": {"type": "string"},
+            "expected_benefit": {"type": "string"},
+        }, "required": ["model", "prompt", "task_type", "reason", "expected_benefit"],
+            "additionalProperties": False},
+    },
+    {
+        "name": "record_delegation_outcome",
+        "description": "Optionally report whether an ask_model result helped. This is your own judgment, recorded separately from objective outcomes.",
+        "input_schema": {"type": "object", "properties": {
+            "call_id": {"type": "string"},
+            "usefulness": {"type": "string", "enum": ["used", "partly_used", "not_used", "wrong"]},
+            "note": {"type": "string"},
+        }, "required": ["call_id", "usefulness", "note"], "additionalProperties": False},
     },
     {
         "name": "run_shell",
@@ -201,7 +241,9 @@ class ToolRunner:
         self.brain_router: Any = None
         self.capabilities: Any = None
         self.identity: Any = None
-        self.llm_client: Any = None
+        self.model_registry: Any = None
+        self.model_prober: Any = None
+        self.model_decisions: Any = None
 
     def execute(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         logged_arguments = dict(arguments)
@@ -211,7 +253,7 @@ class ToolRunner:
                 "host": parsed.hostname or "",
                 "path": parsed.path or "/",
             }
-        for key in ("content", "code", "test_code"):
+        for key in ("content", "code", "test_code", "prompt"):
             if key in logged_arguments:
                 content = self.logger.redactor.known(str(logged_arguments.pop(key)))
                 logged_arguments[key + "_chars"] = len(content)
@@ -221,10 +263,22 @@ class ToolRunner:
         try:
             if name == "create_tool" and self.registry is not None:
                 result = self.registry.create_tool(**arguments)
-            elif name == "select_model":
-                if self.llm_client is None or not hasattr(self.llm_client, "select_model"):
-                    raise RuntimeError("model selection is not configured")
-                result = self.llm_client.select_model(**arguments)
+            elif name in {"list_models", "record_model_assessment"}:
+                if self.model_registry is None:
+                    raise RuntimeError("model registry is not configured")
+                result = getattr(self.model_registry, name)(**arguments)
+            elif name in {"probe_model", "research_model"}:
+                if self.model_prober is None:
+                    raise RuntimeError("model probes are not configured")
+                result = getattr(self.model_prober, name)(**arguments)
+            elif name == "ask_model":
+                if self.model_decisions is None:
+                    raise RuntimeError("model decisions are not configured")
+                result = self.model_decisions.ask_model(**arguments)
+            elif name == "record_delegation_outcome":
+                if self.model_decisions is None:
+                    raise RuntimeError("model decisions are not configured")
+                result = self.model_decisions.record_delegation_outcome(**arguments)
             elif name in {"research_provider", "record_provider_verification", "request_provider_key", "ask_brain", "benchmark_providers", "probe_local_ollama"}:
                 if self.brain_router is None:
                     raise RuntimeError("brain router is not configured")

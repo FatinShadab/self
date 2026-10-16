@@ -13,6 +13,7 @@ from anthropic import Anthropic
 
 from event_log import EventLogger
 from hardening import DailyTokenLedger
+from model_registry import ModelRegistry
 
 
 class BudgetExceeded(RuntimeError):
@@ -69,7 +70,10 @@ class BudgetedLLM:
         )
 
     def call(self, *, system: str, messages: list[dict[str, Any]],
-             tools: list[dict[str, Any]], max_tokens: int) -> LLMResult:
+             tools: list[dict[str, Any]], max_tokens: int,
+             model: str | None = None, min_output_tokens: int = 64) -> LLMResult:
+        if model is not None and model not in getattr(self.client, "available_models", []):
+            raise ValueError("Model is not in the configured allowlist")
         import json
         # JSON/schema-heavy tool payloads tokenize much more densely than normal
         # prose. Reserving half the UTF-8 byte count plus a fixed margin remains
@@ -84,28 +88,34 @@ class BudgetedLLM:
             allowance = min(max_tokens, daily_remaining - reserved_input)
         else:
             allowance = min(max_tokens, self.token_budget - self.tokens_used - reserved_input)
-        if allowance < 64:
+        if allowance < min_output_tokens:
             kind = "daily" if self.token_budget is None else "run"
-            raise BudgetExceeded("Insufficient remaining budget for this actor or critic call", kind=kind)
+            raise BudgetExceeded("Insufficient remaining budget for the minimum output cap", kind=kind)
         reservation = reserved_input + allowance
         if self.daily_ledger is not None and not self.daily_ledger.reserve(reservation):
             raise BudgetExceeded("Daily token budget is exhausted", kind="daily")
         try:
-            result = self.client.call(system=system, messages=messages, tools=tools, max_tokens=allowance)
+            call_args = {"system": system, "messages": messages, "tools": tools, "max_tokens": allowance}
+            if model is not None:
+                call_args["model"] = model
+            result = self.client.call(**call_args)
         except Exception:
             self.tokens_used += reservation
             if self.daily_ledger is not None:
                 self.daily_ledger.settle(reservation, None)
             self.logger.log("token_spend", usage_known=False, reserved_tokens=reservation,
+                            effective_cap=allowance,
                             run_tokens_used=self.tokens_used,
                             run_token_budget=self.token_budget if self.token_budget is not None else (self.daily_ledger.cap if self.daily_ledger else 0),
                             run_budget_mode="per_run" if self.token_budget is not None else "daily_only")
             raise
         self.tokens_used += result.total_tokens
+        result.max_output_tokens = allowance
         if self.daily_ledger is not None:
             self.daily_ledger.settle(reservation, result.total_tokens)
         self.logger.log("token_spend", usage_known=True, call_input_tokens=result.input_tokens,
-                        call_output_tokens=result.output_tokens, run_tokens_used=self.tokens_used,
+                        call_output_tokens=result.output_tokens, effective_cap=allowance,
+                        run_tokens_used=self.tokens_used,
                         run_token_budget=self.token_budget if self.token_budget is not None else (self.daily_ledger.cap if self.daily_ledger else 0),
                         run_budget_mode="per_run" if self.token_budget is not None else "daily_only")
         return result
@@ -118,10 +128,26 @@ class LLMResult:
     output_tokens: int
     stop_reason: str | None
     model: str
+    max_output_tokens: int | None = None
 
     @property
     def total_tokens(self) -> int:
         return self.input_tokens + self.output_tokens
+
+
+def response_truncated(result: LLMResult, requested_cap: int) -> bool:
+    """Detect provider length stops, including hidden thinking token use."""
+    reason = str(result.stop_reason or "").casefold()
+    cap = result.max_output_tokens or requested_cap
+    return (reason in {"max_tokens", "max_output_tokens", "length", "token_limit"}
+            or reason.startswith("max_tokens") or result.output_tokens >= cap)
+
+
+def call_with_minimum(llm: Any, minimum: int, **kwargs: Any) -> LLMResult:
+    """Keep probe/decision calls out of the provider when a run cap is too small."""
+    if isinstance(llm, BudgetedLLM):
+        return llm.call(min_output_tokens=minimum, **kwargs)
+    return llm.call(**kwargs)
 
 
 def _first_env(*names: str) -> str | None:
@@ -187,9 +213,9 @@ class LLMClient:
             _first_env("OLLAMA_MODEL", "OLLAM_MODEL") if self.provider == "ollama"
             else _first_env("ANTHROPIC_MODEL")
         ) or "gpt-oss:120b-cloud"
-        self.model = self.base_model
         self.available_models = list(dict.fromkeys([self.base_model, *_env_key_list("LLM_AVAILABLE_MODELS")]))
-        self._model_lock = Lock()
+        workspace = logger.path.parent.parent if logger.path.parent.name == "logs" else logger.path.parent
+        self.model_registry = ModelRegistry(workspace, logger, self.base_model, self.available_models)
         self.key_count = len(self._clients)
         self._client = self._clients[0]  # Compatibility for integrations that inspect the active client.
 
@@ -197,15 +223,10 @@ class LLMClient:
         with self._key_lock:
             return self._clients[self._key_index]
 
-    def select_model(self, model: str) -> dict[str, Any]:
-        if model not in self.available_models:
-            raise ValueError("Model is not in LLM_AVAILABLE_MODELS or the configured base model")
-        with self._model_lock:
-            previous = self.model
-            self.model = model
-        if previous != model:
-            self.logger.log("llm_model_selected", provider=self.provider, previous_model=previous, model=model)
-        return {"ok": True, "provider": self.provider, "model": model, "previous_model": previous}
+    @property
+    def model(self) -> str:
+        """The primary model is fixed for the lifetime of this client."""
+        return self.base_model
 
     def _rotate_key(self) -> bool:
         with self._key_lock:
@@ -241,9 +262,12 @@ class LLMClient:
         messages: list[dict[str, Any]],
         tools: list[dict[str, Any]],
         max_tokens: int,
+        model: str | None = None,
     ) -> LLMResult:
-        with self._model_lock:
-            selected_model = self.model
+        if model is not None and model not in self.available_models:
+            raise ValueError("Model is not in the configured allowlist")
+        selected_model = model or self.base_model
+        started = time.monotonic()
         parsed = urlsplit(self.base_url)
         base_path = parsed.path.rstrip("/")
         endpoint_path = f"{base_path}/v1/messages" if base_path else "/v1/messages"
@@ -255,6 +279,7 @@ class LLMClient:
             message_count=len(messages),
             tool_count=len(tools),
             max_output_tokens=max_tokens,
+            effective_cap=max_tokens,
         )
         response = None
         attempt = 0
@@ -284,13 +309,20 @@ class LLMClient:
                     error=str(exc),
                     retry_attempt=attempt,
                     retryable=retryable,
+                    effective_cap=max_tokens,
                 )
                 if not retryable or transient_retries >= 2:
+                    self.model_registry.record_call(
+                        selected_model, failed=True,
+                        not_found=(status_code in {404, "404"} or type(exc).__name__ == "NotFoundError"),
+                        latency_ms=round((time.monotonic() - started) * 1000))
                     raise
                 transient_retries += 1
                 time.sleep(1.5 * (attempt + 1))
 
         if response is None:
+            self.model_registry.record_call(selected_model, failed=True,
+                                            latency_ms=round((time.monotonic() - started) * 1000))
             raise RuntimeError("LLM provider returned no response")
 
         usage = response.usage
@@ -298,14 +330,19 @@ class LLMClient:
                            ("input_tokens", "cache_creation_input_tokens", "cache_read_input_tokens"))
         output_tokens = int(getattr(usage, "output_tokens", 0) or 0)
         content = [block.model_dump(exclude_none=True) for block in response.content]
+        latency_ms = round((time.monotonic() - started) * 1000)
+        self.model_registry.record_call(selected_model, failed=False, latency_ms=latency_ms)
         self.logger.log(
             "llm_call_completed",
             provider=self.provider,
             model=response.model,
+            max_output_tokens=max_tokens,
+            effective_cap=max_tokens,
             stop_reason=response.stop_reason,
             input_tokens=input_tokens,
             output_tokens=output_tokens,
             total_tokens=input_tokens + output_tokens,
+            latency_ms=latency_ms,
         )
         return LLMResult(
             content=content,

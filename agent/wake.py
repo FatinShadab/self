@@ -24,6 +24,8 @@ from hardening import DailyTokenLedger
 from identity import IdentityStore
 from learning import LearningStore
 from llm import BudgetedLLM, LLMClient
+from model_decisions import ModelDecisions
+from file_lock import locked_file
 from loop import AgentConfig, AgentLoop, STANDING_GOAL
 from reflection import ReflectionManager
 from session import HumanInbox, SessionStore, default_plan
@@ -703,10 +705,19 @@ class WakeCoordinator:
             # wrapper reserves the serialized prompt plus the requested output
             # instead of imposing a separate 4,000-token run ceiling.
             budget = BudgetedLLM(self._llm, self.logger, self.token_budget, self.daily_ledger)
+            reflection_model = None
+            model_registry = getattr(self._llm, "model_registry", None)
+            if model_registry is not None and purpose == "shutdown reflection":
+                decision_budget = BudgetedLLM(self._llm, self.logger, None, self.daily_ledger)
+                decisions = ModelDecisions(self.workspace, self.logger, model_registry,
+                                           decision_budget, self.status.session_id)
+                reflection_model = decisions.decide_model(
+                    f"{purpose}: {extra[:400]}", moment="session_end_handoff")
+            call_args = {"model": reflection_model} if reflection_model is not None else {}
             result = budget.call(
                 system="You are SELF preparing a truthful durable handoff. Return ONLY JSON with attempted, achieved, summary, plan (objects: step, why, priority, status), mood_of_run, failures_and_lessons, open_questions. Explain what this session was trying to do, what it actually achieved, and the updated next plan. Do not invent facts; use only supplied state. Redact secrets.",
                 messages=[{"role": "user", "content": self.logger.redactor.text(f"Purpose: {purpose}\nOld handoff: {json.dumps(self.handoff, ensure_ascii=False)[:7000]}\nCurrent plan: {json.dumps(self.plan)}\n{extra}")}],
-                tools=[], max_tokens=900,
+                tools=[], max_tokens=900, **call_args,
             )
             text = "\n".join(str(block.get("text", "")) for block in result.content if block.get("type") == "text").strip()
             if text.startswith("```"):
@@ -719,6 +730,30 @@ class WakeCoordinator:
         except Exception as exc:
             self.logger.log("session_reflection_fallback", purpose=purpose, error_type=type(exc).__name__)
             return fallback
+
+    def models_snapshot(self) -> dict[str, Any]:
+        registry = getattr(self._llm, "model_registry", None)
+        if registry is not None:
+            models = registry.list_models()
+        else:
+            models = _read_json(self.workspace / "state" / "models.json")
+        decisions_path = self.workspace / "state" / "model_decisions.jsonl"
+        recent: deque[dict[str, Any]] = deque(maxlen=10)
+        try:
+            with decisions_path.open("r", encoding="utf-8") as handle:
+                for line in handle:
+                    try:
+                        value = json.loads(line)
+                        if isinstance(value, dict) and (
+                            value.get("source") == "agent_tool" or
+                            str(value.get("source", "")).startswith("checkpoint:")
+                        ):
+                            recent.append(value)
+                    except json.JSONDecodeError:
+                        continue
+        except OSError:
+            pass
+        return self.logger.redactor.value({"registry": models, "last_ten_decisions": list(recent)})
 
     def revise_plan(self) -> None:
         self._recover_budget_blocked_plan()
@@ -844,6 +879,10 @@ class WakeCoordinator:
         return clean
 
     def run(self) -> Any:
+        with locked_file(self.workspace / "state" / "eval_session.lock", shared=True):
+            return self._run_session()
+
+    def _run_session(self) -> Any:
         greeting = self.boot()
         if (self.workspace / "STOP").exists():
             return None
@@ -880,6 +919,7 @@ class WakeCoordinator:
                 on_cycle=self._checkpoint_cycle,
                 identity_context_provider=self.identity.prompt_context,
                 daily_ledger=self.daily_ledger,
+                session_id=self.status.session_id,
             ),
             self.logger, self._llm, runner,
         )
@@ -972,6 +1012,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
     try:
         from textual import events
         from textual.app import App, ComposeResult
+        from textual.css.query import NoMatches
         from textual.containers import Horizontal, Vertical, VerticalScroll
         from textual.widgets import Footer, Header, Input, Static
         from rich.console import Group
@@ -1114,7 +1155,11 @@ def run_tui(coordinator: WakeCoordinator) -> int:
 
         def _animate_activity(self) -> None:
             self._monitor_tick += 1
-            monitor = self.query_one("#entity-monitor", Static)
+            try:
+                monitor = self.query_one("#entity-monitor", Static)
+            except NoMatches:
+                # A timer can tick while Textual is mounting or dismantling the view.
+                return
             stopped = coordinator.stop_requested or coordinator.paused.is_set() or (coordinator.workspace / "STOP").exists()
             state = str(coordinator.runtime_snapshot()["state"])
             intensity = cardiac_monitor_intensity(state, stopped=stopped)
@@ -1486,6 +1531,9 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             if text == "/plan":
                 self._write_command(text)
                 self._command_response(json.dumps(coordinator.plan, ensure_ascii=False)); return
+            if text == "/models":
+                self._write_command(text)
+                self._command_response(json.dumps(coordinator.models_snapshot(), ensure_ascii=False, indent=2)); return
             if text == "/identity":
                 self._write_command(text)
                 self._command_response(json.dumps(coordinator.identity.load(), ensure_ascii=False, indent=2)); return

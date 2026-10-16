@@ -127,7 +127,8 @@ class ToolRegistry:
         self.workspace = workspace
         self.logger = logger
         self.review_call = review_call
-        self.reserved_names = reserved_names | {"create_tool"}
+        self.model_decisions: Any = None
+        self.reserved_names = reserved_names | {"create_tool", "select_model"}
         self.test_timeout = test_timeout
         self.execution_timeout = execution_timeout
         self.output_cap = output_cap
@@ -217,6 +218,10 @@ class ToolRegistry:
         self.attempt_counts[name] = count + 1
         attempt = count + 1
         entry: dict[str, Any] = {"at": timestamp(), "attempt": attempt, "target_version": meta["version"] + 1, "passed": False}
+        critic_call_id: str | None = None
+        critic_model = getattr(self.review_call, "model", "base")
+        critic_approved: bool | None = None
+        tests_passed: bool | None = None
         candidate = folder / "attempts" / uuid.uuid4().hex
         candidate.mkdir(parents=True)
         try:
@@ -231,9 +236,23 @@ class ToolRegistry:
             (candidate / "tool.py").write_text(code, encoding="utf-8")
             (candidate / "test_tool.py").write_text(test_code, encoding="utf-8")
             self.logger.narrate(f"Reviewing proposed tool {name} with the critic...")
-            response = self.review_call(system=CRITIC_PROMPT, messages=[{"role": "user", "content": json.dumps({
+            review_model = (self.model_decisions.decide_model(
+                f"Review proposed Python tool {name}: {description[:240]}", moment="create_tool_critic")
+                if self.model_decisions is not None else None)
+            critic_call_id = (getattr(self.model_decisions, "last_checkpoint_call_id", None)
+                              if self.model_decisions is not None else None)
+            critic_model = review_model or critic_model
+            call_args = dict(system=CRITIC_PROMPT, messages=[{"role": "user", "content": json.dumps({
                 "name": name, "description": description, "code": code, "test_code": test_code,
             })}], tools=[], max_tokens=1024)
+            if review_model is not None:
+                call_args["model"] = review_model
+            try:
+                response = self.review_call(**call_args)
+            except Exception:
+                if self.model_decisions is not None and hasattr(self.model_decisions, "record_provider_error"):
+                    self.model_decisions.record_provider_error()
+                raise
             text = "\n".join(str(block.get("text", "")) for block in response.content if block.get("type") == "text").strip()
             if text.startswith("```json") and text.endswith("```"):
                 text = text[7:-3].strip()
@@ -242,7 +261,9 @@ class ToolRegistry:
                 raise ValueError("Critic did not return a valid verdict")
             entry["critic"] = self.logger.redactor.value(verdict)
             self.logger.log("tool_critic", name=name, attempt=attempt, verdict=entry["critic"])
-            if verdict.get("approved") is not True or verdict["issues"]:
+            critic_approved = verdict.get("approved") is True and not verdict["issues"]
+            shadow_tests = os.getenv("SELF_CRITIC_SHADOW_TESTS", "true").strip().lower() not in {"0", "false", "off", "no"}
+            if not critic_approved and not shadow_tests:
                 raise ValueError("Critic rejected tool: " + json.dumps(verdict["issues"]))
             self.logger.narrate(f"Testing proposed tool {name}...")
             alias = candidate / f"{name}.py"
@@ -260,6 +281,12 @@ class ToolRegistry:
             entry["test"] = self.logger.redactor.value(tested)
             self.logger.log("tool_test", name=name, attempt=attempt, result=entry["test"])
             match = re.search(r"Ran (\d+) tests?", tested["output"])
+            tests_passed = (not tested["timed_out"] and tested["exit_code"] == 0 and
+                            not tested["truncated"] and match is not None and int(match[1]) > 0 and
+                            "skipped=" not in tested["output"] and
+                            "expected failures=" not in tested["output"])
+            if not critic_approved:
+                raise ValueError("Critic rejected tool: " + json.dumps(verdict["issues"]))
             if not tested["timed_out"] and match is not None and int(match[1]) == 0:
                 raise ValueError("No unittest tests were executed")
             if tested["timed_out"] or tested["exit_code"] != 0 or tested["truncated"]:
@@ -308,6 +335,12 @@ class ToolRegistry:
                     handle.write(json.dumps(lesson) + "\n")
                 self.logger.log("tool_failure_lesson", **lesson)
             return {"ok": False, "name": name, "traceback": diagnostic, "attempts_remaining": 3 - attempt}
+        finally:
+            if self.model_decisions is not None and hasattr(self.model_decisions, "record_tool_outcome"):
+                self.model_decisions.record_tool_outcome(
+                    tool_name=name, attempt=attempt, critic_call_id=critic_call_id,
+                    critic_model=critic_model, critic_approved=critic_approved,
+                    tests_passed=tests_passed, registered=entry["passed"])
 
     def execute(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         self.refresh()

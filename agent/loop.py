@@ -5,6 +5,7 @@ import json
 import os
 import re
 import time
+import uuid
 from dataclasses import dataclass
 from pathlib import Path
 from typing import Any, Callable, Protocol
@@ -16,6 +17,10 @@ from hardening import CapabilityRequests, DailyTokenLedger, RunCheckpoint
 from identity import IdentityStore
 from learning import LearningStore
 from llm import BudgetedLLM, BudgetExceeded, LLMClient, LLMResult
+from model_registry import ModelRegistry
+from model_probe import ModelProber
+from model_decisions import ModelDecisions
+from file_lock import locked_file
 from tool_registry import CREATE_TOOL_DEFINITION, ToolRegistry
 
 
@@ -45,7 +50,8 @@ Operating rules:
 - For optional model providers, first use research_provider to fetch only its official documentation and then record_provider_verification. Never trust stale quota facts.
 - If a supplementary provider lacks a credential, use request_provider_key. It writes /home/entity/state/key_requests.md for the human; do not create accounts or stop unrelated exploration.
 - For a separate plain-text API call to a supplementary LLM, use ask_brain only when its router confirms a configured provider and verified limits. This does not change your primary model. Never use multiple accounts or try to evade limits.
-- To change the model handling your subsequent primary API calls, use select_model with an exact name from the configured model list below. Every listed model uses the same provider endpoint and API key pool as the base model; no separate key or ask_brain call is needed. The base model is the starting choice; the change takes effect after the tool result. Do not assume a configured model is accessible until a call succeeds.
+- The primary thinking model is fixed to the configured base model. Helper models exist; you can probe and research them, then record your own evidence-backed assessment. Configured names alone do not prove accessibility.
+- Use ask_model for a plain-text helper sub-task when you choose to delegate; continuing alone is fine.
 - You are root inside the container. The Docker container boundary is the security boundary.
 - Any new credential, host mount, port, email, money, third-party account, or external service is a capability expansion. Use request_capability and wait for the human to change host .env/docker-compose; do not try to perform it yourself.
 - `/opt/agent/core/` is protected image-owned harness code. Read it when useful, but do not modify it with normal tools. Put an evidence-backed unified diff and reasoning in `state/proposed_patches/` with propose_core_patch; only the human may apply it from the host.
@@ -88,6 +94,7 @@ class AgentConfig:
     on_cycle: Callable[[int, str, int], None] | None = None
     identity_context_provider: Callable[[], str] | None = None
     daily_ledger: DailyTokenLedger | None = None
+    session_id: str = ""
 
 
 @dataclass
@@ -162,11 +169,28 @@ class AgentLoop:
             max_token_budget=max_token_budget,
         )
         self.tools = tools
-        self.tools.llm_client = llm if hasattr(llm, "select_model") else None
+        self.model_registry = None
+        if hasattr(llm, "base_model") and hasattr(llm, "available_models"):
+            self.model_registry = getattr(llm, "model_registry", None) or ModelRegistry(
+                config.workspace, logger, llm.base_model, llm.available_models)
+        self.tools.model_registry = self.model_registry
+        self.tools.model_prober = (
+            ModelProber(self.model_registry, self.llm, logger,
+                        config.session_id or uuid.uuid4().hex,
+                        getattr(llm, "provider", "unknown"))
+            if self.model_registry is not None else None
+        )
+        self.model_decisions = (
+            ModelDecisions(config.workspace, logger, self.model_registry, self.llm,
+                           config.session_id or uuid.uuid4().hex)
+            if self.model_registry is not None else None
+        )
+        self.tools.model_decisions = self.model_decisions
         self.registry = ToolRegistry(config.workspace, logger, self.llm.call,
                                      {tool["name"] for tool in TOOL_DEFINITIONS},
                                      output_cap=tools.output_cap)
         self.tools.registry = self.registry
+        self.registry.model_decisions = self.model_decisions
         self.learning = LearningStore(config.workspace, logger)
         self.tools.learning = self.learning
         self.brain_router = BrainRouter(config.workspace, logger)
@@ -266,14 +290,19 @@ class AgentLoop:
             context = "## Persistent identity\nIdentity state could not be loaded; do not invent identity claims."
         client = self.llm.client
         model_context = ""
-        if hasattr(client, "available_models"):
+        if self.model_registry is not None:
+            entries = self.model_registry.list_models()["models"]
+            eligible = (set(self.model_decisions._available())
+                        if self.model_decisions is not None else
+                        {item["name"] for item in entries if item["status"] in {"configured", "reachable"}})
+            summary = [ModelDecisions._summary_entry(item) for item in entries
+                       if item["role"] == "base" or item["name"] in eligible]
             model_context = (
                 "\n\n## Primary LLM models\n"
                 f"Provider: {client.provider}\n"
                 f"Base: {client.base_model}\n"
-                f"Current: {client.model}\n"
-                f"Configured: {', '.join(client.available_models)}\n"
-                "All configured models use this provider's endpoint and API key pool. The provider may still reject an unavailable model."
+                f"Registry (names, status, your assessments): {json.dumps(summary, ensure_ascii=False)}\n"
+                "The base handles primary thinking and tool calls. Helpers use the same provider endpoint and API key pool."
             )
         return f"{SYSTEM_PROMPT}{model_context}\n\n{self.logger.redactor.text(context)}"
 
@@ -319,6 +348,12 @@ class AgentLoop:
             resumed_from_checkpoint=bool(prior_checkpoint),
         )
         started_at = time.monotonic()
+        task_id = uuid.uuid4().hex
+        ask_model_followed = False
+        tool_error_count = 0
+        provider_error_count = 0
+        if self.model_decisions is not None:
+            self.model_decisions.start_task(task_id)
 
         cycle = 1
         while self.config.max_iterations is None or cycle <= self.config.max_iterations:
@@ -366,6 +401,7 @@ class AgentLoop:
                     "role": "user",
                     "content": (
                         f"Begin exploration cycle {cycle}.\n\n"
+                        + ("Helper models are available. Consider ask_model for sub-tasks it fits, or continue alone.\n\n" if cycle == 1 and self.model_registry is not None else "") +
                         f"Specific task for this run: {active_task or STANDING_GOAL}\n\n"
                         f"Relevant tools and memories:\n{context}\n\n"
                         f"Previous cycle report:\n{last_report}\n\n"
@@ -412,8 +448,7 @@ class AgentLoop:
                     f"{active_task or STANDING_GOAL}\n{cycle_report or last_report}",
                     self.config.top_k_tools,
                 )
-                model_choice_enabled = self.tools.llm_client is not None and len(getattr(self.tools.llm_client, "available_models", [])) > 1
-                base = [tool for tool in TOOL_DEFINITIONS if (self.config.base_tool_names is None or tool["name"] in self.config.base_tool_names) and (tool["name"] != "select_model" or model_choice_enabled)]
+                base = [tool for tool in TOOL_DEFINITIONS if self.config.base_tool_names is None or tool["name"] in self.config.base_tool_names]
                 definitions = base + [CREATE_TOOL_DEFINITION] + selected
                 try:
                     result = self.llm.call(system=self._system_prompt(), messages=messages,
@@ -428,6 +463,7 @@ class AgentLoop:
                         reason = "token_budget"
                     break
                 except Exception as exc:
+                    provider_error_count += 1
                     self.logger.log("run_failed", error_type=type(exc).__name__, provider_error=True)
                     self.logger.narrate(
                         f"The AI provider failed with {type(exc).__name__}. I paused this session safely and will retry automatically."
@@ -446,6 +482,7 @@ class AgentLoop:
 
                 messages.append({"role": "assistant", "content": safe_content})
                 tool_results: list[dict[str, Any]] = []
+                remind_outcome = False
                 for tool_use in tool_uses:
                     if self._stopped():
                         reason = "stop_file"
@@ -456,15 +493,14 @@ class AgentLoop:
                         arguments = {}
                     self.logger.narrate(self._tool_narration(name, arguments))
                     action_key = json.dumps({"name": name, "arguments": arguments}, ensure_ascii=False, sort_keys=True)
-                    if name != "select_model" and action_key in seen_tool_actions:
+                    if action_key in seen_tool_actions:
                         observation = {
                             "ok": False,
                             "error": "This exact tool action already ran earlier in this run; choose a different investigation or finish with a report.",
                         }
                         self.logger.log("repeated_tool_action_blocked", tool=name)
                     else:
-                        if name != "select_model":
-                            seen_tool_actions.add(action_key)
+                        seen_tool_actions.add(action_key)
                         try:
                             if name not in {tool["name"] for tool in definitions}:
                                 observation = {"ok": False, "error": "Tool not offered in this step; use task keywords to retrieve it."}
@@ -488,6 +524,10 @@ class AgentLoop:
                         }
                     )
                     cycle_actions.append({"name": name, "ok": bool(observation.get("ok", False))})
+                    tool_error_count += int(not observation.get("ok", False))
+                    if name == "ask_model":
+                        ask_model_followed = True
+                        remind_outcome = bool(observation.get("call_id"))
                     if self.human_request.exists():
                         self.logger.narrate("A human request was created; pausing immediately.")
                         reason = "human_request_pending"
@@ -495,6 +535,9 @@ class AgentLoop:
                 if reason in {"stop_file", "human_request_pending", "token_budget", "wall_clock_budget", "provider_error"}:
                     break
                 messages.append({"role": "user", "content": tool_results})
+                if remind_outcome:
+                    messages.append({"role": "user", "content":
+                                     "If useful, call record_delegation_outcome once for the ask_model call_id. Reporting is optional; judge the result yourself."})
 
             if reason in {"stop_file", "token_budget", "human_request_pending", "wall_clock_budget", "provider_error"}:
                 break
@@ -525,6 +568,13 @@ class AgentLoop:
             tokens_used=self.llm.tokens_used,
             reason=reason,
         )
+        if self.model_decisions is not None:
+            self.model_decisions.record_task_observation(task_id, active_task or STANDING_GOAL,
+                                                         ask_model_followed)
+            self.model_decisions.record_task_outcomes(
+                task_id, completed=completed_iterations > 0 and reason not in {"provider_error", "stop_file"},
+                iterations=completed_iterations, tool_errors=tool_error_count,
+                provider_errors=provider_error_count + self.model_decisions.task_provider_errors())
         self.checkpoint.save(status="completed", task=active_task, completed_iterations=completed_iterations, last_report=last_report, tokens_used=self.llm.tokens_used, reason=reason)
         if completed_iterations == 0:
             self.learning.append_memory(
@@ -586,7 +636,8 @@ def main() -> int:
             curriculum=args.curriculum,
             max_wall_clock_seconds=args.max_wall_clock_seconds if args.max_wall_clock_seconds > 0 else None,
         )
-        summary = AgentLoop(config, logger, llm, ToolRunner(logger, workspace)).run()
+        with locked_file(workspace / "state" / "eval_session.lock", shared=True):
+            summary = AgentLoop(config, logger, llm, ToolRunner(logger, workspace)).run()
         return 0 if summary.reason != "error" else 1
     except KeyboardInterrupt:
         logger.narrate("Interrupted; halting cleanly.")

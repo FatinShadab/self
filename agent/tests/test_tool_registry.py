@@ -152,10 +152,31 @@ class RegistryTests(unittest.TestCase):
         marker = self.workspace / "unexpected-execution"
         code = f'from pathlib import Path\nPath({str(marker)!r}).touch()\n' + DISK_CODE
         self.reviewer.verdict = {"approved": False, "issues": ["Unexpected module-level write"]}
-        failed = self.create(code=code)
+        with patch.dict(os.environ, {"SELF_CRITIC_SHADOW_TESTS": "false"}):
+            failed = self.create(code=code)
         self.assertFalse(failed["ok"])
         self.assertFalse(marker.exists())
         self.assertNotIn('"event":"tool_test"', self.logger.path.read_text())
+
+    def test_flagged_candidate_runs_shadow_tests_but_never_registers(self):
+        class Decisions:
+            last_checkpoint_call_id = "critic-call"
+            def __init__(self):
+                self.recorded = []
+            def decide_model(self, context, *, moment):
+                return "helper"
+            def record_tool_outcome(self, **kwargs):
+                self.recorded.append(kwargs)
+        decisions = Decisions()
+        self.registry.model_decisions = decisions
+        self.reviewer.verdict = {"approved": False, "issues": ["Concern"]}
+        result = self.create()
+        self.assertFalse(result["ok"])
+        self.assertEqual(self.registry.tools, {})
+        self.assertIn('"event":"tool_test"', self.logger.path.read_text())
+        self.assertEqual(decisions.recorded[0]["critic_model"], "helper")
+        self.assertIs(decisions.recorded[0]["tests_passed"], True)
+        self.assertIs(decisions.recorded[0]["registered"], False)
 
     def test_credential_literals_are_not_saved(self):
         with patch.dict(os.environ, {"SELF_TEST_SECRET": "fake-secret-only-for-tests"}):

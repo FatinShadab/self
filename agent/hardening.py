@@ -5,10 +5,10 @@ import json
 import os
 from datetime import datetime, timezone
 from pathlib import Path
-from threading import Lock
 from typing import Any
 
 from event_log import EventLogger
+from file_lock import locked_file
 
 
 def now() -> str:
@@ -47,7 +47,7 @@ class DailyTokenLedger:
         self.path = Path(workspace) / "state" / "daily_token_budget.json"
         self.logger = logger
         self.cap = max(1, cap or int(os.getenv("SELF_MAX_TOKENS_PER_DAY", "200000")))
-        self._lock = Lock()
+        self.lock_path = self.path.with_suffix(".lock")
 
     def _read(self) -> dict[str, Any]:
         today = datetime.now(timezone.utc).date().isoformat()
@@ -61,12 +61,16 @@ class DailyTokenLedger:
 
     def _write(self, data: dict[str, Any]) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        temporary = self.path.with_suffix(".tmp")
-        temporary.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        os.replace(temporary, self.path)
+        import uuid
+        temporary = self.path.with_name(f".daily-token-budget-{uuid.uuid4().hex}.tmp")
+        try:
+            temporary.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
+            os.replace(temporary, self.path)
+        finally:
+            temporary.unlink(missing_ok=True)
 
     def reserve(self, tokens: int) -> bool:
-        with self._lock:
+        with locked_file(self.lock_path):
             data = self._read()
             # The configured cap is authoritative even if an older state used a different cap.
             data["cap"] = self.cap
@@ -81,12 +85,12 @@ class DailyTokenLedger:
 
     def available_tokens(self) -> int:
         """Return the remaining daily allowance, including active reservations."""
-        with self._lock:
+        with locked_file(self.lock_path):
             data = self._read()
             return max(0, self.cap - int(data.get("used_tokens", 0)) - int(data.get("reserved_tokens", 0)))
 
     def settle(self, reserved: int, actual: int | None) -> None:
-        with self._lock:
+        with locked_file(self.lock_path):
             data = self._read()
             data["cap"] = self.cap
             data["reserved_tokens"] = max(0, int(data["reserved_tokens"]) - reserved)

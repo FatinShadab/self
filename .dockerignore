@@ -1,5 +1,6 @@
 .env
 .git
 workspace
+eval
 **/__pycache__/
 **/*.pyc

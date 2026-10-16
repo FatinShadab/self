@@ -21,3 +21,25 @@ services:
     networks:
       - default
 
+  eval:
+    profiles: ["eval"]
+    build:
+      context: .
+      dockerfile: Dockerfile
+    env_file:
+      - .env
+    volumes:
+      - type: bind
+        source: ./workspace
+        target: /home/entity
+        read_only: true
+      - type: bind
+        source: ./eval
+        target: /opt/eval
+        read_only: false
+      - type: bind
+        source: ./docker-compose.yml
+        target: /opt/eval-compose.yml
+        read_only: true
+    entrypoint: ["python", "-m", "eval.runner"]
+

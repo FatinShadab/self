@@ -114,12 +114,34 @@ have keys. Key values are never written to logs.
 Set `OLLAMA_MODEL` as the base model and list other Ollama Cloud models accessible
 with the same API key(s) in `LLM_AVAILABLE_MODELS`, separated by commas or as a JSON
 array. For example, `LLM_AVAILABLE_MODELS=small-model,large-model`. The base
-model is included automatically. SELF starts with the base model and can call
-`select_model` to choose another listed model for subsequent primary LLM calls.
-The request uses the same Ollama endpoint and key pool as the base model; no
-separate key is needed. `ask_brain` is unrelated to this model list.
-Only configured models can be selected. With an Anthropic key, use
+model is included automatically. The primary loop stays on the base model;
+`ask_model` can delegate a bounded sub-task to an eligible helper, and decision
+checkpoints can choose a helper for a critic or reflection call. These requests
+use the same Ollama endpoint and key pool; no separate key is needed.
+`ask_brain` is unrelated to this model list. With an Anthropic key, use
 `ANTHROPIC_MODEL` for the base model and the same `LLM_AVAILABLE_MODELS` list.
+
+### Host-only model calibration (Step 5a)
+
+The agent can record optional structured `ratings` for reasoning, code,
+instruction following, summarization, and JSON output with
+`record_model_assessment`. Record judgments before running the hidden benchmark.
+The benchmark and results live under `eval/`, which is excluded from the agent
+image and is mounted only in the opt-in `eval` service. Stop the agent session
+before running the eval service. The shared session lock rejects overlapping
+sessions.
+
+```sh
+docker compose stop self
+docker compose --profile eval run --rm eval --dry-run
+# After checking quota and recording ratings, run the full benchmark explicitly:
+docker compose --profile eval run --rm eval
+python -m eval.calibrate
+```
+
+The dry run prints the planned provider-call count without calling a model.
+Results are written only to `eval/results/`. A later ratings timestamp is
+flagged as tainted in the calibration report.
 
 The readable narration streams to the terminal. Structured events append to
 `workspace/logs/actions.jsonl`. Create `workspace/STOP` on the host to halt at
@@ -130,8 +152,9 @@ the next safe check.
 `create_tool(name, description, code, test_code)` stages Python source, derives
 the argument JSON schema from `run(...)` annotations (or a literal `INPUT_SCHEMA`),
 and sends the candidate and tests to a separate LLM critic. A flagged or malformed
-verdict fails closed. Approved candidates must pass nonempty unittest tests within
-15 seconds before registration. Test and tool subprocesses run as root, with a
+verdict fails closed. By default, flagged candidates also run shadow tests for
+evaluation but are never registered. Approved candidates must pass nonempty
+unittest tests within 15 seconds before registration. Test and tool subprocesses run as root, with a
 timeout and capped output; provider credentials are omitted from their environment.
 
 Tools live at `workspace/tools/<name>/tool.py`, `test_tool.py`, and `meta.json`.

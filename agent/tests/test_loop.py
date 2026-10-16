@@ -30,22 +30,15 @@ class FakeLLM:
 
 
 class AgentLoopTests(unittest.TestCase):
-    def test_configured_models_and_switch_tool_reach_agent(self) -> None:
+    def test_fixed_base_and_model_registry_tools_reach_agent(self) -> None:
         class ModelAwareLLM(FakeLLM):
             def __init__(self) -> None:
                 super().__init__()
                 self.provider = "ollama"
                 self.base_model = "base-model"
-                self.model = self.base_model
                 self.available_models = [self.base_model, "other-model"]
                 self.systems: list[str] = []
                 self.offered_tools: list[list[str]] = []
-
-            def select_model(self, model: str) -> dict[str, str]:
-                if model not in self.available_models:
-                    raise ValueError("unconfigured model")
-                self.model = model
-                return {"model": model}
 
             def call(self, **kwargs: Any) -> LLMResult:
                 self.calls += 1
@@ -53,12 +46,12 @@ class AgentLoopTests(unittest.TestCase):
                 self.offered_tools.append([tool["name"] for tool in kwargs["tools"]])
                 if self.calls == 1:
                     return LLMResult(
-                        content=[{"type": "tool_use", "id": "switch-1", "name": "select_model", "input": {"model": "other-model"}}],
-                        input_tokens=1, output_tokens=1, stop_reason="tool_use", model=self.model,
+                        content=[{"type": "tool_use", "id": "models-1", "name": "list_models", "input": {}}],
+                        input_tokens=1, output_tokens=1, stop_reason="tool_use", model=self.base_model,
                     )
                 return LLMResult(
-                    content=[{"type": "text", "text": "Continued with the selected model."}],
-                    input_tokens=1, output_tokens=1, stop_reason="end_turn", model=self.model,
+                    content=[{"type": "text", "text": "Continued with the base model."}],
+                    input_tokens=1, output_tokens=1, stop_reason="end_turn", model=self.base_model,
                 )
 
         with tempfile.TemporaryDirectory() as temp:
@@ -69,11 +62,16 @@ class AgentLoopTests(unittest.TestCase):
                 AgentConfig(workspace=workspace, max_iterations=1, token_budget=10_000),
                 logger, fake, ToolRunner(logger, workspace),
             ).run()
-            self.assertIn("Configured: base-model, other-model", fake.systems[0])
-            self.assertIn("select_model", fake.offered_tools[0])
+            self.assertIn('"name": "other-model"', fake.systems[0])
+            self.assertIn('"status": "untested"', fake.systems[0])
+            self.assertIn("list_models", fake.offered_tools[0])
+            self.assertIn("record_model_assessment", fake.offered_tools[0])
+            self.assertIn("probe_model", fake.offered_tools[0])
+            self.assertIn("research_model", fake.offered_tools[0])
+            self.assertIn("ask_model", fake.offered_tools[0])
+            self.assertNotIn("select_model", fake.offered_tools[0])
             self.assertIn("ask_brain", fake.offered_tools[0])
-            self.assertIn("Current: other-model", fake.systems[1])
-            self.assertEqual(fake.model, "other-model")
+            self.assertIn("Base: base-model", fake.systems[1])
 
     def test_existing_stop_file_prevents_llm_call(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

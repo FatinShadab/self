@@ -13,6 +13,8 @@ from typing import Any, Callable
 from event_log import EventLogger
 from hardening import DailyTokenLedger
 from llm import BudgetExceeded, BudgetedLLM, LLMClient
+from model_decisions import ModelDecisions
+from file_lock import locked_file
 
 
 def _now() -> str:
@@ -143,9 +145,10 @@ class ReflectionManager:
 
     def _run_candidate(self, candidate: dict[str, Any]) -> None:
         try:
-            result = self._reflect(candidate)
-            if result is not None:
-                candidate["on_result"](result)
+            with locked_file(self.workspace / "state" / "eval_session.lock", shared=True):
+                result = self._reflect(candidate)
+                if result is not None:
+                    candidate["on_result"](result)
         except Exception as exc:
             self.logger.log("reflection_failed", cycle=candidate["cycle"], error_type=type(exc).__name__)
         finally:
@@ -203,7 +206,18 @@ class ReflectionManager:
         call_budget = input_reservation + self.max_tokens + 128
         budget = BudgetedLLM(self.client, self.logger, call_budget, self.ledger, adaptive_budget=False)
         try:
-            response = budget.call(system=system, messages=[{"role": "user", "content": context}], tools=[], max_tokens=self.max_tokens)
+            reflection_model = None
+            model_registry = getattr(self.client, "model_registry", None)
+            if model_registry is not None:
+                decision_budget = BudgetedLLM(self.client, self.logger, None, self.ledger)
+                reflection_model = ModelDecisions(
+                    self.workspace, self.logger, model_registry, decision_budget,
+                    candidate["session_id"]).decide_model(
+                        f"Background reflection after cycle {candidate['cycle']}: {context[:400]}",
+                        moment="background_reflection")
+            model_arg = {"model": reflection_model} if reflection_model is not None else {}
+            response = budget.call(system=system, messages=[{"role": "user", "content": context}],
+                                   tools=[], max_tokens=self.max_tokens, **model_arg)
         except BudgetExceeded:
             self.logger.log("reflection_skipped", cycle=candidate["cycle"], reason="budget")
             return None
