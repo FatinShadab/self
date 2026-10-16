@@ -6,93 +6,118 @@
 SELF is a self-extending agent whose Docker container is its body. By default,
 the `self` service's only host bind mount is `./workspace` at `/home/entity`.
 
-For a code reading order and package map, see [the harness architecture](agent/README.md).
+> [!WARNING]
+> Experimental local research software. SELF is not a hardened security
+> sandbox or a production service. Read [SECURITY.md](SECURITY.md) before
+> supplying credentials or granting access to important data.
 
-This repository is an experimental open-source project. It is suitable for
-local research and inspection, not for production workloads or as a hardened
-security sandbox. See [SECURITY.md](SECURITY.md) before supplying credentials
-or granting the container access to anything important.
+| Start here | Then explore |
+| --- | --- |
+| [Quick start](#how-to-run) · [Safe operation](#phase-6-hardening-and-operations) | [Features](#what-can-it-do-right-now) · [Harness map](agent/README.md) |
+| [Tests](#how-to-run) · [Contributing](#contributing-and-project-policies) | [Helper-model experiment](docs/helper-model-experiment.md) · [Terminal UI](#phase-7-wake-up-sessions-and-terminal-ui) |
 
 ## What is this?
 
-SELF is a curiosity-driven experiment: a language-model-powered software
-entity that can observe a small computer environment, choose actions, use
-tools, remember useful facts, and continue working across sessions. It is not
-a person, a biological life-form, or proof of consciousness. It is a program
-for exploring what an AI system might become when it has a body-like runtime,
-memory, an identity record, and room to extend its own tools.
+SELF is a curiosity-driven, language-model-powered program. It can observe a
+small computer environment, choose actions, use tools, remember verified facts,
+and continue across sessions. Its body-like runtime, memory, identity record,
+and ability to extend its own tools make it a research experiment. SELF is not
+a person, biological life-form, or proof of consciousness.
 
 ## What can it do right now?
 
-In simple terms, SELF can:
+| Area | Current capability |
+| --- | --- |
+| **Runtime** | Bounded tasks with shell, file, HTTP, and other tools inside Docker; layered `agent` package and durable recovery checkpoints. |
+| **Tools** | Generate Python tools, test and review candidates, then retrieve approved versions. |
+| **Learning** | Record memories, verified environment facts, lessons, and session handoffs. |
+| **Models** | Configure a base model and eligible helpers for bounded subtasks, critic calls, and reflections; probe availability and report outcomes. |
+| **Interface** | Terminal UI with plans, status, model choices, coverage, goals, stop/pause controls, optional voice, and a separate read-only conversation channel. |
+| **Identity** | Keep a small, evidence-backed operating record and a file-and-line explanation of its code. |
+| **Evaluation** | Run host-only calibration and randomized helper-model A/B experiments without exposing hidden tasks to the agent service. |
 
-- run inside its own Docker container and inspect the resources available to it;
-- plan and carry out bounded tasks using shell, file, HTTP, and other tools;
-- create new Python tools, test them, ask a separate model to review them, and
-  reuse approved tools later;
-- learn across runs by recording memories, environment facts, lessons, and
-  session handoffs;
-- keep a small, evidence-based identity record and explain what it knows about
-  itself and its code;
-- talk with a human through a terminal interface, including plans, status,
-  commands, optional voice features, goals, and stop/pause controls;
-- view explored directories and registered custom tools with `/coverage`, and
-  select from configured primary models during a run;
-- recover from interrupted sessions and leave logs showing what it tried and
-  what happened.
-
-The container is its boundary. It cannot automatically grant itself access to
-the host, credentials, money, accounts, or other capabilities. Requests for
-those things are recorded for a human to review. The “without restrictions”
-idea is therefore the question being explored—not the current capability of
-the system. The runtime deliberately gives SELF broad freedom inside its own
-container while keeping important outside-world powers under human control.
+See the [harness architecture](agent/README.md) for the package map and code
+reading order. SELF has broad freedom *inside* its container. Access to host
+paths, credentials, money, accounts, and other outside capabilities requires a
+human to change the configuration; requests are recorded for review. The
+“without restrictions” idea is a research question, not a current capability.
 
 ## What is the end goal?
 
-There is no fixed end goal yet. The project is an open-ended investigation:
-if an AI system can act, remember, build tools, reflect on its behavior, and
-develop a stable way of interacting with the world, what kind of entity does
-that produce?
-
-The point is not to pretend that SELF is conscious. The point is to build a
-small, observable place where that question can be explored honestly—with
-evidence, logs, boundaries, and room for unexpected behavior. The eventual
-direction may become clearer through use.
+There is no fixed end goal. The project asks what may emerge when an AI system
+can act, remember, build tools, reflect, and develop a stable way of interacting
+with the world. It provides an observable environment with evidence, logs, and
+boundaries; it does not claim SELF is conscious. The direction may become
+clearer through use.
 
 ## How to run
 
-You need Docker with the Compose plugin and an Ollama Cloud or Anthropic API
-key. Run these commands from the repository root in PowerShell:
+**Requirements:** Docker with Compose. Tests need no provider key; live runs
+need an Ollama Cloud or Anthropic API key. Run these commands from the
+repository root in PowerShell.
 
-```powershell
-if (-not (Test-Path .env)) { Copy-Item .env.example .env }
-# Edit .env: set OLLAMA_API_KEY (or ANTHROPIC_API_KEY and ANTHROPIC_MODEL).
-docker compose build
-docker compose run --rm self
-```
-
-The last command opens SELF's interactive terminal UI. Type `/goal <text>` to
-give the autonomous loop a focus, `/coverage` to inspect explored directories
-and saved tools, and `/stop` to end the session cleanly. The first wake also
-asks you to name SELF and can record your preferred name. If a previous stop
-left `workspace/STOP`, remove that file before starting another session, or
-use `/restart` in the UI. Runtime memory and logs persist under `workspace/`.
-
-For a bounded run with plain terminal output instead of the UI:
-
-```powershell
-docker compose run --rm self --headless --max-iterations 10 --token-budget 20000
-```
-
-To run the test suite without starting the agent or requiring an API key:
+### 1. Test the checkout
 
 ```powershell
 .\scripts\run-tests.ps1
 ```
 
-This entry point builds the image and runs both the harness and host-only
-evaluation suites. On a Unix shell, use `bash scripts/run-tests.sh`.
+| Test entry point | What it does |
+| --- | --- |
+| PowerShell: `.\scripts\run-tests.ps1` | Builds the CI image and runs 116 harness and 11 eval-only tests. |
+| Unix: `bash scripts/run-tests.sh` | Runs the same two suites. |
+
+CI invokes the PowerShell script and keeps the image's
+`PYTHONPATH=/opt:/opt/agent` so `agent.*` imports resolve.
+
+### 2. Configure a key and start small
+
+```powershell
+if (-not (Test-Path .env)) { Copy-Item .env.example .env }
+# Edit .env: set OLLAMA_API_KEY, or ANTHROPIC_API_KEY and ANTHROPIC_MODEL.
+docker compose build
+docker compose run --rm self --max-iterations 2 --token-budget 20000
+```
+
+The command opens the interactive terminal UI. At first wake, SELF asks you to
+name it and can record your preferred name.
+
+| In the UI | Result |
+| --- | --- |
+| `/goal <text>` | Give autonomous work a focus. Ordinary chat instead starts a separate read-only conversation. |
+| `/models` · `/coverage` | Inspect configured models, explored directories, and saved tools. |
+| `/stop` | End cleanly. If `workspace/STOP` remains, remove it before the next wake or use `/restart`. |
+
+Memory and logs persist under `workspace/`. Review the first session before
+raising `--max-iterations`. `--token-budget` limits the application run; it is
+not a provider-enforced spending cap.
+
+### 3. Increase the run length when ready
+
+```powershell
+docker compose down
+docker compose build
+docker compose run --rm self --max-iterations 50
+```
+
+`down` removes the named Compose service. It preserves `workspace/` and may
+leave an earlier one-off `run` container active. Fifty iterations can make many
+provider calls; add `--token-budget` if you want a per-run limit.
+
+For plain terminal output instead of the UI:
+
+```powershell
+docker compose run --rm self --headless --max-iterations 2 --token-budget 20000
+```
+
+> [!CAUTION]
+> Only `workspace/` is mounted writable into `self`, but the container has
+> network access and executes generated code as root inside Docker. Use a
+> limited provider key and keep important host paths unmounted. Read
+> [SECURITY.md](SECURITY.md) before supplying sensitive data. Stop with
+> `/stop`; for an unresponsive session, see [Start, stop, and wipe](#start-stop-and-wipe).
+> Do not run `scripts/verify-phase8.ps1 -WipeWorkspace` on a workspace you
+> want to keep.
 
 See [provider and model configuration](#phase-2-run-the-exploration-loop)
 for key rotation and model selection. [Wake-up sessions and terminal UI](#phase-7-wake-up-sessions-and-terminal-ui)
@@ -110,31 +135,26 @@ docker compose build
 docker compose run --rm --entrypoint python self /opt/agent/loop.py --max-iterations 5 --token-budget 20000
 ```
 
-For multiple keys, use `OLLAMA_API_KEYS` or `ANTHROPIC_API_KEYS` in `.env`
-instead. These accept a comma-separated list or JSON array; for example,
-`OLLAMA_API_KEYS=key_one,key_two`. SELF rotates keys after a provider quota,
-rate-limit, or authentication failure. Ollama takes priority if both providers
-have keys. Key values are never written to logs.
+| Setting | Purpose |
+| --- | --- |
+| `OLLAMA_API_KEY` or `ANTHROPIC_API_KEY` | Primary credential. Ollama takes priority if both are present. Key values are never written to logs. |
+| `OLLAMA_API_KEYS` or `ANTHROPIC_API_KEYS` | Multiple keys as a comma-separated list or JSON array, such as `OLLAMA_API_KEYS=key_one,key_two`. SELF rotates after quota, rate-limit, or authentication failures. |
+| `OLLAMA_MODEL` or `ANTHROPIC_MODEL` | Base model used by the primary loop. |
+| `LLM_AVAILABLE_MODELS` | Eligible helpers as a comma-separated list or JSON array, such as `small-model,large-model`. The base model is included automatically. |
 
-Set `OLLAMA_MODEL` as the base model and list other Ollama Cloud models accessible
-with the same API key(s) in `LLM_AVAILABLE_MODELS`, separated by commas or as a JSON
-array. For example, `LLM_AVAILABLE_MODELS=small-model,large-model`. The base
-model is included automatically. The primary loop stays on the base model;
-`ask_model` can delegate a bounded sub-task to an eligible helper, and decision
-checkpoints can choose a helper for a critic or reflection call. These requests
-use the same Ollama endpoint and key pool; no separate key is needed.
-`ask_brain` is unrelated to this model list. With an Anthropic key, use
-`ANTHROPIC_MODEL` for the base model and the same `LLM_AVAILABLE_MODELS` list.
+`ask_model` can delegate a bounded subtask to an eligible helper. Decision
+checkpoints can choose a helper for critic or reflection calls. Ollama helpers
+share the same endpoint and key pool; no separate key is needed. The Anthropic
+base model uses the same `LLM_AVAILABLE_MODELS` setting. `ask_brain` is a
+separate supplementary-provider tool and does not use that list.
 
 ### Host-only model calibration (Step 5a)
 
-The agent can record optional structured `ratings` for reasoning, code,
-instruction following, summarization, and JSON output with
-`record_model_assessment`. Record judgments before running the hidden benchmark.
-The benchmark and results live under `eval/`, which is excluded from the agent
-image and is mounted only in the opt-in `eval` service. Stop the agent session
-before running the eval service. The shared session lock rejects overlapping
-sessions.
+Use `record_model_assessment` to save optional structured `ratings` for
+reasoning, code, instruction following, summarization, and JSON output.
+Record judgments **before** running the hidden benchmark. Its definitions and
+results stay under host-side `eval/`; only the opt-in `eval` service mounts
+them. Stop the agent session first. A shared lock rejects overlapping sessions.
 
 ```sh
 docker compose stop self
@@ -144,19 +164,22 @@ docker compose --profile eval run --rm eval
 python -m eval.calibrate
 ```
 
-The dry run prints the planned provider-call count without calling a model.
-Results are written only to `eval/results/`. A later ratings timestamp is
-flagged as tainted in the calibration report.
+- `--dry-run` prints the planned provider-call count without calling a model.
+- The full run writes results only to `eval/results/`.
+- Calibration flags ratings recorded after the benchmark as tainted.
 
 ### Randomized helper-model A/B experiment (Steps 5b and 6)
 
-The host-only [experiment guide](docs/helper-model-experiment.md) gives the
-PowerShell sequence for probing and rating helpers, running the hidden benchmark,
-building an isolated seed, piloting 12 deterministic tasks, and comparing
-randomized `off` and `on` arms. `SELF_HELPER_MODELS=off` removes helper tools and
-decision checkpoints; `SELF_CRITIC_MODEL` optionally forces one critic in that
-arm. `scripts/ab-run.ps1` creates a separate gitignored workspace per run and
-enforces a cumulative provider-call cap. No A/B run starts from a dry-run command.
+The host-only [experiment guide](docs/helper-model-experiment.md) covers:
+
+1. Probe and rate helpers, then run the hidden benchmark.
+2. Build an isolated seed and pilot 12 deterministic tasks.
+3. Compare randomized `off` and `on` arms.
+
+`SELF_HELPER_MODELS=off` removes helper tools and decision checkpoints;
+`SELF_CRITIC_MODEL` can force one critic in that arm. `scripts/ab-run.ps1`
+creates a separate gitignored workspace per run and enforces a cumulative
+provider-call cap. A dry-run command never starts an A/B run.
 
 The [learning report](agent/reporting/README.md) and `/models` view now include
 helper-model usage and decision evidence. Host-only calibration and A/B summaries
@@ -176,21 +199,21 @@ evaluation but are never registered. Approved candidates must pass nonempty
 unittest tests within 15 seconds before registration. Test and tool subprocesses run as root, with a
 timeout and capped output; provider credentials are omitted from their environment.
 
-Tools live at `workspace/tools/<name>/tool.py`, `test_tool.py`, and `meta.json`.
-Metadata tracks descriptions, schemas, timestamps, versions, source hashes, and
-pass/fail attempts. Failed candidates are retained in `attempts/`, while passing
-updates archive the previous files in `history/v0001/`, etc. Three failed attempts
-for a name in a run block further retries and append a lesson to
-`workspace/memory/lessons.jsonl`. A fresh run allows another repair sequence.
+| Tool lifecycle | Where or how it is recorded |
+| --- | --- |
+| Source and tests | `workspace/tools/<name>/tool.py` and `test_tool.py` |
+| Metadata | `meta.json` tracks descriptions, schemas, timestamps, versions, source hashes, and pass/fail attempts. |
+| Failed candidates | Kept in `attempts/`. Three failures for one name block further retries in that run and add a lesson to `workspace/memory/lessons.jsonl`; a fresh run permits repair. |
+| Passing updates | Previous versions move to `history/v0001/`, etc. |
 
-The registry refreshes at startup and before each model step. Only up to
-`--top-k-tools` matching custom tool schemas are offered, alongside base tools
-and `create_tool`. Keyword search uses names/descriptions; a `ToolSearch` interface
-allows replacement with embedding search. Historical or failed sources never
-enter tool retrieval. Directly changed registered sources must be re-created to
-pass testing and review. The actor and critic share the run token budget.
+The registry refreshes at startup and before each model step. It offers up to
+`--top-k-tools` matching custom schemas alongside base tools and `create_tool`.
+Keyword retrieval searches names and descriptions; the `ToolSearch` interface
+can be replaced with embedding search. Failed or historical sources are never
+retrieved. A direct source edit must pass creation, testing, and review again.
+Actor and critic calls share the run token budget.
 
-Build and run regression tests:
+Run regression tests, then start the service for the tool demo:
 
 ```powershell
 .\scripts\run-tests.ps1
@@ -215,21 +238,23 @@ unrestricted shell actions inside its Docker boundary:
 docker compose exec self python /opt/agent/loop.py --max-iterations 2 --token-budget 50000 --top-k-tools 3 --task "Retrieve and reuse the disk usage summary tool."
 ```
 
-The critic is a quality gate, not an additional security boundary. Tests and
-generated code have container-root access, as required. The JSONL writer appends
-events; root can still modify any container file. Token reservations use a
-conservative payload estimate and reported provider usage; they are not a
-provider-enforced billing cap. All harness LLM calls include token accounting,
-including critic calls. Arbitrary shell/custom-code network traffic is outside
-the harness HTTP logger and cannot be comprehensively audited by it alone.
+> [!NOTE]
+> The critic is a quality gate, not a security boundary. Tests and generated
+> code run as container root, which can modify container files despite the
+> append-only JSONL writer. Token reservations estimate payload and reported
+> provider usage; they are not a provider-enforced billing cap. All harness
+> LLM calls, including critic calls, count tokens. Shell and custom-code
+> traffic can bypass the harness HTTP logger.
 
 ## Phase 4: learning across runs
 
-Runtime learning lives only in the mounted workspace under `state/`:
+Runtime learning lives under the mounted workspace's `state/` directory:
 
-- `memory.jsonl` is append-only cycle/task learning, retrieved by keyword and tag overlap.
-- `map.json` holds environment facts. Every entry has `confidence` and `last_verified`.
-- `self_notes.md` is a compact, bounded summary loaded at the beginning of normal runs.
+| File | Purpose |
+| --- | --- |
+| `memory.jsonl` | Append-only cycle and task learning, retrieved by keyword and tag overlap. |
+| `map.json` | Environment facts with `confidence` and `last_verified` on every entry. |
+| `self_notes.md` | Compact, bounded summary loaded at the start of normal runs. |
 
 The loop records one memory after every completed cycle and exposes
 `update_environment_map` so observed OS, package, CPU, RAM, disk, network, and
@@ -238,7 +263,7 @@ baseline and refreshes the available-tool and configured-limit facts. Pass
 `--curriculum` without `--task` to select a progressively harder local practice
 task from recent successful cycles.
 
-Build, test, and run a short learning cycle:
+Test and run a short learning cycle:
 
 ```powershell
 .\scripts\run-tests.ps1
@@ -254,28 +279,15 @@ Use `--no-advance` to inspect without moving its report cursor.
 
 ## Phase 5: supplementary model providers
 
-SELF has a credential-gated provider registry at `workspace/state/providers.json`.
-It seeds official documentation URLs for Gemini, Groq, OpenRouter, Mistral,
-Cerebras, Hugging Face, Cloudflare Workers AI, and local Ollama—but treats all
-quota values as unverified until `research_provider` fetches current official
-documentation and `record_provider_verification` stores the reviewed result.
-Provider limits which are account-, model-, or unit-specific remain explicitly
-`null`; the router will not deliberately spend such an unbounded external tier.
+SELF keeps a credential-gated registry in `workspace/state/providers.json`.
 
-`ask_brain` is a supplementary plain-text tool. It routes only to a provider
-with a key available in the process environment *and* numeric verified RPM and
-daily-token limits, tracks usage in `state/provider_usage.json`, applies a
-cooldown after HTTP 429, and falls back safely. It never changes accounts,
-creates credentials, or uses a paid tier. The primary structured tool-call loop
-continues to use its configured Ollama/Anthropic-compatible client.
+| Tool or rule | Behavior |
+| --- | --- |
+| Provider catalog | Seeds official documentation links for Gemini, Groq, OpenRouter, Mistral, Cerebras, Hugging Face, Cloudflare Workers AI, and local Ollama. Quotas remain unverified until `research_provider` fetches official docs and `record_provider_verification` stores the reviewed result. Account-, model-, or unit-specific unknown limits stay `null`; the router will not deliberately spend an unbounded external tier. |
+| `ask_brain` | Supplementary plain-text routing only when a process key and verified numeric RPM and daily-token limits exist. Tracks `state/provider_usage.json`, cools down after HTTP 429, and falls back safely. It does not create accounts or credentials, change accounts, or use a paid tier. The primary structured loop keeps its configured Ollama/Anthropic-compatible client. |
+| `request_provider_key` | Writes `state/key_requests.md` with the official key page, host `.env` variable, and documented free-tier note without stopping unrelated work. Add a key yourself to host `.env` and recreate the container; it is not saved in workspace state or logs. |
 
-When a provider is useful but lacks a credential, `request_provider_key` writes
-`state/key_requests.md` with the official key page, host `.env` variable name,
-and the documented free-tier note. It does not stop unrelated work. Add any key
-yourself to the host `.env`, then recreate the container; it is never written
-to workspace state or emitted in logs.
-
-Build and inspect the registry:
+Test and inspect the registry:
 
 ```powershell
 .\scripts\run-tests.ps1
@@ -298,32 +310,20 @@ result in the provider registry along with the container's CPU/RAM limits.
 
 ### Architecture
 
-The Docker container is SELF's security boundary. It runs as root *inside* its
-own namespace, with one writable bind mount: `./workspace` → `/home/entity`.
-There is no privileged mode, Docker socket, host network, Windows mount, or
-extra capability configured. The image contains the harness in `/opt/agent`;
-all durable runtime state is under the mounted `/home/entity/state` directory.
-
-The loop uses `SELF_MAX_TOKENS_PER_DAY` as its only automatic resource ceiling;
-the daily ledger is persisted across restarts. Set `SELF_TOKEN_BUDGET=0`,
-`SELF_MAX_ITERATIONS=0`, and `SELF_MAX_WALL_CLOCK_SECONDS=0` for daily-only
-operation. Its atomic `state/run_checkpoint.json` records
-the active task and prior report at cycle boundaries, so an interrupted run
-can resume a pending task cleanly when invoked without a new `--task`.
-
-`SELF_ADAPTIVE_TOKEN_BUDGET` and `SELF_MAX_ADAPTIVE_TOKEN_BUDGET` are retained
-for compatibility with older configurations, but daily-only mode does not
-create a separate per-run token ceiling. An explicit `--token-budget` remains
-available as a deliberate command-line override for tests or one-off runs.
+| Boundary or limit | Behavior |
+| --- | --- |
+| Container | Runs as root inside its own namespace. The sole writable host bind mount is `./workspace` → `/home/entity`; no privileged mode, Docker socket, host network, Windows mount, or extra capability is configured. Harness code lives at `/opt/agent`, durable state at `/home/entity/state`. |
+| Automatic ceiling | `SELF_MAX_TOKENS_PER_DAY` is the automatic resource ceiling; its ledger persists across restarts. For daily-only operation, set `SELF_TOKEN_BUDGET=0`, `SELF_MAX_ITERATIONS=0`, and `SELF_MAX_WALL_CLOCK_SECONDS=0`. |
+| Recovery | Atomic `state/run_checkpoint.json` records the active task and prior report at cycle boundaries. A run without a new `--task` can resume pending work after interruption. |
+| Explicit run limit | `--token-budget` remains available for tests and one-off runs. `SELF_ADAPTIVE_TOKEN_BUDGET` and `SELF_MAX_ADAPTIVE_TOKEN_BUDGET` remain for compatibility; daily-only mode adds no separate per-run token ceiling. |
 
 ### Capability and key review
 
-SELF cannot expand beyond the container. A request for a credential, host mount,
-port, email, money, third-party account, or other external service writes an
-append-only human request to `workspace/state/capability_requests.md`. Provider
-key requests also write `workspace/state/key_requests.md`. Review these files,
-then—only if you approve—edit the host-side `.env` or `docker-compose.yml`
-yourself and recreate the container. The agent cannot make those changes.
+SELF cannot grant itself outside capabilities. Requests for credentials, host
+mounts, ports, email, money, accounts, or external services are appended to
+`workspace/state/capability_requests.md`; provider-key requests also go to
+`workspace/state/key_requests.md`. Review these files and, if approved, edit
+host-side `.env` or `docker-compose.yml` yourself and recreate the container.
 
 ### Start, stop, and wipe
 
@@ -335,28 +335,27 @@ docker compose up -d
 # Run an agent cycle
 docker compose exec self python /opt/agent/loop.py --max-iterations 2 --token-budget 20000
 
-# Stop and remove the container (preserves workspace state)
-.\kill.sh
+# Stop the named service and remove its container (preserves workspace state)
+docker compose down
 ```
 
-Use `./kill.sh` even when SELF was started with `docker compose run --rm`:
-that command creates a one-off container which `docker compose down` alone may
-leave running. A forced container kill is expected to be recorded as a crash;
-the next wake reconstructs from the latest checkpoint.
+For a one-off `docker compose run --rm self` session, use `/stop` in the UI.
+If it is unresponsive, `docker compose rm --stop --force self` stops Compose
+service containers, including one-off containers, then `docker compose down
+--remove-orphans` removes the stack. On a Unix shell, `bash kill.sh` performs
+these two commands. A forced stop is recorded as a crash; the next wake
+reconstructs from the latest checkpoint.
 
-To make a fresh start, first stop it with `./kill.sh`, then delete only the
-contents of `workspace/` from the host after checking that no discovery or log
-data is needed. Do not delete the repository itself.
+`docker compose down` does not erase `workspace/`. To make a fresh start,
+stop all SELF containers first, back up anything you want to keep, then remove
+only the contents of `workspace/` from the host. Do not delete the repository.
 
 ### Logs and egress
 
-`workspace/logs/actions.jsonl` is the append-only harness event log. Known
-secret values and assignment-like secret strings are redacted before every log
-write and tool result. `workspace/state/egress.jsonl` is an append-only record
-of every outbound request made through harness HTTP/LLM/provider code; each
-entry contains only timestamp, domain, method, path, and count—never keys,
-query strings, or headers. `python -m agent.report` includes per-domain and
-daily egress totals.
+| Log | Contents |
+| --- | --- |
+| `workspace/logs/actions.jsonl` | Append-only harness events. Known secret values and assignment-like secret strings are redacted before log writes and tool results. |
+| `workspace/state/egress.jsonl` | Harness HTTP/LLM/provider egress: timestamp, domain, method, path, and count. No keys, query strings, or headers. `python -m agent.report` shows per-domain and daily totals. |
 
 Because SELF intentionally permits unrestricted root shell/custom-tool commands
 inside its container, traffic initiated directly by arbitrary shell commands or
@@ -367,13 +366,13 @@ not configured by this project.
 
 ## Phase 7: wake-up sessions and terminal UI
 
-The container now wakes into `python -m agent.wake`. Its Textual UI has a
-scrollable conversation pane, a combined Plan/live-work pane, and a right-side
-presence/status column. Chat contains human messages, cycle summaries,
-agent-initiated background reflections, and read-only conversation replies;
-commands, tool steps, terminal commands, and streamed command output stay in
-the live-work pane. The conversation pane does not force-scroll when the human
-is reviewing earlier answers.
+The container wakes into `python -m agent.wake`. The Textual interface has:
+
+| Pane | Shows |
+| --- | --- |
+| Conversation | Human messages, cycle summaries, background reflections, and read-only conversation replies. It does not force-scroll while you review older answers. |
+| Plan and live work | Plans, commands, tool steps, terminal commands, and streamed output. |
+| Presence and status | Identity, activity, session, usage, and container state. |
 
 Persistent session state stays under the workspace mount:
 
@@ -444,31 +443,31 @@ For plain terminal narration without Textual:
 docker compose run --rm self --headless --max-iterations 10
 ```
 
-Chat commands: `/pause`, `/resume`, `/stop`, `/plan`, `/journal`, `/tools`,
-`/coverage`, `/back`, `/requests`, `/memory <query>`, `/budget`, `/goal <text>`, `/typing on|off`,
-`/voice on|off`, and `/listen`. Voice output is opt-in; native Windows runs
-prefer the first installed female System.Speech voice, while Docker on Windows
-needs a separate audio bridge to reach the host speaker. The conversation also
-shows a small animated ASCII activity indicator while SELF is working or
-revealing a response. The TUI labels every bubble as `SELF` or
-`YOU`; agent bubbles reveal themselves with a short typing effect. Voice output
-is optional and off by default: Windows uses its built-in speech engine, while
-Linux can use an installed `espeak`/`spd-say` command. `/listen` uses Windows'
-default microphone when the local runtime exposes the speech-recognition API;
-the Docker image reports microphone input as unavailable rather than breaking
-the text UI. Ordinary text starts an independent bounded conversation thread
-immediately and does not wait for the autonomous cycle or enter its inbox.
-Conversation threads are read-only and share the daily token ledger with
-autonomous work. `/goal <text>` remains the explicit way to send a new focus
-to the autonomous loop. `/stop` writes STOP; remove `workspace/STOP` before a
-future wake.
+| Command group | Commands |
+| --- | --- |
+| Session | `/pause`, `/resume`, `/stop`, `/plan`, `/journal`, `/budget` |
+| Explore | `/tools`, `/coverage`, `/back`, `/requests`, `/memory <query>`, `/models` |
+| Direct work | `/goal <text>` |
+| Interface | `/typing on\|off`, `/voice on\|off`, `/listen` |
 
-`/coverage` opens a scrollable view of exploration across all recorded sessions;
-`/back` returns to the main UI. It shows distinct directories, visit counts,
-and registered custom tools with their saved descriptions. A visit is one
-successful `list_dir` or a successful `read_file` in that file's parent
-directory. Repeated visits count again; shell commands are excluded because
-their paths cannot be identified reliably. Type `/coverage` again to refresh.
+- **Chat:** Ordinary text opens an independent, bounded, read-only conversation
+  immediately. It shares the daily token ledger but does not wait for the
+  autonomous cycle or enter its inbox. Use `/goal <text>` to change autonomous
+  work. `/stop` writes `workspace/STOP`; remove it before a later wake.
+- **Feedback:** Bubbles are labeled `SELF` or `YOU`. Agent text has a short
+  typing reveal and an animated ASCII activity indicator; `/typing` controls
+  the effect.
+- **Voice:** Off by default. Native Windows uses System.Speech, preferring the
+  first installed female voice. Linux can use `espeak` or `spd-say`. Docker on
+  Windows needs a separate host audio bridge. `/listen` uses the default
+  microphone only when the local Windows speech-recognition API is available;
+  in Docker it reports that microphone input is unavailable.
+
+`/coverage` opens a scrollable view of distinct directories, visit counts, and
+registered tools with descriptions across sessions. A successful `list_dir`
+or `read_file` in a file's parent counts as a visit; repeats count again.
+Shell paths are excluded because they cannot be identified reliably. Type
+`/coverage` again to refresh or `/back` to return.
 
 Tool rounds within a cycle are unlimited; the run still observes STOP, token,
 wall-clock, and per-session iteration bounds. Identical tool actions are
@@ -511,31 +510,29 @@ honest A–E orientation sequence before ordinary exploration:
   supports one. Session reflections are recorded in
   `state/identity_reflections.jsonl`.
 
-The durable identity is intentionally a small operating record, not a claim
-that the model has feelings, hidden continuity, or changed weights:
+The durable identity is a small operating record. It does not imply feelings,
+hidden continuity, or changed model weights.
 
-- `state/identity.json` holds its optional name, voice, evidence-backed traits,
-  name context, values, interests, and open questions. When a name is chosen,
-  SELF stores a bounded local reference for its meaning, origin, common
-  cultural associations, or recognized fictional-character context. For
-  example, `/rename Toothless` loads the *How to Train Your Dragon* character
-  context and uses loyalty, curiosity, playfulness, and protectiveness as
-  soft style cues. These cues never prove a personality or ability, and
-  unknown names fall back to observed behavior.
-- `state/identity_log.md` is append-only and records every harness-driven
-  identity change with a reason and session id.
-- `self/` is the writable extension layer for prompts, planning logic,
-  tool-selection heuristics, personality notes, and TUI themes.
+| Location | Contents |
+| --- | --- |
+| `state/identity.json` | Optional name, voice, evidence-backed traits, name context, values, interests, and open questions. |
+| `state/identity_log.md` | Append-only identity changes, each with a reason and session ID. |
+| `self/` | Writable extension layer for prompts, planning logic, tool-selection heuristics, personality notes, and TUI themes. |
 
-The complete runtime harness lives in the image at `/opt/agent/`,
-including the loop, budgets, STOP handling, redaction, logging, provider/key
-handling, and capability requests. Docker copies the package tree there,
-keeps compatibility entry points at `/opt/agent/` and source citations under
-`/opt/agent/core/`, and makes the harness
-root-owned/read-only. The harness rejects ordinary `write_file` attempts to
-the image-owned `/opt/agent` harness and gives the model
-`propose_core_patch` instead; proposals (a diff plus reasoning) go to
-`workspace/state/proposed_patches/` and are never applied automatically.
+When a name is chosen, SELF stores a bounded local reference to its meaning,
+origin, common cultural associations, or recognized fictional-character
+context. For example, `/rename Toothless` loads *How to Train Your Dragon*
+context and uses loyalty, curiosity, playfulness, and protectiveness as soft
+style cues. These do not prove personality or ability; unknown names fall back
+to observed behavior.
+
+The image-owned harness at `/opt/agent/` contains the loop, budgets, STOP
+handling, redaction, logging, provider/key handling, and capability requests.
+Docker keeps compatibility entry points there and source citations under
+`/opt/agent/core/`, then makes the tree root-owned and read-only. Ordinary
+`write_file` attempts to change it are rejected. The agent can instead submit
+`propose_core_patch`: a diff and reasoning saved at
+`workspace/state/proposed_patches/` for human review, never automatic application.
 
 Because SELF deliberately runs as root in its own container, Unix permission
 bits cannot prevent a deliberately unrestricted root shell from changing the
@@ -572,6 +569,12 @@ named greeting and protected-core rejection, and confirms a proposed patch is
 saved for human review.
 
 ## Contributing and project policies
+
+The [contributing guide](CONTRIBUTING.md) documents Python docstrings based
+on PEP 257. Run `python scripts/check_docstrings.py` to audit public module,
+class, and function documentation. The shared test script above runs both
+offline suites; live provider experiments are opt-in and documented in the
+[helper-model experiment guide](docs/helper-model-experiment.md).
 
 - [Contributing guide](CONTRIBUTING.md)
 - [Code of Conduct](CODE_OF_CONDUCT.md)
