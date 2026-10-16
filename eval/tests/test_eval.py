@@ -9,8 +9,8 @@ from datetime import datetime, timedelta, timezone
 from pathlib import Path
 from unittest.mock import patch
 
-from llm import LLMResult
-from file_lock import locked_file
+from agent.llm.llm import LLMResult
+from agent.infra.file_lock import locked_file
 from eval.calibrate import report, spearman
 from eval.runner import (assert_isolated_compose, check_item, load_benchmark,
                          planned_call_count, run_item, score_records, check_code,
@@ -42,8 +42,11 @@ class HiddenEvalTests(unittest.TestCase):
     def test_compose_agent_service_has_no_eval_mount(self):
         compose = Path("/opt/eval-compose.yml").read_text(encoding="utf-8")
         assert_isolated_compose(compose)
+        assert_isolated_compose(compose, "./ab_runs/example/workspace")
         with self.assertRaises(RuntimeError):
-            assert_isolated_compose(compose.replace("source: ./workspace\n        target: /home/entity",
+            assert_isolated_compose(compose, "./eval")
+        with self.assertRaises(RuntimeError):
+            assert_isolated_compose(compose.replace("source: ${SELF_WORKSPACE_DIR:-./workspace}\n        target: /home/entity",
                                                     "source: ./eval\n        target: /home/entity", 1))
         self.assertIn("source: ./eval", compose)
         self.assertIn("read_only: true", compose)

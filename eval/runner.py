@@ -21,7 +21,7 @@ from typing import Any
 from anthropic import Anthropic
 from jsonschema import validate as validate_schema
 
-from llm import LLMResult, response_truncated
+from agent.llm.llm import LLMResult, response_truncated
 
 
 HERE = Path(__file__).resolve().parent
@@ -70,14 +70,19 @@ print('PASS')
 """
 
 
-def assert_isolated_compose(compose_text: str) -> None:
+def assert_isolated_compose(compose_text: str, workspace_override: str | None = None) -> None:
     """Fail closed if the normal agent service has an eval bind mount."""
     match = re.search(r"(?ms)^  self:\s*\n(.*?)(?=^  [A-Za-z][\w-]*:|\Z)", compose_text)
     if not match:
         raise RuntimeError("Cannot verify the self service mounts")
     sources = re.findall(r"(?m)^\s*source:\s*(\S+)\s*$", match.group(1))
-    if any(Path(source.strip("'\"")).as_posix().rstrip("/") in {"eval", "./eval"}
-           for source in sources):
+    resolved = [source.strip("'\"") for source in sources]
+    if workspace_override is not None:
+        resolved = [workspace_override if source == "${SELF_WORKSPACE_DIR:-./workspace}" else source
+                    for source in resolved]
+    if any(Path(source).as_posix().rstrip("/") in {"eval", "./eval"}
+           or Path(source).resolve() == (HERE.parent / "eval").resolve()
+           for source in resolved):
         raise RuntimeError("The self service must not mount ./eval")
 
 

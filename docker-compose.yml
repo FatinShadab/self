@@ -13,7 +13,7 @@ services:
       - .env
     volumes:
       - type: bind
-        source: ./workspace
+        source: ${SELF_WORKSPACE_DIR:-./workspace}
         target: /home/entity
         read_only: false
     # Default bridge networking is intentional: internet access is available
@@ -30,12 +30,16 @@ services:
       - .env
     volumes:
       - type: bind
-        source: ./workspace
+        source: ${EVAL_WORKSPACE_DIR:-./workspace}
         target: /home/entity
         read_only: true
       - type: bind
         source: ./eval
         target: /opt/eval
+        read_only: false
+      - type: bind
+        source: ./ab_seed
+        target: /opt/ab_seed
         read_only: false
       - type: bind
         source: ./docker-compose.yml

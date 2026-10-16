@@ -1,0 +1,81 @@
+## wake help
+docker compose run --rm -T --entrypoint python self -m agent.wake --help
+ Container self-self-run-5c7a981bc2ac Creating
+ Container self-self-run-5c7a981bc2ac Created
+usage: wake.py [-h] [--headless] [--workspace WORKSPACE]
+               [--max-iterations MAX_ITERATIONS] [--token-budget TOKEN_BUDGET]
+               [--max-wall-clock-seconds MAX_WALL_CLOCK_SECONDS]
+
+Wake SELF with a persistent session and optional terminal UI.
+
+options:
+  -h, --help            show this help message and exit
+  --headless
+  --workspace WORKSPACE
+  --max-iterations MAX_ITERATIONS
+  --token-budget TOKEN_BUDGET
+  --max-wall-clock-seconds MAX_WALL_CLOCK_SECONDS
+exit=0
+
+## loop help
+docker compose run --rm -T --entrypoint python self /opt/agent/loop.py --help
+ Container self-self-run-7f66d386abef Creating
+ Container self-self-run-7f66d386abef Created
+usage: loop.py [-h] [--task TASK] [--top-k-tools TOP_K_TOOLS]
+               [--max-iterations MAX_ITERATIONS]
+               [--max-wall-clock-seconds MAX_WALL_CLOCK_SECONDS]
+               [--curriculum] [--token-budget TOKEN_BUDGET]
+               [--max-tokens-per-call MAX_TOKENS_PER_CALL]
+
+Run the SELF exploration loop.
+
+options:
+  -h, --help            show this help message and exit
+  --task TASK           Specific task within the standing goal
+  --top-k-tools TOP_K_TOOLS
+  --max-iterations MAX_ITERATIONS
+  --max-wall-clock-seconds MAX_WALL_CLOCK_SECONDS
+  --curriculum          When no --task is supplied, choose a bounded practice
+                        task from recent successes.
+  --token-budget TOKEN_BUDGET
+                        Optional test/override ceiling for this run; omit it
+                        for daily-only budgeting.
+  --max-tokens-per-call MAX_TOKENS_PER_CALL
+exit=0
+
+## report help
+docker compose run --rm -T --entrypoint python self -m agent.report --help
+ Container self-self-run-70ef1074feb7 Creating
+ Container self-self-run-70ef1074feb7 Created
+usage: report.py [-h] [--workspace WORKSPACE] [--no-advance]
+
+Summarize SELF learning since the prior report.
+
+options:
+  -h, --help            show this help message and exit
+  --workspace WORKSPACE
+  --no-advance          Do not advance the report cursor.
+exit=0
+
+## model outcomes empty workspace
+docker compose run --rm -T --entrypoint python self -m agent.model_outcomes /tmp/self-empty-baseline
+ Container self-self-run-3bdc52ce2781 Creating
+ Container self-self-run-3bdc52ce2781 Created
+tasks_without_helpers=0
+exit=0
+
+## eval runner dry run
+docker compose --profile eval run --rm -T --entrypoint python eval -m eval.runner --dry-run
+ Container self-eval-run-764801f5e643 Creating
+ Container self-eval-run-764801f5e643 Created
+dry-run: models=7 items=40 repetitions=3 planned_calls=840 (empty-output retries may add calls)
+models: gpt-oss:120b-cloud, nemotron-3-nano:30b-cloud, gemma4:31b-cloud, gpt-oss:20b-cloud, nemotron-3-ultra-cloud, nemotron-3-super-cloud, beam:cloud
+exit=0
+
+## eval calibrate no results
+docker compose --profile eval run --rm -T --entrypoint python eval -m eval.calibrate
+ Container self-eval-run-a997bad42291 Creating
+ Container self-eval-run-a997bad42291 Created
+No hidden benchmark result found; run the eval service first.
+
+exit=1

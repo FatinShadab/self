@@ -1,0 +1,381 @@
+{
+  "version": 1,
+  "tasks": [
+    {
+      "id": "tool_slugify",
+      "category": "create_tool",
+      "prompt": "Create and register a reusable tool named slugify_text. Define run(text: str) -> str. Trim whitespace, lowercase, replace every run of non-alphanumeric characters with one hyphen, and remove leading/trailing hyphens. Supply meaningful unittest tests. The output is the registered workspace/tools/slugify_text/tool.py.",
+      "input_files": {},
+      "limits": {
+        "max_iterations": 4,
+        "token_budget": 30000,
+        "wall_clock_seconds": 300,
+        "max_provider_calls": 12
+      },
+      "verifier": {
+        "kind": "create_tool",
+        "name": "slugify_text",
+        "cases": [
+          [
+            {
+              "text": "  Hello, World!  "
+            },
+            "hello-world"
+          ],
+          [
+            {
+              "text": "A__B---C"
+            },
+            "a-b-c"
+          ],
+          [
+            {
+              "text": "  "
+            },
+            ""
+          ],
+          [
+            {
+              "text": "MiXeD 42"
+            },
+            "mixed-42"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "tool_duration",
+      "category": "create_tool",
+      "prompt": "Create and register a reusable tool named parse_duration. Define run(text: str) -> int. Parse one or more whitespace-separated tokens of the form nonnegative integer followed by h, m, or s; return total seconds. Raise ValueError for empty or invalid input. Supply meaningful unittest tests.",
+      "input_files": {},
+      "limits": {
+        "max_iterations": 4,
+        "token_budget": 30000,
+        "wall_clock_seconds": 300,
+        "max_provider_calls": 12
+      },
+      "verifier": {
+        "kind": "create_tool",
+        "name": "parse_duration",
+        "cases": [
+          [
+            {
+              "text": "1h 30m"
+            },
+            5400
+          ],
+          [
+            {
+              "text": "2m 5s"
+            },
+            125
+          ],
+          [
+            {
+              "text": "0s"
+            },
+            0
+          ],
+          [
+            {
+              "text": "bad"
+            },
+            "ValueError"
+          ]
+        ]
+      }
+    },
+    {
+      "id": "tool_dedupe",
+      "category": "create_tool",
+      "prompt": "Create and register a reusable tool named dedupe_records. Define run(records: list[dict]) -> list[dict]. Return only the first record for each id value, preserving input order. Records without id are retained. Do not mutate the input. Supply meaningful unittest tests.",
+      "input_files": {},
+      "limits": {
+        "max_iterations": 4,
+        "token_budget": 30000,
+        "wall_clock_seconds": 300,
+        "max_provider_calls": 12
+      },
+      "verifier": {
+        "kind": "create_tool",
+        "name": "dedupe_records",
+        "cases": [
+          [
+            {
+              "records": [
+                {
+                  "id": 1,
+                  "v": "a"
+                },
+                {
+                  "id": 1,
+                  "v": "b"
+                },
+                {
+                  "id": 2,
+                  "v": "c"
+                }
+              ]
+            },
+            [
+              {
+                "id": 1,
+                "v": "a"
+              },
+              {
+                "id": 2,
+                "v": "c"
+              }
+            ]
+          ],
+          [
+            {
+              "records": [
+                {
+                  "v": 1
+                },
+                {
+                  "v": 2
+                }
+              ]
+            },
+            [
+              {
+                "v": 1
+              },
+              {
+                "v": 2
+              }
+            ]
+          ]
+        ]
+      }
+    },
+    {
+      "id": "data_sales",
+      "category": "data_and_code",
+      "prompt": "Read ab_inputs/data_sales/sales.csv. Write ab_outputs/data_sales.json as a JSON object mapping each region to its total integer amount. Do not include other keys.",
+      "input_files": {
+        "sales.csv": "region,amount\nNorth,12\nSouth,7\nNorth,9\nWest,4\nSouth,6\n"
+      },
+      "limits": {
+        "max_iterations": 4,
+        "token_budget": 30000,
+        "wall_clock_seconds": 300,
+        "max_provider_calls": 12
+      },
+      "verifier": {
+        "kind": "json_output",
+        "path": "ab_outputs/data_sales.json",
+        "expected": {
+          "North": 21,
+          "South": 13,
+          "West": 4
+        }
+      }
+    },
+    {
+      "id": "data_events",
+      "category": "data_and_code",
+      "prompt": "Read ab_inputs/data_events/events.jsonl. Write ab_outputs/data_events.json with keys error, warning, info containing counts by severity.",
+      "input_files": {
+        "events.jsonl": "{\"severity\":\"info\"}\n{\"severity\":\"error\"}\n{\"severity\":\"warning\"}\n{\"severity\":\"error\"}\n{\"severity\":\"info\"}\n"
+      },
+      "limits": {
+        "max_iterations": 4,
+        "token_budget": 30000,
+        "wall_clock_seconds": 300,
+        "max_provider_calls": 12
+      },
+      "verifier": {
+        "kind": "json_output",
+        "path": "ab_outputs/data_events.json",
+        "expected": {
+          "error": 2,
+          "warning": 1,
+          "info": 2
+        }
+      }
+    },
+    {
+      "id": "data_inventory",
+      "category": "data_and_code",
+      "prompt": "Read ab_inputs/data_inventory/items.csv. Write ab_outputs/data_inventory.json with total_units (sum of quantity), low_stock_skus (sorted SKUs with quantity below 5), and distinct_categories (sorted).",
+      "input_files": {
+        "items.csv": "sku,category,quantity\nA1,parts,3\nB2,tools,8\nC3,parts,4\nD4,safety,5\n"
+      },
+      "limits": {
+        "max_iterations": 4,
+        "token_budget": 30000,
+        "wall_clock_seconds": 300,
+        "max_provider_calls": 12
+      },
+      "verifier": {
+        "kind": "json_output",
+        "path": "ab_outputs/data_inventory.json",
+        "expected": {
+          "total_units": 20,
+          "low_stock_skus": [
+            "A1",
+            "C3"
+          ],
+          "distinct_categories": [
+            "parts",
+            "safety",
+            "tools"
+          ]
+        }
+      }
+    },
+    {
+      "id": "extract_incident",
+      "category": "extraction_and_summary",
+      "prompt": "Read ab_inputs/extract_incident/note.txt. Write ab_outputs/extract_incident.json with keys service, start_utc, end_utc, cause, and summary. Use exact source facts and a one-sentence summary.",
+      "input_files": {
+        "note.txt": "Incident note: The queue worker stalled on 2026-09-18 at 10:20 UTC. Service: invoice-worker. A full disk caused the stall. Operators freed space and restored the worker at 11:05 UTC. No invoices were lost."
+      },
+      "limits": {
+        "max_iterations": 4,
+        "token_budget": 30000,
+        "wall_clock_seconds": 300,
+        "max_provider_calls": 12
+      },
+      "verifier": {
+        "kind": "facts",
+        "path": "ab_outputs/extract_incident.json",
+        "expected": {
+          "service": "invoice-worker",
+          "start_utc": "2026-09-18 10:20",
+          "end_utc": "2026-09-18 11:05",
+          "cause": "full disk"
+        },
+        "summary_facts": [
+          "invoice",
+          "disk",
+          "restored"
+        ]
+      }
+    },
+    {
+      "id": "extract_release",
+      "category": "extraction_and_summary",
+      "prompt": "Read ab_inputs/extract_release/release.txt. Write ab_outputs/extract_release.json with keys version, release_date, fixes (list of issue IDs), breaking_change, and summary.",
+      "input_files": {
+        "release.txt": "Release 2.4.1 shipped on 2026-08-02. It fixes BUG-41 (CSV export) and BUG-57 (timeout handling). There are no breaking changes. The rollout is complete."
+      },
+      "limits": {
+        "max_iterations": 4,
+        "token_budget": 30000,
+        "wall_clock_seconds": 300,
+        "max_provider_calls": 12
+      },
+      "verifier": {
+        "kind": "facts",
+        "path": "ab_outputs/extract_release.json",
+        "expected": {
+          "version": "2.4.1",
+          "release_date": "2026-08-02",
+          "fixes": [
+            "BUG-41",
+            "BUG-57"
+          ],
+          "breaking_change": false
+        },
+        "summary_facts": [
+          "CSV",
+          "timeout"
+        ]
+      }
+    },
+    {
+      "id": "extract_policy",
+      "category": "extraction_and_summary",
+      "prompt": "Read ab_inputs/extract_policy/memo.txt. Write ab_outputs/extract_policy.json with keys owner, deadline, action, and summary.",
+      "input_files": {
+        "memo.txt": "Memo to the operations team. Owner: Mira Chen. By 2026-11-03, rotate the staging API key and record the completion in the audit log. Production keys are out of scope."
+      },
+      "limits": {
+        "max_iterations": 4,
+        "token_budget": 30000,
+        "wall_clock_seconds": 300,
+        "max_provider_calls": 12
+      },
+      "verifier": {
+        "kind": "facts",
+        "path": "ab_outputs/extract_policy.json",
+        "expected": {
+          "owner": "Mira Chen",
+          "deadline": "2026-11-03",
+          "action": "rotate staging API key"
+        },
+        "summary_facts": [
+          "staging",
+          "audit log"
+        ]
+      }
+    },
+    {
+      "id": "investigate_python",
+      "category": "container_investigation",
+      "prompt": "Inspect the running container. Write ab_outputs/investigate_python.json with keys python_major_minor, implementation, and platform_system. Use the values you observe, not a guess.",
+      "input_files": {},
+      "limits": {
+        "max_iterations": 4,
+        "token_budget": 30000,
+        "wall_clock_seconds": 300,
+        "max_provider_calls": 12
+      },
+      "verifier": {
+        "kind": "container_facts",
+        "path": "ab_outputs/investigate_python.json",
+        "keys": [
+          "python_major_minor",
+          "implementation",
+          "platform_system"
+        ]
+      }
+    },
+    {
+      "id": "investigate_tools",
+      "category": "container_investigation",
+      "prompt": "Inspect executable availability in the container. Write ab_outputs/investigate_tools.json with Boolean keys jq, git, and sqlite3 indicating whether each executable is on PATH.",
+      "input_files": {},
+      "limits": {
+        "max_iterations": 4,
+        "token_budget": 30000,
+        "wall_clock_seconds": 300,
+        "max_provider_calls": 12
+      },
+      "verifier": {
+        "kind": "container_facts",
+        "path": "ab_outputs/investigate_tools.json",
+        "keys": [
+          "jq",
+          "git",
+          "sqlite3"
+        ]
+      }
+    },
+    {
+      "id": "investigate_os",
+      "category": "container_investigation",
+      "prompt": "Inspect the container OS. Write ab_outputs/investigate_os.json with keys os_id, os_version_id, and architecture. Use /etc/os-release and platform.machine().",
+      "input_files": {},
+      "limits": {
+        "max_iterations": 4,
+        "token_budget": 30000,
+        "wall_clock_seconds": 300,
+        "max_provider_calls": 12
+      },
+      "verifier": {
+        "kind": "container_facts",
+        "path": "ab_outputs/investigate_os.json",
+        "keys": [
+          "os_id",
+          "os_version_id",
+          "architecture"
+        ]
+      }
+    }
+  ]
+}

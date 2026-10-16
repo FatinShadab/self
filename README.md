@@ -3,8 +3,10 @@
 [![CI](https://github.com/FatinShadab/self/actions/workflows/ci.yml/badge.svg)](https://github.com/FatinShadab/self/actions/workflows/ci.yml)
 [![License: MIT](https://img.shields.io/badge/License-MIT-yellow.svg)](LICENSE)
 
-SELF is a self-extending agent whose Docker container is its body. The only
-host bind mount is `./workspace` at `/home/entity`.
+SELF is a self-extending agent whose Docker container is its body. By default,
+the `self` service's only host bind mount is `./workspace` at `/home/entity`.
+
+For a code reading order and package map, see [the harness architecture](agent/README.md).
 
 This repository is an experimental open-source project. It is suitable for
 local research and inspection, not for production workloads or as a hardened
@@ -142,6 +144,20 @@ python -m eval.calibrate
 The dry run prints the planned provider-call count without calling a model.
 Results are written only to `eval/results/`. A later ratings timestamp is
 flagged as tainted in the calibration report.
+
+### Randomized helper-model A/B experiment (Steps 5b and 6)
+
+The host-only [experiment guide](docs/helper-model-experiment.md) gives the
+PowerShell sequence for probing and rating helpers, running the hidden benchmark,
+building an isolated seed, piloting 12 deterministic tasks, and comparing
+randomized `off` and `on` arms. `SELF_HELPER_MODELS=off` removes helper tools and
+decision checkpoints; `SELF_CRITIC_MODEL` optionally forces one critic in that
+arm. `scripts/ab-run.ps1` creates a separate gitignored workspace per run and
+enforces a cumulative provider-call cap. No A/B run starts from a dry-run command.
+
+The [learning report](agent/reporting/README.md) and `/models` view now include
+helper-model usage and decision evidence. Host-only calibration and A/B summaries
+can be supplied to a host-side report; they are never mounted into `self`.
 
 The readable narration streams to the terminal. Structured events append to
 `workspace/logs/actions.jsonl`. Create `workspace/STOP` on the host to halt at
@@ -508,10 +524,11 @@ that the model has feelings, hidden continuity, or changed weights:
 - `self/` is the writable extension layer for prompts, planning logic,
   tool-selection heuristics, personality notes, and TUI themes.
 
-The complete runtime harness lives in the image at `/opt/agent/core/`,
+The complete runtime harness lives in the image at `/opt/agent/`,
 including the loop, budgets, STOP handling, redaction, logging, provider/key
-handling, and capability requests. Docker moves active Python modules there,
-leaves compatibility symlinks under `/opt/agent/`, and makes the core
+handling, and capability requests. Docker copies the package tree there,
+keeps compatibility entry points at `/opt/agent/` and source citations under
+`/opt/agent/core/`, and makes the harness
 root-owned/read-only. The harness rejects ordinary `write_file` attempts to
 the image-owned `/opt/agent` harness and gives the model
 `propose_core_patch` instead; proposals (a diff plus reasoning) go to

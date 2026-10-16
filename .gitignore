@@ -162,6 +162,12 @@ venv.bak/
 # SELF runtime state and host-mounted agent data
 workspace/*
 !workspace/.gitkeep
+ab_seed/
+ab_runs/
+eval/ab/plan.json
+eval/ab/state.json
+eval/ab/results/
+eval/ab/*-latest.txt
 data/
 logs/
 
