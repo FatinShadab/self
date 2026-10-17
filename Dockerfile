@@ -32,7 +32,7 @@ WORKDIR /home/entity
 # The agent harness is image content. Runtime state belongs in ./workspace,
 # which is the only host path mounted by docker-compose.yml.
 COPY agent/requirements.txt /opt/agent/requirements.txt
-RUN python -m pip install --no-cache-dir -r /opt/agent/requirements.txt
+RUN python -m pip install --no-cache-dir --default-timeout=120 -r /opt/agent/requirements.txt
 
 COPY agent/ /opt/agent/
 
