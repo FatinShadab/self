@@ -24,7 +24,7 @@ Built-in actions and the create_tool pipeline. Generated tools live in the writa
 
 ToolRunner dispatches base actions. ToolRegistry reviews candidates, runs tests through process_runner, and registers passing code; tool_worker invokes registered code in a child process.
 
-- **Model Tool Argument & Name Validation**: `ToolRunner.execute` intercepts calls to `probe_model`, `research_model`, `record_model_assessment`, and `ask_model`. Unexpected or missing arguments return actionable errors listing valid arguments rather than raising Python `TypeError`. Registry lookups provide alias hints (`+/- "-cloud"`) and reject asking the base model via `ask_model`.
+- **Model Tool Argument & Name Validation**: `ToolRunner.execute` intercepts calls to `probe_model`, `research_model`, `record_model_assessment`, and `ask_model`. Unexpected or missing arguments return actionable errors listing valid arguments rather than raising Python `TypeError`. Registry lookups provide alias hints (`+/- "-cloud"`) and reject asking the base model via `ask_model`. `record_model_assessment` and `research_model` accept optional `facts` allowing the agent to supply knowledge facts with `origin: "model_knowledge"` and `verified: false`.
 - **Deduplicated Rejection Logging**: When an on-disk tool candidate has been modified outside `create_tool` (e.g. `test_tool.py`), `ToolRegistry.refresh` logs `tool_load_rejected` once per tool per session with explicit instructions to clear it by re-testing through `create_tool`.
 
 ## State it touches

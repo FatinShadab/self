@@ -19,7 +19,7 @@ from agent.llm.llm import BudgetExceeded, call_with_minimum, response_truncated
 from agent.llm.model_registry import ModelRegistry
 
 OUTPUT_CAP = 1_200
-FETCH_CAP = 12_000
+FETCH_CAP = 500_000
 CODE_TIMEOUT_SECONDS = 2
 
 PROBE_CASES = (
@@ -89,11 +89,11 @@ class _Text(HTMLParser):
         self.hidden = 0
 
     def handle_starttag(self, tag: str, attrs: list[tuple[str, str | None]]) -> None:
-        if tag in {"script", "style"}:
+        if tag in {"script", "style", "nav", "header", "footer"}:
             self.hidden += 1
 
     def handle_endtag(self, tag: str) -> None:
-        if tag in {"script", "style"} and self.hidden:
+        if tag in {"script", "style", "nav", "header", "footer"} and self.hidden:
             self.hidden -= 1
 
     def handle_data(self, data: str) -> None:
@@ -247,19 +247,24 @@ class ModelProber:
             inconclusive = (not failed and not objective_failed and
                             (len(cases) < len(PROBE_CASES) or
                              any(row["outcome"] == "inconclusive" for row in cases)))
+            probe_latencies = [row.get("latency_ms") for row in cases if row.get("latency_ms") is not None]
+            probe_avg_latency = round(sum(probe_latencies) / len(probe_latencies)) if probe_latencies else None
             result = {"ok": not failed, "name": name, "probe_id": probe_id,
                       "origin": "skipped_budget" if any(row.get("origin") == "skipped_budget"
                                                         for row in cases) else "model_probe",
                       "outcome": ("failed" if failed or objective_failed else
                                   "inconclusive" if inconclusive else "passed"),
+                      "probe_latency_ms": probe_avg_latency,
                       "note": INCONCLUSIVE_NOTE, "cases": cases}
             self.logger.log("model_probe_completed", name=name, probe_id=probe_id,
                             completed_cases=len(cases), failed=failed,
                             inconclusive=inconclusive)
             return result
         finally:
+            probe_latencies = [row.get("latency_ms") for row in cases if row.get("latency_ms") is not None]
+            probe_avg_latency = round(sum(probe_latencies) / len(probe_latencies)) if probe_latencies else None
             self.registry.finish_probe(name, probe_id, failed=failed or objective_failed,
-                                       inconclusive=inconclusive)
+                                       inconclusive=inconclusive, latency_ms=probe_avg_latency)
 
     def _check(self, kind: str, text: str) -> dict[str, Any]:
         if kind == "reasoning":
@@ -286,7 +291,7 @@ class ModelProber:
                     "fenced_json": fenced_json}
         return self.code_checker(text)
 
-    def research_model(self, name: str) -> dict[str, Any]:
+    def research_model(self, name: str, *, facts: list[dict[str, Any]] | dict[str, Any] | None = None) -> dict[str, Any]:
         """Research official model information and save verified findings."""
         if name not in self.registry.names:
             valid, err = self.registry.validate_model_name(name)
@@ -296,54 +301,218 @@ class ModelProber:
             raise ValueError("Model is disabled")
         url = _official_url(self.provider, name)
         if url is None:
-            return self.registry.record_research(name, status="no_official_page",
-                                                 source_url=None, facts=[],
-                                                 status_message="No official documentation URL is configured for this provider.")
+            stored = self.registry.record_research(name, status="no_official_page",
+                                                   source_url=None, facts=[], urls_tried=[],
+                                                   status_message="No official documentation URL is configured for this provider.")
+            stored["status"] = "no_official_page"
+            stored["status_message"] = "No official documentation URL is configured for this provider."
+            stored["source_url"] = None
+            stored["urls_tried"] = []
+            stored["body_excerpt"] = ""
+            return stored
+        urls_tried = [url]
         fetched = self.fetcher(url, self.logger)
         source_url = str(fetched.get("source_url") or url)
         parsed = urllib.parse.urlsplit(source_url)
         if parsed.scheme != "https" or parsed.hostname != urllib.parse.urlsplit(url).hostname:
             raise ValueError("Documentation source is outside the official host")
-        body = str(fetched.get("body", ""))[:FETCH_CAP]
         status = fetched.get("status")
-        facts = []
-        total_params = None
-        active_params = None
-        context_window = None
-        status_message = ""
-        if status == 200 and fetched.get("content_type", "text/html") in {"text/html", "text/plain"}:
-            parser = _Text()
-            parser.feed(body)
-            visible = " ".join(" ".join(parser.parts).split())[:FETCH_CAP]
-            match = re.search(re.escape(name), visible, flags=re.I)
-            if match:
-                facts.append({"field": "model_name_mentioned", "value": name,
-                              "excerpt": visible[max(0, match.start() - 100):match.end() + 100],
-                              "origin": "web"})
-            param_match = re.search(r"(\d+(?:\.\d+)?)\s*[Bb](?:illion)?\s*(?:total)?\s*(?:parameters|params)?", visible)
-            if param_match:
-                total_params = param_match.group(0).strip()
-            ctx_match = re.search(r"(\d+[\d,]*)\s*(?:k|K)?\s*context", visible)
-            if ctx_match:
-                context_window = ctx_match.group(0).strip()
-            research_status = "verified_mention" if facts else "fetched_no_model_fact"
-        elif status == 404:
-            visible = ""
-            research_status = "no_official_page"
-            status_message = "Official documentation page returned 404 Not Found"
-        else:
-            visible = ""
-            research_status = "unreachable"
-            status_message = "Official documentation page unreachable from container network"
+        if status == 404:
+            msg = f"Official documentation page returned HTTP {status} Not Found"
+            stored = self.registry.record_research(name, status="not_found",
+                                                   source_url=source_url,
+                                                   urls_tried=urls_tried,
+                                                   facts=[],
+                                                   status_message=msg)
+            stored["status"] = "not_found"
+            stored["status_message"] = msg
+            stored["source_url"] = source_url
+            stored["urls_tried"] = urls_tried
+            stored["body_excerpt"] = ""
+            return stored
+        if status != 200:
+            msg = "Official documentation page unreachable from container network"
+            stored = self.registry.record_research(name, status="unreachable",
+                                                   source_url=source_url,
+                                                   urls_tried=urls_tried,
+                                                   facts=[],
+                                                   status_message=msg)
+            stored["status"] = "unreachable"
+            stored["status_message"] = msg
+            stored["source_url"] = source_url
+            stored["urls_tried"] = urls_tried
+            stored["body_excerpt"] = ""
+            return stored
+
+        # Parse main library page body
+        body = str(fetched.get("body", ""))
+        parser = _Text()
+        parser.feed(body)
+        main_visible = " ".join(" ".join(parser.parts).split())
+        all_visible = [main_visible]
+
+        # Try tags page if provider is ollama
+        if self.provider == "ollama":
+            tags_url = f"{url}/tags"
+            urls_tried.append(tags_url)
+            fetched_tags = self.fetcher(tags_url, self.logger)
+            if fetched_tags.get("status") == 200:
+                tags_parser = _Text()
+                tags_parser.feed(str(fetched_tags.get("body", "")))
+                tags_visible = " ".join(" ".join(tags_parser.parts).split())
+                all_visible.append(tags_visible)
+
+        combined_text = "\n".join(all_visible)
+        extracted_fields, extracted_facts = extract_model_facts(combined_text, name, source_url)
+
+        # Include any caller-supplied model_knowledge facts
+        model_knowledge_facts: list[dict[str, Any]] = []
+        if facts:
+            if isinstance(facts, dict):
+                for k, v in facts.items():
+                    if v is not None:
+                        model_knowledge_facts.append({
+                            "field": str(k)[:80],
+                            "value": str(v)[:500],
+                            "excerpt": f"agent model knowledge: {k}={v}",
+                            "source_url": None,
+                            "origin": "model_knowledge",
+                            "verified": False,
+                        })
+            elif isinstance(facts, list):
+                for item in facts:
+                    if isinstance(item, dict) and item.get("field") and item.get("value") is not None:
+                        model_knowledge_facts.append({
+                            "field": str(item["field"])[:80],
+                            "value": str(item["value"])[:500],
+                            "excerpt": str(item.get("excerpt", f"agent model knowledge: {item['field']}={item['value']}"))[:500],
+                            "source_url": None,
+                            "origin": "model_knowledge",
+                            "verified": False,
+                        })
+
+        all_facts = [*extracted_facts, *model_knowledge_facts]
+        research_status = "facts_found" if extracted_facts else "fetched_no_model_fact"
+        status_message = "" if extracted_facts else "No verified model facts found on official documentation page."
+
+        # If a field was not found in web facts but present in model_knowledge, fill it
+        for mk_fact in model_knowledge_facts:
+            fld = mk_fact["field"]
+            if fld in extracted_fields and extracted_fields[fld] is None:
+                extracted_fields[fld] = mk_fact["value"]
+
         stored = self.registry.record_research(name, status=research_status,
                                                source_url=source_url,
-                                               facts=facts,
+                                               urls_tried=urls_tried,
+                                               facts=all_facts,
                                                status_message=status_message,
-                                               total_params=total_params,
-                                               active_params=active_params,
-                                               context_window=context_window)
+                                               total_params=extracted_fields["total_params"],
+                                               active_params=extracted_fields["active_params"],
+                                               context_window=extracted_fields["context_window"],
+                                               pricing=extracted_fields["pricing"],
+                                               speed=extracted_fields["speed"],
+                                               strengths=extracted_fields["strengths"])
         stored["status"] = research_status
         stored["status_message"] = status_message
         stored["source_url"] = source_url
-        stored["body_excerpt"] = self.logger.redactor.text(visible[:4_000])
+        stored["urls_tried"] = urls_tried
+        stored["body_excerpt"] = self.logger.redactor.text(combined_text[:4_000])
         return stored
+
+
+def extract_model_facts(text: str, name: str, source_url: str) -> tuple[dict[str, Any], list[dict[str, Any]]]:
+    """Extract model facts from text, ignoring navigation and header boilerplate.
+
+    Returns (extracted_fields_dict, facts_list).
+    Only returns a fact if its excerpt contains the extracted value.
+    """
+    fields: dict[str, Any] = {
+        "total_params": None,
+        "active_params": None,
+        "context_window": None,
+        "pricing": None,
+        "speed": None,
+        "strengths": None,
+    }
+    facts: list[dict[str, Any]] = []
+
+    def _add_fact(field: str, value: str, match_span: tuple[int, int]) -> None:
+        start = max(0, match_span[0] - 60)
+        end = min(len(text), match_span[1] + 60)
+        excerpt = text[start:end].strip()
+        if value in excerpt:
+            fields[field] = value
+            facts.append({
+                "field": field,
+                "value": value,
+                "excerpt": excerpt,
+                "source_url": source_url,
+                "origin": "web",
+                "verified": True,
+            })
+
+    # 1. Total & Active params
+    # Combined e.g. "550B total / 55B active" or "550B/55B active"
+    combo = re.search(r"(?<![GgMmTtKk])\b(\d+(?:\.\d+)?)\s*(?:[Bb]|billion)\s*(?:total)?\s*[\/\\]\s*(\d+(?:\.\d+)?)\s*(?:[Bb]|billion)\s*active\b", text, re.I)
+    if combo:
+        _add_fact("total_params", f"{combo.group(1)}B", combo.span(1))
+        _add_fact("active_params", f"{combo.group(2)}B", combo.span(2))
+    else:
+        # Separate active params e.g. "55B active" or "active: 55B"
+        act_match = re.search(r"(?<![GgMmTtKk])\b(\d+(?:\.\d+)?)\s*(?:[Bb]|billion)\s*active(?:\s*(?:parameters?|params?))?\b", text, re.I)
+        if not act_match:
+            act_match = re.search(r"\bactive(?:\s*(?:parameters?|params?))?[:\s]+(\d+(?:\.\d+)?)\s*(?:[Bb]|billion)\b", text, re.I)
+        if act_match:
+            _add_fact("active_params", f"{act_match.group(1)}B", act_match.span(1))
+
+        # Separate total params e.g. "30B parameters", "4B parameter count", "550B total"
+        tot_match = re.search(r"(?<![GgMmTtKk])\b(\d+(?:\.\d+)?)\s*(?:[Bb]|billion)\s*(?:total\s*)?(?:parameters?|params?)\b", text, re.I)
+        if not tot_match:
+            tot_match = re.search(r"(?<![GgMmTtKk])\b(\d+(?:\.\d+)?)\s*(?:[Bb]|billion)\s*total\b", text, re.I)
+        if not tot_match:
+            tot_match = re.search(r"\bparameter\s*count(?:\s*model)?[:\s]+(\d+(?:\.\d+)?)\s*(?:[Bb]|billion)\b", text, re.I)
+        if not tot_match and ":" in name:
+            tag = name.split(":", 1)[1]
+            tag_num = re.match(r"^(\d+(?:\.\d+)?)b$", tag, re.I)
+            if tag_num:
+                tag_re = re.search(rf"\b{re.escape(name)}\b[^\n•]*?(?:•\s*)?(\d+(?:\.\d+)?)\s*[Bb]", text, re.I)
+                if tag_re:
+                    tot_match = tag_re
+        if tot_match:
+            _add_fact("total_params", f"{tot_match.group(1)}B", tot_match.span(1))
+
+    # 2. Context window e.g. "1M context window", "256K context window", "262k context"
+    ctx_match = re.search(r"\b(\d+[\d,]*(?:\.\d+)?\s*[KkMm]?)\s*context(?:\s*window)?\b", text, re.I)
+    if not ctx_match:
+        ctx_match = re.search(r"\bcontext(?:\s*window)?[:\s]+(\d+[\d,]*(?:\.\d+)?\s*[KkMm]?)\b", text, re.I)
+    if ctx_match:
+        raw_val = ctx_match.group(1).strip()
+        ctx_val = f"{raw_val} context window" if not raw_val.lower().endswith("context") else raw_val
+        _add_fact("context_window", ctx_val, ctx_match.span(0))
+
+    # 3. Pricing e.g. "free tier", "open source", "$0.15 / 1M tokens"
+    price_match = re.search(r"\b(free\s*tier|open\s*source|free\s*to\s*use|\$\d+(?:\.\d+)?\s*\/\s*(?:1[Mm]|million)\s*tokens?)\b", text, re.I)
+    if not price_match:
+        price_match = re.search(r"\bpricing[:\s]+([^.,\n]{3,40})", text, re.I)
+    if price_match:
+        val = price_match.group(1).strip()
+        if not any(w in val.lower() for w in ("sign in", "download", "docs", "github")):
+            _add_fact("pricing", val, price_match.span(1))
+
+    # 4. Speed e.g. "120 tokens/sec", "speed: fast"
+    speed_match = re.search(r"\b(\d+(?:\.\d+)?\s*(?:tokens?\/sec(?:ond)?|tps))\b", text, re.I)
+    if not speed_match:
+        speed_match = re.search(r"\b(?:speed|throughput|latency)[:\s]+([^.,\n]{3,40})", text, re.I)
+    if speed_match:
+        val = speed_match.group(1).strip()
+        if not any(w in val.lower() for w in ("sign in", "download", "docs", "github")):
+            _add_fact("speed", val, speed_match.span(1))
+
+    # 5. Strengths e.g. "strengths: reasoning, coding"
+    str_match = re.search(r"\b(?:strengths?|specialties|designed\s*for|suited\s*for)[:\s]+([^.,\n]{5,80})", text, re.I)
+    if str_match:
+        val = str_match.group(1).strip()
+        if not any(w in val.lower() for w in ("sign in", "download", "docs", "github")):
+            _add_fact("strengths", val, str_match.span(1))
+
+    return fields, facts

@@ -28,7 +28,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     },
     {
         "name": "record_model_assessment",
-        "description": "Record your own evidence-backed assessment of a configured helper model (helpers only). Cite a probe as probe:<id> or another observation in evidence; unknown facts should stay unknown. Accepts arguments: name, assessment, evidence (required), and optional ratings (reasoning, code, instruction_following, summarization, json_output).",
+        "description": "Record your own evidence-backed assessment of a configured helper model (helpers only). Cite a probe as probe:<id> or another observation in evidence; unknown facts should stay unknown. Accepts arguments: name, assessment, evidence (required), optional ratings (reasoning, code, instruction_following, summarization, json_output), and optional facts (from model knowledge: total_params, active_params, context_window, pricing, speed, strengths; origin 'model_knowledge', verified: false).",
         "input_schema": {"type": "object", "properties": {
             "name": {"type": "string"}, "assessment": {"type": "string"},
             "evidence": {"type": "string"},
@@ -37,6 +37,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                 for key in ("reasoning", "code", "instruction_following", "summarization", "json_output")
             }, "required": ["reasoning", "code", "instruction_following", "summarization", "json_output"],
                 "additionalProperties": False},
+            "facts": {"type": ["object", "array"], "description": "Optional model facts from own knowledge (origin 'model_knowledge', verified: false). Provide as an object of field: value or list of fact objects."},
         }, "required": ["name", "assessment", "evidence"], "additionalProperties": False},
     },
     {
@@ -156,6 +157,49 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         },
     },
     {
+        "name": "read_plan",
+        "description": "Read the current persistent plan, including all goals, status, evidence, next steps, and plan version.",
+        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+    },
+    {
+        "name": "update_plan",
+        "description": (
+            "Update the persistent plan. Requires an action ('add', 'edit', 'drop', 'mark_done', 'reorder', 'unchanged') "
+            "and a required 'reason' citing evidence. Use this to track goals, mark progress, add self-improvement goals "
+            "(e.g. 'improve tool X', 'evaluate model Y', 'fix a failing tool'), or adjust next steps."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "action": {
+                    "type": "string",
+                    "enum": ["add", "edit", "drop", "mark_done", "reorder", "unchanged"],
+                    "description": "Plan modification action to perform.",
+                },
+                "reason": {
+                    "type": "string",
+                    "description": "Required reason citing evidence (observations, tool results, errors) for this change.",
+                },
+                "goal": {"type": "string", "description": "Goal or step description (for add/edit)."},
+                "id": {"type": "string", "description": "Target goal id (e.g. 'goal-1') to edit, drop, or mark done."},
+                "evidence": {"type": "string", "description": "Evidence reference or observation supporting this update."},
+                "next_steps": {"type": "string", "description": "Specific actionable next steps for this goal."},
+                "priority": {"type": "integer", "description": "Priority (1=high, 2=medium, 3=low).", "default": 2},
+                "status": {
+                    "type": "string",
+                    "enum": ["todo", "in_progress", "done", "dropped", "blocked", "stale"],
+                    "description": "Status for the goal (for edit).",
+                },
+                "order": {
+                    "type": "array",
+                    "items": {"type": "string"},
+                    "description": "List of goal IDs in new order (for reorder).",
+                },
+            },
+            "required": ["action", "reason"],
+        },
+    },
+    {
         "name": "research_provider",
         "description": "Fetch a configured provider's official documentation, log only host/path, and store a bounded research excerpt for human/agent review. Never signs up or creates an account.",
         "input_schema": {"type": "object", "properties": {"provider": {"type": "string"}}, "required": ["provider"]},
@@ -228,13 +272,13 @@ MODEL_TOOL_SPECS: dict[str, dict[str, Any]] = {
         "helpers_only": False,
     },
     "research_model": {
-        "allowed": {"name"},
+        "allowed": {"name", "facts"},
         "required": {"name"},
         "model_arg": "name",
         "helpers_only": False,
     },
     "record_model_assessment": {
-        "allowed": {"name", "assessment", "evidence", "ratings"},
+        "allowed": {"name", "assessment", "evidence", "ratings", "facts"},
         "required": {"name", "assessment", "evidence"},
         "model_arg": "name",
         "helpers_only": False,
@@ -283,6 +327,8 @@ class ToolRunner:
         self.model_registry: Any = None
         self.model_prober: Any = None
         self.model_decisions: Any = None
+        self.plan_store: Any = None
+        self.current_cycle: int = 1
 
     def execute(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         """Execute a named tool with its supplied arguments."""
@@ -401,6 +447,19 @@ class ToolRunner:
         return run_process(["/bin/bash", "-lc", cmd], cwd=self.workspace,
                            timeout=float(timeout), cap=self.output_cap,
                            on_output=on_output, on_complete=on_complete)
+
+    def read_plan(self) -> dict[str, Any]:
+        """Read the persistent plan state."""
+        if self.plan_store is None:
+            raise RuntimeError("persistent plan store is not configured")
+        return self.plan_store.read_plan()
+
+    def update_plan(self, **arguments: Any) -> dict[str, Any]:
+        """Update the persistent plan with a required reason citing evidence."""
+        if self.plan_store is None:
+            raise RuntimeError("persistent plan store is not configured")
+        cycle = arguments.pop("cycle", self.current_cycle)
+        return self.plan_store.update_plan(cycle=cycle, **arguments)
 
     def update_environment_map(self, entries: list[dict[str, Any]]) -> dict[str, Any]:
         """Record observed environment facts through the learning store."""

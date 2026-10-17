@@ -448,6 +448,9 @@ class ModelDecisionTests(unittest.TestCase):
             self.assertEqual(summary["strengths"], "reasoning, coding")
             self.assertEqual(summary["truncation_rate"], "unknown")
             self.assertEqual(summary["avg_latency_ms"], "unknown")
+            self.assertEqual(summary["probe_latency_ms"], "unknown")
+            self.assertIn("facts", summary)
+            self.assertIn("facts_origin", summary)
 
             # Test base model summary formatting
             base_entry = registry.get_model("gpt-oss:120b")

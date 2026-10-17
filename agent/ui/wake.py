@@ -27,6 +27,7 @@ from agent.llm.llm import BudgetedLLM, LLMClient, response_truncated
 from agent.helper_models.model_decisions import ModelDecisions
 from agent.infra.file_lock import locked_file
 from agent.runtime.loop import AgentConfig, AgentLoop, STANDING_GOAL
+from agent.learning.plan import PlanStore
 from agent.session.reflection import ReflectionManager
 from agent.session.session import HumanInbox, SessionStore, default_plan
 
@@ -123,6 +124,10 @@ def normalized_plan(plan: list[dict[str, Any]]) -> list[dict[str, Any]]:
     handoff invites the next reflection to resurrect stale work.
     """
     active = visible_plan_items(plan)
+    for it in active:
+        g = str(it.get("goal") or it.get("step", "")).strip()
+        it["goal"] = g
+        it["step"] = g
     return active if active else default_plan()
 
 
@@ -994,8 +999,10 @@ class WakeCoordinator:
                 f"Helper models needing evaluation before other work: {', '.join(needing_eval)}. "
                 "Evaluate each helper model using exact names from list_models: "
                 "first probe_model, then research_model, then record_model_assessment with the probe id as evidence. "
-                "Write each assessment as one compact, comparable line (e.g. '550B/55B active, slow (~15-25s), strong reasoning, ctx 262k+; probe 4/4 passed') "
-                "and explicitly state which figures were measured and which came from the web."
+                "Write each assessment as one compact, comparable line with total/active params and context window first (or 'unknown' when not known), "
+                "followed by 'status ok', then measured_stats call latency (total / calls) and probe-only latency labeled separately "
+                "(e.g. '550B/55B, ctx 262k+, status ok, call latency ~2.1s, probe latency ~1.8s, strong reasoning; probe 4/4 passed') "
+                "and explicitly state the origin of each fact (web vs model_knowledge)."
             )
             if startup_context:
                 startup_context = f"{startup_context}\n\n{eval_instructions}"
@@ -1032,6 +1039,14 @@ class WakeCoordinator:
         self.status.active_model, self.status.active_provider = getattr(loop.llm.client, "model", "unknown"), getattr(loop.llm.client, "provider", "unknown")
         try:
             summary = loop.run()
+            if summary.iterations == 0:
+                # A session with zero cycles must carry the previous handoff forward unchanged
+                # and must never replace the real plan with "shutdown reflection".
+                end_reason = "stop_file" if summary.reason == "stop_file" else "clean_shutdown" if self.stop_requested or summary.reason == "max_iterations" else "budget_exhausted" if summary.reason in {"token_budget", "wall_clock_budget"} else "provider_error" if summary.reason == "provider_error" else "clean_shutdown"
+                self.sessions.finish(self.status.session_id, self.handoff, 0, summary.tokens_used, end_reason)
+                self.logger.log("zero_cycle_session_preserved", session_id=self.status.session_id, end_reason=end_reason)
+                return summary
+
             session_attempt = startup_context or STANDING_GOAL
             if self.stop_requested or summary.reason == "stop_file":
                 # A requested stop must not trigger another provider call. Use
@@ -1039,7 +1054,7 @@ class WakeCoordinator:
                 reflection = {
                     "attempted": session_attempt,
                     "achieved": self.handoff.get("summary", "The session stopped at a safe boundary."),
-                    "plan": self.plan,
+                    "plan": loop.plan_store.items or self.plan,
                     "summary": self.handoff.get("summary", "Run stopped at a safe boundary."),
                     "failures_and_lessons": [],
                 }
@@ -1048,12 +1063,13 @@ class WakeCoordinator:
                     "shutdown reflection",
                     f"Loop ended with reason={summary.reason}; intended session work: {session_attempt}; last report={self.handoff.get('summary', '')}",
                 )
-            self.plan = normalized_plan(list(reflection.get("plan") or self.plan))
+            agent_plan = loop.plan_store.items if loop.plan_store and loop.plan_store.items else []
+            self.plan = normalized_plan(list(agent_plan or reflection.get("plan") or self.plan))
             self._recover_budget_blocked_plan()
             achieved = str(reflection.get("achieved") or reflection.get("summary") or "No textual achievement report was returned.")
             attempted = str(reflection.get("attempted") or session_attempt)
             active_plan = visible_plan_items(self.plan)
-            next_plan = "; ".join(str(item.get("step", "")).strip() for item in active_plan if item.get("step")) or "No active plan items remain; the next wake will review the environment again."
+            next_plan = "; ".join(str(item.get("goal") or item.get("step", "")).strip() for item in active_plan if (item.get("goal") or item.get("step"))) or "No active plan items remain; the next wake will review the environment again."
             session_report = (
                 f"Session complete after {summary.iterations} cycle(s).\n"
                 f"Trying to do: {attempted}\n"

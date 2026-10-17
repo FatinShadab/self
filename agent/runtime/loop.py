@@ -22,6 +22,7 @@ from agent.llm.model_registry import ModelRegistry
 from agent.helper_models.model_probe import ModelProber
 from agent.helper_models.model_decisions import ModelDecisions
 from agent.infra.file_lock import locked_file
+from agent.learning.plan import PlanStore
 from agent.tools.tool_registry import CREATE_TOOL_DEFINITION, ToolRegistry
 
 
@@ -39,6 +40,8 @@ Standing goal:
 Operating rules:
 - Explore deliberately. Verify claims with tools and keep durable discoveries under /home/entity/state/.
 - Load the environment map and self notes before acting. After observing a durable fact, call update_environment_map with an explicit confidence level and evidence; do not claim unverified facts.
+- You own your persistent plan via read_plan and update_plan. The seed task is simply an initial goal in the plan that you can complete, change, or replace.
+- Review your plan after every cycle against your observations. You can add new goals (including self-improvement goals like 'improve tool X', 'evaluate model Y', 'fix a failing tool', or new exploration based on what you learned), edit goals, drop goals, reorder goals, or mark goals done. Every plan update requires a reason citing evidence.
 - Put reusable tools you create under /home/entity/tools/, test them, and document their use.
 - Use create_tool(name, description, code, test_code) to register tools. Define run(...) with JSON type annotations, return JSON-serializable results, and supply unittest tests importing from tool. Retry failures at most three times. Only reviewed and tested tools are callable.
 - Tool source is saved as tool.py. Tests must use `from tool import run`; do not import a package __init__.py or a module named after the tool. Use supported annotations or a literal INPUT_SCHEMA for every run argument. A failed critic, schema check, import, or unittest is a routine repair problem: inspect the diagnostic and fix it yourself rather than renaming the tool or asking the human.
@@ -210,6 +213,8 @@ class AgentLoop:
         self.registry.model_decisions = self.model_decisions
         self.learning = LearningStore(config.workspace, logger)
         self.tools.learning = self.learning
+        self.plan_store = getattr(tools, "plan_store", None) or PlanStore(config.workspace, logger)
+        self.tools.plan_store = self.plan_store
         self.brain_router = BrainRouter(config.workspace, logger)
         self.tools.brain_router = self.brain_router
         self.capabilities = CapabilityRequests(config.workspace, logger)
@@ -313,6 +318,11 @@ class AgentLoop:
             return f"Fetching {parsed.hostname or 'a host'}{parsed.path or '/'}..."
         if name == "update_environment_map":
             return "Updating the verified environment map..."
+        if name == "read_plan":
+            return "Reviewing the current persistent plan..."
+        if name == "update_plan":
+            action = str(arguments.get("action", "update"))
+            return f"Updating plan ({action}): {str(arguments.get('reason', ''))[:100]}..."
         if name == "propose_core_patch":
             return "Saving a core-change proposal for human review..."
         return f"Using {name}..."
@@ -358,6 +368,12 @@ class AgentLoop:
             },
         )
 
+    @staticmethod
+    def _format_actions(actions: list[dict[str, Any]]) -> str:
+        if not actions:
+            return "No previous actions in this run."
+        return ", ".join(f"{a.get('name')}(ok={a.get('ok')})" for a in actions[:10])
+
     def run(self) -> RunSummary:
         """Run autonomous cycles until a limit, stop request, or task completion."""
         self.config.workspace.mkdir(parents=True, exist_ok=True)
@@ -373,9 +389,11 @@ class AgentLoop:
         if self.config.curriculum and not active_task.strip():
             active_task = self.learning.propose_curriculum()
             self.logger.narrate(f"Idle curriculum selected: {active_task}")
+        self.plan_store.initialize(seed_task=active_task or STANDING_GOAL)
         completed_iterations = 0
         seen_tool_actions: set[str] = set()
         last_report = str(prior_checkpoint.get("last_report", "No previous cycle report.")) if prior_checkpoint.get("status") == "running" else "No previous cycle report."
+        last_actions: list[dict[str, Any]] = []
         reason = "max_iterations"
         self.logger.log(
             "run_started",
@@ -397,6 +415,7 @@ class AgentLoop:
             self.model_decisions.start_task(task_id)
 
         cycle = 1
+        primary_goal = active_task or STANDING_GOAL
         while self.config.max_iterations is None or cycle <= self.config.max_iterations:
             if not self._wait_while_paused():
                 reason = "stop_file"
@@ -415,8 +434,12 @@ class AgentLoop:
                 reason = "human_request_pending"
                 break
 
-            self.logger.narrate(f"Cycle {cycle}: retrieving relevant tools and memories...")
-            query = f"{STANDING_GOAL}\n{active_task}\nPrevious report: {last_report}"
+            self.tools.current_cycle = cycle
+            top_items = self.plan_store.top_items(limit=3)
+            primary_goal = top_items[0]["goal"] if top_items else (active_task or STANDING_GOAL)
+            plan_query = self.plan_store.retrieval_query()
+            self.logger.narrate(f"Cycle {cycle}: retrieving relevant tools and memories for plan...")
+            query = f"{plan_query}\nPrevious report: {last_report}"
             human_messages = self.config.input_provider() if self.config.input_provider else []
             if cycle == 1 and self.config.initial_context.strip():
                 human_messages = [self.config.initial_context.strip(), *human_messages]
@@ -440,33 +463,42 @@ class AgentLoop:
                         f"Helper models needing evaluation before other work: {', '.join(needing)}.\n"
                         "Evaluate each using exact names from list_models: first probe_model, then research_model, "
                         "then record_model_assessment with the probe id as evidence. Write each assessment as one compact, "
-                        "comparable line (e.g. '550B/55B active, slow (~15-25s), strong reasoning, ctx 262k+; probe 4/4 passed') "
-                        "and explicitly state which figures were measured and which came from the web.\n\n"
+                        "comparable line with total/active params and context window first (or 'unknown' when not known), "
+                        "followed by 'status ok', then measured_stats call latency (total / calls) and probe-only latency labeled separately "
+                        "(e.g. '550B/55B, ctx 262k+, status ok, call latency ~2.1s, probe latency ~1.8s, strong reasoning; probe 4/4 passed') "
+                        "and explicitly state the origin of each fact (web vs model_knowledge).\n\n"
                     )
                 helper_prompt = (
                     "Helper models are available. Consider ask_model for sub-tasks it fits, or continue alone.\n\n"
                     + eval_hint
                 )
             failure_context = self.registry.recent_failure_context()
+            plan_summary = self.plan_store.prompt_summary()
+            actions_summary = self._format_actions(last_actions)
             messages: list[dict[str, Any]] = [
                 {
                     "role": "user",
                     "content": (
                         f"Begin exploration cycle {cycle}.\n\n"
                         f"{helper_prompt}"
-                        f"Specific task for this run: {active_task or STANDING_GOAL}\n\n"
+                        f"Active autonomous plan (version {self.plan_store.plan_version}):\n{plan_summary}\n\n"
+                        f"Primary focus for this cycle: {primary_goal}\n\n"
+                        f"Plan review requirement:\n"
+                        "Review your plan against previous cycle results. You must either update the plan "
+                        "(using update_plan to add, edit, drop, reorder, or mark done with a reason citing evidence) "
+                        "or state why no change is needed in your response.\n\n"
+                        f"Previous cycle results:\n- Report: {last_report}\n- Actions: {actions_summary}\n\n"
                         f"Relevant tools and memories:\n{context}\n\n"
-                        f"Previous cycle report:\n{last_report}\n\n"
                         f"High-priority human input received since the prior cycle:\n{human_context or 'None.'}\n\n"
                         f"Recent tool-creation diagnostics (repair these instead of renaming the tool):\n{failure_context}\n\n"
-                        "Choose a useful next investigation, act with tools, observe the results, "
-                        "reflect, and finish with this cycle's report."
+                        "Execute tools according to your plan, observe results, reflect, and finish with this cycle's report."
                     ),
                 }
             ]
             cycle_report = ""
             cycle_actions: list[dict[str, Any]] = []
-            self.checkpoint.save(status="running", task=active_task, cycle=cycle, last_report=last_report, tokens_used=self.llm.tokens_used)
+            self.checkpoint.save(status="running", task=primary_goal, cycle=cycle, last_report=last_report, tokens_used=self.llm.tokens_used)
+            plan_version_before = self.plan_store.plan_version
 
             # Continue tool rounds until the model returns a final response or
             # an outer run bound (STOP, token budget, wall clock, or human
@@ -497,7 +529,7 @@ class AgentLoop:
                     )
                 self._refresh_learning_runtime()
                 selected = self.registry.retrieve(
-                    f"{active_task or STANDING_GOAL}\n{cycle_report or last_report}",
+                    f"{plan_query}\n{cycle_report or last_report}",
                     self.config.top_k_tools,
                 )
                 base = [tool for tool in TOOL_DEFINITIONS
@@ -598,8 +630,20 @@ class AgentLoop:
                 report=last_report,
                 actions=cycle_actions,
             )
-            self.learning.record_cycle(active_task, cycle, cycle_actions, last_report)
-            self.checkpoint.save(status="running", task=active_task, cycle=cycle + 1, last_report=last_report, tokens_used=self.llm.tokens_used)
+            if self.plan_store.plan_version == plan_version_before:
+                unchanged_reason = (
+                    cycle_report[:300] if cycle_report and cycle_report != "Cycle completed without a textual report."
+                    else f"Plan remains valid; continuing progress on primary goal: {primary_goal}"
+                )
+                self.plan_store.record_unchanged(
+                    cycle=cycle,
+                    reason=unchanged_reason,
+                    evidence=f"Cycle {cycle} observations and report",
+                )
+            self.plan_store.hygiene(cycle=cycle)
+            last_actions = list(cycle_actions)
+            self.learning.record_cycle(primary_goal, cycle, cycle_actions, last_report)
+            self.checkpoint.save(status="running", task=primary_goal, cycle=cycle + 1, last_report=last_report, tokens_used=self.llm.tokens_used)
             if self.config.on_cycle is not None:
                 self.config.on_cycle(cycle, last_report, self.llm.tokens_used)
 
@@ -617,19 +661,19 @@ class AgentLoop:
             reason=reason,
         )
         if self.model_decisions is not None:
-            self.model_decisions.record_task_observation(task_id, active_task or STANDING_GOAL,
+            self.model_decisions.record_task_observation(task_id, primary_goal,
                                                          ask_model_followed)
             self.model_decisions.record_task_outcomes(
                 task_id, completed=completed_iterations > 0 and reason not in {"provider_error", "stop_file"},
                 iterations=completed_iterations, tool_errors=tool_error_count,
                 provider_errors=provider_error_count + self.model_decisions.task_provider_errors())
-        self.checkpoint.save(status="completed", task=active_task, completed_iterations=completed_iterations, last_report=last_report, tokens_used=self.llm.tokens_used, reason=reason)
+        self.checkpoint.save(status="completed", task=primary_goal, completed_iterations=completed_iterations, last_report=last_report, tokens_used=self.llm.tokens_used, reason=reason)
         if completed_iterations == 0:
             self.learning.append_memory(
-                f"Run task: {active_task or STANDING_GOAL}",
+                f"Run task: {primary_goal}",
                 reason,
                 "The run stopped before completing a cycle; inspect the action log and resume when appropriate.",
-                list(WORD.findall(active_task or STANDING_GOAL)),
+                list(WORD.findall(primary_goal)),
             )
         self.logger.narrate(
             f"Run finished after {completed_iterations} cycle(s), using {self.llm.tokens_used} tokens; reason: {reason}."

@@ -1,11 +1,13 @@
 """SELF test llm module."""
 from __future__ import annotations
 
+import json
 import os
 import subprocess
 import sys
 import tempfile
 import unittest
+from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
@@ -260,6 +262,70 @@ class LLMKeyRotationTests(unittest.TestCase):
                 self.assertEqual(stats["network_errors"], 1)
                 self.assertEqual(stats["failures"], 0)
                 self.assertEqual(stats["consecutive_failures"], 0)
+
+    def test_schema_version_3_migration_and_model_knowledge(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            logger = EventLogger(root / "logs" / "actions.jsonl")
+            state_dir = root / "state"
+            state_dir.mkdir(parents=True)
+            v2_data = {
+                "schema_version": 2,
+                "probe_format_version": 2,
+                "base_model": "base",
+                "models": [
+                    {
+                        "name": "base",
+                        "role": "base",
+                        "configured": True,
+                        "status": "reachable",
+                        "research": {"status": "not_checked", "facts": []},
+                    },
+                    {
+                        "name": "helper",
+                        "role": "helper",
+                        "configured": True,
+                        "status": "reachable",
+                        "probe_history": [{"id": "p1", "session_id": "s1", "at": 100.0, "status": "completed"}],
+                        "research": {
+                            "status": "verified_mention",
+                            "source_url": "https://ollama.com/library/helper",
+                            "facts": [
+                                {
+                                    "field": "model_name_mentioned",
+                                    "value": "helper",
+                                    "excerpt": "helper GitHub 183.5K Download Models Docs Pricing Sign in",
+                                    "source_url": "https://ollama.com/library/helper",
+                                    "origin": "web",
+                                }
+                            ],
+                        },
+                    },
+                ],
+            }
+            (state_dir / "models.json").write_text(json.dumps(v2_data), encoding="utf-8")
+            registry = ModelRegistry(root, logger, "base", ["base", "helper"])
+            # Verified that migration to schema_version 3 cleaned up verified_mention and model_name_mentioned
+            reopened = registry.list_models()
+            self.assertEqual(reopened["schema_version"], 3)
+            helper = next(m for m in reopened["models"] if m["name"] == "helper")
+            self.assertEqual(helper["research"]["status"], "fetched_no_model_fact")
+            self.assertEqual(helper["research"]["facts"], [])
+            self.assertEqual(helper["research"]["urls_tried"], ["https://ollama.com/library/helper"])
+
+            # Test supplying model_knowledge facts via record_model_assessment
+            registry.record_model_assessment(
+                "helper", "good model", "direct inspection",
+                facts={"total_params": "30B", "context_window": "128k"},
+            )
+            updated = registry.get_model("helper")
+            self.assertEqual(updated["research"]["total_params"], "30B")
+            self.assertEqual(updated["research"]["context_window"], "128k")
+            facts = updated["research"]["facts"]
+            self.assertEqual(len(facts), 2)
+            for f in facts:
+                self.assertEqual(f["origin"], "model_knowledge")
+                self.assertFalse(f["verified"])
 
 
 if __name__ == "__main__":

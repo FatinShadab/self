@@ -98,7 +98,8 @@ The analysis excludes contaminated and infrastructure-error runs but lists and c
 ### 1. Onboarding & Re-evaluation
 - On wake-up, the agent checks `helpers_needing_evaluation`: any configured helper lacking a probe at the current probe format version, with an invalidated probe, with `not_checked` research status, or lacking an agent assessment is surfaced to the agent.
 - The agent performs the evaluation itself using `probe_model`, then `research_model`, then `record_model_assessment` (citing the probe ID as evidence).
-- Assessments are recorded as compact, single-line comparisons (e.g. `550B/55B active, slow (~15-25s), strong reasoning, ctx 262k+; probe 4/4 passed`), explicitly distinguishing measured stats from web-researched facts.
+- Assessments are recorded as compact, single-line comparisons putting total/active params and context window first (or unknown), followed by `status ok`, reporting measured_stats call latency (total / calls) next to probe-only latency labeled separately (e.g. `550B/55B, ctx 262k+, status ok, call latency ~2.1s, probe latency ~1.8s, strong reasoning; probe 4/4 passed`), explicitly distinguishing web facts (verified) from unverified `model_knowledge`.
+- `research_model` fetches the official model page and Ollama `/tags` sections up to 500 KB, stripping boilerplate and navigation elements. It marks status `facts_found` only when verified properties are extracted with excerpts, otherwise `fetched_no_model_fact`, or `not_found` when a model has no matching page.
 
 ### 2. Validation & Model Names
 - Model names must exactly match configured registry entries. Calling tools with a missing or extra `-cloud` suffix returns an actionable alias hint explaining that results will not attach to the configured entry.

@@ -274,17 +274,28 @@ class ModelProbeTests(unittest.TestCase):
             seen = []
             def fetched(url, _logger):
                 seen.append(url)
+                if url.endswith("/tags"):
+                    return {"status": 200, "source_url": url,
+                            "body": "<html><body>Tags: helper:latest 1M context window • Text input</body></html>"}
                 return {"status": 200, "source_url": url,
-                        "body": "<html><body>Official listing: helper is offered here. No context details.</body></html>"}
+                        "body": "<html><body>Model overview: helper has 70B total / 14B active parameters, free tier</body></html>"}
             prober, registry, _, _, logger = self.setup_prober(Path(temp), fetcher=fetched)
             result = prober.research_model("helper")
             self.assertTrue(result["ok"])
-            self.assertEqual(seen, ["https://ollama.com/library/helper"])
+            self.assertEqual(result["status"], "facts_found")
+            self.assertEqual(seen, ["https://ollama.com/library/helper", "https://ollama.com/library/helper/tags"])
+            self.assertEqual(result["urls_tried"], seen)
             research = registry.get_model("helper")["research"]
-            self.assertEqual(research["facts"][0]["field"], "model_name_mentioned")
-            self.assertEqual(research["facts"][0]["source_url"], seen[0])
-            self.assertIsNotNone(research["facts"][0]["last_verified"])
-            self.assertEqual(len(research["facts"]), 1)
+            self.assertEqual(research["status"], "facts_found")
+            self.assertEqual(research["total_params"], "70B")
+            self.assertEqual(research["active_params"], "14B")
+            self.assertIn("1M context window", research["context_window"])
+            self.assertEqual(research["pricing"], "free tier")
+            for fact in research["facts"]:
+                self.assertIn(fact["value"], fact["excerpt"])
+                self.assertEqual(fact["origin"], "web")
+                self.assertTrue(fact["verified"])
+                self.assertIsNotNone(fact["last_verified"])
             self.assertEqual(registry.get_model("helper")["agent_assessment"], "")
             with self.assertRaises(ValueError):
                 prober.research_model("unknown")
@@ -294,7 +305,9 @@ class ModelProbeTests(unittest.TestCase):
                 return {"status": 404, "source_url": url, "body": ""}
             prober, registry, _, _, _ = self.setup_prober(Path(temp), fetcher=absent)
             result = prober.research_model("helper")
-            self.assertEqual(result["status"], "no_official_page")
+            self.assertEqual(result["status"], "not_found")
+            self.assertIn("404", result["status_message"])
+            self.assertEqual(result["urls_tried"], ["https://ollama.com/library/helper"])
             self.assertEqual(registry.get_model("helper")["research"]["facts"], [])
             self.assertIsNone(registry.get_model("helper")["research"]["last_verified"])
             self.assertIsNone(registry.get_model("helper")["research"]["context_window"])
@@ -306,6 +319,81 @@ class ModelProbeTests(unittest.TestCase):
             result = prober.research_model("helper")
             self.assertEqual(result["status"], "fetched_no_model_fact")
             self.assertEqual(registry.get_model("helper")["research"]["facts"], [])
+
+    def test_navigation_header_text_produces_no_facts(self) -> None:
+        """Navigation or boilerplate header text must never produce a fact."""
+        header_text = "nemotron-3-super GitHub 183.5K Download Models Docs Pricing Sign in"
+        with tempfile.TemporaryDirectory() as temp:
+            def header_fetcher(url, _logger):
+                return {
+                    "status": 200,
+                    "source_url": url,
+                    "body": f"<html><head><title>nemotron-3-super</title></head><body><header><nav>{header_text}</nav></header><main><div>{header_text}</div></main></body></html>",
+                }
+            root = Path(temp)
+            logger = EventLogger(root / "logs" / "actions.jsonl")
+            registry = ModelRegistry(root, logger, "gpt-oss:120b", ["gpt-oss:120b", "nemotron-3-super"])
+            prober = ModelProber(registry, None, logger, "session-1", "ollama", fetcher=header_fetcher)
+            result = prober.research_model("nemotron-3-super")
+            self.assertEqual(result["status"], "fetched_no_model_fact")
+            research = registry.get_model("nemotron-3-super")["research"]
+            self.assertEqual(research["status"], "fetched_no_model_fact")
+            self.assertEqual(research["facts"], [])
+            self.assertIsNone(research["total_params"])
+            self.assertIsNone(research["active_params"])
+            self.assertIsNone(research["context_window"])
+            self.assertIsNone(research["pricing"])
+            self.assertIsNone(research["speed"])
+            self.assertIsNone(research["strengths"])
+
+    def test_agent_supplied_model_knowledge_facts(self) -> None:
+        """Agent can supply facts from own knowledge as origin 'model_knowledge' with verified: false."""
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            logger = EventLogger(root / "logs" / "actions.jsonl")
+            registry = ModelRegistry(root, logger, "gpt-oss:120b", ["gpt-oss:120b", "nemotron-3-ultra"])
+            # Agent records assessment with model_knowledge facts
+            registry.record_model_assessment(
+                "nemotron-3-ultra",
+                assessment="nemotron-3-ultra status ok, call latency ~2.1s, probe latency ~1.8s",
+                evidence="direct agent knowledge",
+                facts={"total_params": "550B", "active_params": "55B", "context_window": "262k"},
+            )
+            entry = registry.get_model("nemotron-3-ultra")
+            research = entry["research"]
+            self.assertEqual(research["total_params"], "550B")
+            self.assertEqual(research["active_params"], "55B")
+            self.assertEqual(research["context_window"], "262k")
+            for fact in research["facts"]:
+                self.assertEqual(fact["origin"], "model_knowledge")
+                self.assertFalse(fact["verified"])
+                self.assertIsNone(fact["last_verified"])
+
+            # Verify picker summary shows fact origins
+            from agent.helper_models.model_decisions import ModelDecisions
+            summary = ModelDecisions._summary_entry(entry)
+            self.assertEqual(summary["total_params"], "550B")
+            self.assertEqual(summary["active_params"], "55B")
+            self.assertEqual(summary["facts_origin"]["total_params"], "model_knowledge")
+            self.assertEqual(summary["facts_origin"]["active_params"], "model_knowledge")
+            self.assertEqual(summary["facts"][0]["origin"], "model_knowledge")
+            self.assertFalse(summary["facts"][0]["verified"])
+
+    def test_probe_latency_tracked_and_reported(self) -> None:
+        """Probe latency is recorded on the probe record and surfaced in summary_entry."""
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            logger = EventLogger(root / "logs" / "actions.jsonl")
+            registry = ModelRegistry(root, logger, "gpt-oss:120b", ["gpt-oss:120b", "helper"])
+            probe_id = registry.begin_probe("helper", "sess-1")
+            registry.finish_probe("helper", probe_id, failed=False, latency_ms=1850)
+            entry = registry.get_model("helper")
+            self.assertEqual(entry["probe_history"][0]["latency_ms"], 1850)
+
+            from agent.helper_models.model_decisions import ModelDecisions
+            summary = ModelDecisions._summary_entry(entry)
+            self.assertEqual(summary["probe_latency_ms"], 1850)
+            self.assertEqual(summary["avg_latency_ms"], "unknown")
 
 
 if __name__ == "__main__":

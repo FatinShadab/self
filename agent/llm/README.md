@@ -31,12 +31,12 @@ LLMClient selects the configured base provider and records usage in ModelRegistr
 - **Single Daily Token Limit**: The daily ledger (`DailyTokenLedger` / `SELF_MAX_TOKENS_PER_DAY`) is the only active token limit. Per-run and per-session budgets (`SELF_TOKEN_BUDGET`) have been removed, and the `--token-budget` CLI flag is deprecated.
 - **Model Output Ceilings**: Per-call hardcoded output caps have been replaced with the model's maximum output length from registry (`get_output_cap`, defaulting to 32,768 if unconfigured).
 - **Daily Budget Reservation**: Calls reserve an estimated input allowance plus expected output tokens rather than the full ceiling, settling against actual spend. Mid-call daily allowance exhaustion allows the call to complete cleanly; the subsequent call is refused with `BudgetExceeded(kind="daily")` and pauses until daily reset.
-- **Model Registry (Schema Version 2)**: Tracks configured and unconfigured historical models, records `truncated_calls` and `network_errors` separately from model failures, computes `helpers_needing_evaluation` on wake-up, provides registry name validation with alias hints (`+/- "-cloud"`), and supports per-model output cap overrides via `get_output_cap`.
+- **Model Registry (Schema Version 3)**: Tracks configured and unconfigured historical models, records `truncated_calls` and `network_errors` separately from model failures, computes `helpers_needing_evaluation` on wake-up, provides registry name validation with alias hints (`+/- "-cloud"`), supports per-model output cap overrides via `get_output_cap`, records `probe_latency_ms` in `probe_history`, tracks `urls_tried`, and supports agent-supplied facts (`origin: "model_knowledge"`, `verified: false`) via `record_facts` and `record_model_assessment`.
 - **Transient Network Errors**: `APIConnectionError` and transport/connection failures are retried with bounded exponential backoff. If exhausted, they are counted as `network_errors` without resetting or incrementing `consecutive_failures`. In `BudgetedLLM`, network error reservations are settled to 0 and released back to the daily ledger without incrementing `tokens_used`.
 
 ## State it touches
 
-Workspace paths: state/models.json (schema_version 2), state/providers.json, state/daily_tokens.json, logs/actions.jsonl.
+Workspace paths: state/models.json (schema_version 3), state/providers.json, state/daily_tokens.json, logs/actions.jsonl.
 
 ## Depends on / used by
 

@@ -23,7 +23,7 @@ MAX_COUNTER = 1_000_000_000
 MAX_FILE_BYTES = 1_000_000
 MAX_PROBES_PER_SESSION = 2
 PROBE_COOLDOWN_SECONDS = 3_600
-SCHEMA_VERSION = 2
+SCHEMA_VERSION = 3
 PROBE_FORMAT_VERSION = 2
 LEGACY_PROBE_INVALIDATION_REASON = "Earlier probe output caps did not account for hidden thinking or provider truncation."
 RATING_CATEGORIES = ("reasoning", "code", "instruction_following", "summarization", "json_output")
@@ -119,6 +119,7 @@ class ModelRegistry:
             "notes": "",
             "probe_history": [],
             "research": {"status": "not_checked", "status_message": "", "source_url": None,
+                         "urls_tried": [],
                          "last_checked": None, "last_verified": None, "facts": [],
                          "total_params": None, "active_params": None,
                          "context_window": None, "pricing": None,
@@ -187,6 +188,7 @@ class ModelRegistry:
                              "session_id": str(item.get("session_id", ""))[:80],
                              "at": float(item.get("at", 0) or 0),
                              "status": str(item.get("status", ""))[:20],
+                             "latency_ms": int(item["latency_ms"]) if item.get("latency_ms") is not None else None,
                              "format_version": int(item.get("format_version", old_probe_format) or old_probe_format),
                              "invalidated": old_probe_format < PROBE_FORMAT_VERSION or bool(item.get("invalidated", False)),
                              "invalidation_reason": (LEGACY_PROBE_INVALIDATION_REASON if old_probe_format < PROBE_FORMAT_VERSION
@@ -201,21 +203,34 @@ class ModelRegistry:
                         entry["ratings_at"] = None
                     if isinstance(old.get("research"), dict):
                         research = old["research"]
+                        facts_raw = [
+                            {"field": str(item.get("field", ""))[:80],
+                             "value": str(item.get("value", ""))[:500],
+                             "excerpt": str(item.get("excerpt", ""))[:500],
+                             "source_url": str(item.get("source_url", ""))[:500] if item.get("source_url") else None,
+                             "origin": str(item.get("origin", "web"))[:20],
+                             "verified": bool(item.get("verified", item.get("origin") != "model_knowledge")),
+                             "last_verified": str(item.get("last_verified", ""))[:80] if item.get("last_verified") else None}
+                            for item in research.get("facts", [])[:16]
+                            if isinstance(item, dict) and item.get("field") != "model_name_mentioned"
+                        ]
+                        old_status = str(research.get("status", "not_checked"))[:40]
+                        if old_status == "verified_mention":
+                            status = "facts_found" if facts_raw else "fetched_no_model_fact"
+                        else:
+                            status = old_status
+                        urls_tried = research.get("urls_tried")
+                        if not isinstance(urls_tried, list):
+                            urls_tried = [research["source_url"]] if research.get("source_url") else []
+
                         entry["research"] = {
-                            "status": str(research.get("status", "not_checked"))[:40],
+                            "status": status,
                             "status_message": str(research.get("status_message", ""))[:300],
                             "source_url": str(research["source_url"])[:500] if research.get("source_url") else None,
+                            "urls_tried": [str(u)[:500] for u in urls_tried][:10],
                             "last_checked": str(research["last_checked"])[:80] if research.get("last_checked") else None,
                             "last_verified": str(research["last_verified"])[:80] if research.get("last_verified") else None,
-                            "facts": [
-                                {"field": str(item.get("field", ""))[:80],
-                                 "value": str(item.get("value", ""))[:500],
-                                 "excerpt": str(item.get("excerpt", ""))[:500],
-                                 "source_url": str(item.get("source_url", ""))[:500] if item.get("source_url") else None,
-                                 "origin": str(item.get("origin", "web"))[:20],
-                                 "last_verified": str(item.get("last_verified", ""))[:80]}
-                                for item in research.get("facts", [])[:8] if isinstance(item, dict)
-                            ],
+                            "facts": facts_raw,
                             "total_params": str(research.get("total_params", ""))[:40] if research.get("total_params") else None,
                             "active_params": str(research.get("active_params", ""))[:40] if research.get("active_params") else None,
                             "context_window": str(research.get("context_window", ""))[:40] if research.get("context_window") else None,
@@ -319,8 +334,9 @@ class ModelRegistry:
                 item for item in self._read()["models"] if item["name"] == name))
 
     def record_model_assessment(self, name: str, assessment: str, evidence: str,
-                                ratings: dict[str, str] | None = None) -> dict[str, Any]:
-        """Persist the agent's assessment and category ratings for a model."""
+                                ratings: dict[str, str] | None = None,
+                                facts: list[dict[str, Any]] | dict[str, Any] | None = None) -> dict[str, Any]:
+        """Persist the agent's assessment, category ratings, and optional knowledge facts for a model."""
         if name not in self.names:
             raise ValueError("Model is not configured")
         if not isinstance(assessment, str) or not assessment.strip():
@@ -337,6 +353,8 @@ class ModelRegistry:
         probe_ids = re.findall(r"\bprobe:([0-9a-f]{32})\b", evidence)
         if "probe:" in evidence and not probe_ids:
             raise ValueError("Assessment contains an invalid probe reference")
+        if facts:
+            self.record_facts(name, facts, origin="model_knowledge")
         with self._locked():
             data = self._read()
             entry = next(item for item in data["models"] if item["name"] == name)
@@ -478,17 +496,78 @@ class ModelRegistry:
         return probe_id
 
     def finish_probe(self, name: str, probe_id: str, *, failed: bool,
-                     inconclusive: bool = False) -> None:
+                     inconclusive: bool = False, latency_ms: int | None = None) -> None:
         """Store the final status of a completed model probe."""
         with self._locked():
             data = self._read()
             entry = next(item for item in data["models"] if item["name"] == name)
             record = next(item for item in entry["probe_history"] if item["id"] == probe_id)
             record["status"] = "failed" if failed else "inconclusive" if inconclusive else "completed"
+            if latency_ms is not None:
+                record["latency_ms"] = latency_ms
             self._write(data)
+
+    def record_facts(self, name: str, facts: list[dict[str, Any]] | dict[str, Any],
+                     *, origin: str = "model_knowledge") -> dict[str, Any]:
+        """Store agent-supplied facts (e.g. from model knowledge, verified=False)."""
+        if name not in self.names:
+            raise ValueError("Model is not configured")
+        facts_list: list[dict[str, Any]] = []
+        if isinstance(facts, dict):
+            for k, v in facts.items():
+                if v is not None:
+                    facts_list.append({"field": str(k), "value": str(v),
+                                       "excerpt": f"agent model knowledge: {k}={v}"})
+        elif isinstance(facts, list):
+            for item in facts:
+                if isinstance(item, dict) and item.get("field") and item.get("value") is not None:
+                    facts_list.append({
+                        "field": str(item["field"]),
+                        "value": str(item["value"]),
+                        "excerpt": str(item.get("excerpt", f"agent model knowledge: {item['field']}={item['value']}")),
+                    })
+        else:
+            raise ValueError("Facts must be a list of objects or a key-value dictionary")
+
+        is_model_knowledge = origin == "model_knowledge"
+        verified = not is_model_knowledge
+        with self._locked():
+            data = self._read()
+            entry = next(item for item in data["models"] if item["name"] == name)
+            research = entry.setdefault("research", self._blank(name)["research"])
+            existing_facts = list(research.get("facts", []))
+            for f in facts_list:
+                fld = f["field"][:80]
+                val = self.logger.redactor.text(str(f["value"]))[:500]
+                exc = self.logger.redactor.text(str(f["excerpt"]))[:500]
+                fact_obj = {
+                    "field": fld,
+                    "value": val,
+                    "excerpt": exc,
+                    "source_url": None,
+                    "origin": origin,
+                    "verified": verified,
+                    "last_verified": None,
+                }
+                idx = next((i for i, ef in enumerate(existing_facts)
+                            if ef.get("field") == fld and ef.get("origin") == origin), None)
+                if idx is not None:
+                    existing_facts[idx] = fact_obj
+                else:
+                    existing_facts.append(fact_obj)
+
+                if fld in {"total_params", "active_params", "context_window", "pricing", "speed", "strengths"}:
+                    if not research.get(fld):
+                        research[fld] = val[:40] if fld in {"total_params", "active_params", "context_window", "speed"} else val[:120]
+
+            research["facts"] = existing_facts[:16]
+            self._write(data)
+        self.logger.log("model_facts_recorded", name=name, origin=origin, count=len(facts_list))
+        return {"ok": True, "name": name, "facts": research["facts"]}
 
     def record_research(self, name: str, *, status: str, source_url: str | None,
                         facts: list[dict[str, Any]], status_message: str = "",
+                        urls_tried: list[str] | None = None,
                         total_params: str | None = None, active_params: str | None = None,
                         context_window: str | None = None, pricing: str | None = None,
                         speed: str | None = None, strengths: str | None = None) -> dict[str, Any]:
@@ -497,13 +576,18 @@ class ModelRegistry:
             raise ValueError("Model is not configured")
         checked = datetime.now(timezone.utc).isoformat()
         safe_facts = []
-        for fact in facts[:8]:
+        for fact in facts[:16]:
+            origin = str(fact.get("origin", "web"))[:20]
+            is_model_knowledge = origin == "model_knowledge"
+            verified = bool(fact.get("verified", not is_model_knowledge))
             safe_facts.append({"field": str(fact["field"])[:80],
                                "value": self.logger.redactor.text(str(fact["value"]))[:500],
-                               "excerpt": self.logger.redactor.text(str(fact["excerpt"]))[:500],
-                               "source_url": source_url,
-                               "origin": str(fact.get("origin", "web"))[:20],
-                               "last_verified": checked})
+                               "excerpt": self.logger.redactor.text(str(fact.get("excerpt", "")))[:500],
+                               "source_url": fact.get("source_url") or (None if is_model_knowledge else source_url),
+                               "origin": origin,
+                               "verified": verified,
+                               "last_verified": checked if verified else None})
+        tried = [str(u)[:500] for u in urls_tried][:10] if urls_tried else ([source_url] if source_url else [])
         with self._locked():
             data = self._read()
             entry = next(item for item in data["models"] if item["name"] == name)
@@ -511,8 +595,9 @@ class ModelRegistry:
                 "status": status,
                 "status_message": str(status_message)[:300],
                 "source_url": source_url,
+                "urls_tried": tried,
                 "last_checked": checked,
-                "last_verified": checked if safe_facts else None,
+                "last_verified": checked if any(f["verified"] for f in safe_facts) else None,
                 "facts": safe_facts,
                 "total_params": str(total_params)[:40] if total_params else None,
                 "active_params": str(active_params)[:40] if active_params else None,
@@ -523,5 +608,6 @@ class ModelRegistry:
             }
             self._write(data)
         self.logger.log("model_research_recorded", name=name, status=status,
-                        source_url=source_url, fact_count=len(safe_facts))
+                        source_url=source_url, fact_count=len(safe_facts),
+                        urls_tried=tried)
         return {"ok": True, "name": name, "research": entry["research"]}

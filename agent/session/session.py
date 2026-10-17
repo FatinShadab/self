@@ -11,6 +11,9 @@ from typing import Any, Callable
 from agent.infra.event_log import EventLogger
 
 
+from agent.learning.plan import consolidate_plan_items
+
+
 HANDOFF_CAP = 12_000
 
 
@@ -167,17 +170,20 @@ class SessionStore:
             "long_term_summary": str(safe.get("long_term_summary", ""))[:3_000] or "Compression pending an LLM reflection; full checkpoint retained in handoff_overflow.json.",
             "discoveries": list(safe.get("discoveries", []))[-8:], "tools_created": list(safe.get("tools_created", []))[-8:],
             "failures_and_lessons": list(safe.get("failures_and_lessons", []))[-8:], "open_questions": list(safe.get("open_questions", []))[-8:],
-            "plan": list(safe.get("plan", []))[:8], "pending_human_requests": list(safe.get("pending_human_requests", []))[:8],
+            "plan": consolidate_plan_items(list(safe.get("plan", [])), max_items=8), "pending_human_requests": list(safe.get("pending_human_requests", []))[:8],
             "mood_of_run": safe.get("mood_of_run", "exploring"), "compression_pending": True,
         }
         # Guarantee the on-disk handoff cap even when an error message is
         # unusually large. The unabridged checkpoint remains in overflow and
         # journal.md, so this is explicit compaction rather than silent loss.
-        list_fields = ("discoveries", "tools_created", "failures_and_lessons", "open_questions", "plan", "pending_human_requests")
+        list_fields = ("discoveries", "tools_created", "failures_and_lessons", "open_questions", "pending_human_requests")
         while len(json.dumps(compact, ensure_ascii=False).encode("utf-8")) > self.handoff_cap:
             candidate = max(list_fields, key=lambda field: len(compact.get(field, [])))
             if compact.get(candidate):
                 compact[candidate].pop()
+                continue
+            if len(compact.get("plan", [])) > 2:
+                compact["plan"] = consolidate_plan_items(compact["plan"], max_items=max(2, len(compact["plan"]) - 1))
                 continue
             if len(str(compact["long_term_summary"])) > 200:
                 compact["long_term_summary"] = str(compact["long_term_summary"])[:-200]
