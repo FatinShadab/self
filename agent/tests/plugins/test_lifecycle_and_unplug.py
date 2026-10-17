@@ -9,6 +9,7 @@ from pathlib import Path
 from typing import Any
 
 from agent.infra.event_log import EventLogger
+from agent.infra.untrusted import unwrap_untrusted
 from agent.llm.llm import LLMResult
 from agent.plugins.manager import PluginManager
 from agent.runtime.loop import AgentConfig, AgentLoop
@@ -135,7 +136,10 @@ class PluginUnplugLifecycleTests(unittest.TestCase):
         last_user_msg = cycle2_resp_messages[-1]["content"]
         tool_result = last_user_msg[0]
         self.assertEqual(tool_result["type"], "tool_result")
-        result_content = json.loads(tool_result["content"])
+        raw_content = tool_result["content"]
+        if "<UNTRUSTED_DATA" in raw_content:
+            raw_content = unwrap_untrusted(raw_content)
+        result_content = json.loads(raw_content)
         self.assertFalse(result_content["ok"])
         self.assertEqual(
             result_content["error"],
