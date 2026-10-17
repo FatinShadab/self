@@ -1382,16 +1382,7 @@ class WakeCoordinator:
             return None
         if self.max_iterations != 0:
             self.revise_plan()  # The required wake-up reflection occurs before exploration.
-        package_entry = self.learning._load_map().get("entries", {}).get("packages", {})
         startup_context = ""
-        package_value = package_entry.get("value")
-        if package_value is None or package_value == "not yet inventoried":
-            self.logger.narrate("Startup priority: I will immediately inventory installed Python packages before broader exploration.")
-            startup_context = (
-                "Immediately inventory the installed Python packages in this container. "
-                "Use the relevant shell/tool action now, record the result with update_environment_map, "
-                "and do not spend this cycle only planning."
-            )
         if self._llm is None:
             self._llm = LLMClient(self.logger)
         model_reg = getattr(self._llm, "model_registry", None)
@@ -1407,10 +1398,21 @@ class WakeCoordinator:
                 "(e.g. '550B/55B, ctx 262k+, status ok, call latency ~2.1s, probe latency ~1.8s, strong reasoning; probe 4/4 passed') "
                 "and explicitly state the origin of each fact (web vs model_knowledge)."
             )
+            startup_context = eval_instructions
+
+        package_entry = self.learning._load_map().get("entries", {}).get("packages", {})
+        package_value = package_entry.get("value")
+        if package_value is None or package_value == "not yet inventoried":
+            self.logger.narrate("Startup priority: I will immediately inventory installed Python packages before broader exploration.")
+            package_instructions = (
+                "Immediately inventory the installed Python packages in this container. "
+                "Use the relevant shell/tool action now, record the result with update_environment_map, "
+                "and do not spend this cycle only planning."
+            )
             if startup_context:
-                startup_context = f"{startup_context}\n\n{eval_instructions}"
+                startup_context = f"{startup_context}\n\n{package_instructions}"
             else:
-                startup_context = eval_instructions
+                startup_context = package_instructions
 
         checkpoint = _read_json(self.workspace / "state" / "run_checkpoint.json")
         stale_startup_task = (

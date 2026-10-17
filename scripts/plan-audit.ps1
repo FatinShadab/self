@@ -48,6 +48,10 @@ $cycleCompletions = @{}
 $maxCycle = 0
 $historicalPlans = @{}
 
+$countPlanUpdated = 0
+$countPlanUnchangedAgent = 0
+$countPlanUnchangedHarness = 0
+
 foreach ($line in $rawLines) {
     if (-not $line.Trim()) { continue }
     if ($line -notmatch '"event"\s*:\s*"(plan_updated|plan_unchanged|cycle_completed)"') { continue }
@@ -58,7 +62,17 @@ foreach ($line in $rawLines) {
     }
 
     $c = $evt.cycle
-    if ($evt.event -eq 'plan_updated' -or $evt.event -eq 'plan_unchanged') {
+    if ($evt.event -eq 'plan_updated') {
+        $countPlanUpdated++
+        $cNum = if ($c) { [int]$c } else { 1 }
+        if ($cNum -gt $maxCycle) { $maxCycle = $cNum }
+        $planReviewsByCycle[$cNum] = $evt
+    } elseif ($evt.event -eq 'plan_unchanged') {
+        if ($evt.source -eq 'harness_auto') {
+            $countPlanUnchangedHarness++
+        } else {
+            $countPlanUnchangedAgent++
+        }
         $cNum = if ($c) { [int]$c } else { 1 }
         if ($cNum -gt $maxCycle) { $maxCycle = $cNum }
         $planReviewsByCycle[$cNum] = $evt
@@ -74,6 +88,12 @@ foreach ($line in $rawLines) {
 if ($maxCycle -eq 0 -and $cycleCompletions.Count -gt 0) {
     $maxCycle = ($cycleCompletions.Keys | Measure-Object -Maximum).Maximum
 }
+
+Write-Host "Review Accounting:" -ForegroundColor White
+Write-Host "  plan_updated (agent)         : $countPlanUpdated" -ForegroundColor Gray
+Write-Host "  plan_unchanged (agent)       : $countPlanUnchangedAgent" -ForegroundColor Gray
+Write-Host "  plan_unchanged (harness_auto): $countPlanUnchangedHarness" -ForegroundColor Gray
+Write-Host ""
 
 $totalFlags = 0
 $stopWords = @('the','and','for','with','from','that','this','into','after','before','then','them','they','what','when','where','how','why','not','are','was','were','will','shall','should','would','could','can','may','might','must')
@@ -91,11 +111,31 @@ if (Test-Path -LiteralPath $planFile) {
     }
 }
 
+$consecutiveUntouchedCycles = 0
 for ($cycle = 1; $cycle -le $maxCycle; $cycle++) {
     $review = $planReviewsByCycle[$cycle]
     $completion = $cycleCompletions[$cycle]
 
     $cycleFlags = @()
+
+    # Track whether agent touched the plan in this cycle
+    $agentTouched = $false
+    if ($review) {
+        if ($review.event -eq 'plan_updated') {
+            $agentTouched = $true
+        } elseif ($review.event -eq 'plan_unchanged' -and $review.source -eq 'agent') {
+            $agentTouched = $true
+        }
+    }
+
+    if ($agentTouched) {
+        $consecutiveUntouchedCycles = 0
+    } else {
+        $consecutiveUntouchedCycles++
+        if ($consecutiveUntouchedCycles -ge $StaleCycles) {
+            $cycleFlags += "[FLAG: PLAN_UNTOUCHED_CONSECUTIVE] Agent did not touch plan for $consecutiveUntouchedCycles consecutive cycles (cycles $($cycle - $consecutiveUntouchedCycles + 1) to $cycle; threshold: $StaleCycles)."
+        }
+    }
 
     # 1. Plan review check
     $planVersion = "unknown"
@@ -104,12 +144,13 @@ for ($cycle = 1; $cycle -le $maxCycle; $cycle++) {
 
     if ($review) {
         $planVersion = $review.plan_version
+        $sourceLabel = if ($review.event -eq 'plan_updated') { "agent" } elseif ($review.source) { $review.source } else { "harness_auto" }
         if ($review.event -eq 'plan_updated') {
             $diffSummary = $review.diff
         } else {
             $diffSummary = "(plan unchanged)"
         }
-        $reason = $review.reason
+        $reason = "[$sourceLabel] $($review.reason)"
     } else {
         $cycleFlags += "[FLAG: NO_PLAN_REVIEW] Cycle $cycle has no recorded plan review (missing plan_updated or plan_unchanged event)."
     }
