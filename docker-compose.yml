@@ -17,6 +17,11 @@ services:
         source: ${SELF_WORKSPACE_DIR:-./workspace}
         target: /home/entity
         read_only: false
+      # Capability expansion: host config directory mounted read-only for human-controlled plugin enablement
+      - type: bind
+        source: ${SELF_CONFIG_DIR:-./config}
+        target: /config
+        read_only: true
     # Default bridge networking is intentional: internet access is available
     # without host networking, privileged mode, or extra capabilities.
     networks:
