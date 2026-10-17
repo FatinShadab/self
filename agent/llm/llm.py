@@ -26,14 +26,28 @@ class BudgetExceeded(RuntimeError):
         self.kind = kind
 
 
+def _is_network_error(exc: Exception) -> bool:
+    """Identify transient transport/connection errors that should not count as model failures."""
+    if isinstance(exc, (ConnectionError, TimeoutError, OSError)):
+        return True
+    name = type(exc).__name__
+    if name in {"APIConnectionError", "ConnectError", "ConnectTimeout", "ReadTimeout", "TimeoutException", "NetworkError"}:
+        return True
+    msg = str(exc).casefold()
+    return any(marker in msg for marker in (
+        "connection error", "connection refused", "connecterror", "connection reset",
+        "network is unreachable", "timed out", "timeout", "remoteprotocolerror",
+    ))
+
+
 class BudgetedLLM:
-    """One budget shared by the actor and critic; failures reserve unknown spend."""
+    """Daily token budget tracking; mid-call exhaustion completes and refuses next call."""
 
     def __init__(
         self,
         client: Any,
         logger: EventLogger,
-        token_budget: int | None,
+        token_budget: int | None = None,
         daily_ledger: DailyTokenLedger | None = None,
         *,
         adaptive_budget: bool = False,
@@ -41,88 +55,66 @@ class BudgetedLLM:
     ) -> None:
         self.client = client
         self.logger = logger
-        # None means that this wrapper has no per-run ceiling. The daily
-        # ledger, when present, remains the only aggregate token limit.
-        self.token_budget = max(1, token_budget) if token_budget is not None else None
-        self.initial_token_budget = self.token_budget
-        self.adaptive_budget = adaptive_budget
-        self.max_token_budget = (
-            max(self.token_budget, max_token_budget or self.token_budget)
-            if self.token_budget is not None else None
-        )
+        # token_budget, adaptive_budget, max_token_budget are ignored;
+        # daily_ledger is the only active token limit.
+        self.token_budget = None
         self.tokens_used = 0
         self.daily_ledger = daily_ledger
-
-    def _adapt_budget(self) -> None:
-        if (not self.adaptive_budget or self.daily_ledger is None or
-                self.token_budget is None or self.max_token_budget is None or
-                self.token_budget >= self.max_token_budget):
-            return
-        daily_remaining = self.daily_ledger.available_tokens()
-        new_budget = min(self.max_token_budget, self.tokens_used + daily_remaining)
-        if new_budget <= self.token_budget:
-            return
-        previous = self.token_budget
-        self.token_budget = new_budget
-        self.logger.log(
-            "run_token_budget_adapted",
-            initial_budget=self.initial_token_budget,
-            previous_budget=previous,
-            new_budget=self.token_budget,
-            daily_remaining=daily_remaining,
-            max_budget=self.max_token_budget,
-        )
 
     def call(self, *, system: str, messages: list[dict[str, Any]],
              tools: list[dict[str, Any]], max_tokens: int,
              model: str | None = None, min_output_tokens: int = 64) -> LLMResult:
-        """Send a bounded model request and return its response."""
+        """Send a model request bounded by the model output ceiling and daily allowance."""
         if model is not None and model not in getattr(self.client, "available_models", []):
             raise ValueError("Model is not in the configured allowlist")
         import json
-        # JSON/schema-heavy tool payloads tokenize much more densely than normal
-        # prose. Reserving half the UTF-8 byte count plus a fixed margin remains
-        # conservative while leaving room for a small configured run budget.
         payload = json.dumps({"system": system, "messages": messages, "tools": tools}, ensure_ascii=False)
         reserved_input = (len(payload.encode("utf-8")) + 1) // 2 + 512
-        self._adapt_budget()
-        if self.token_budget is None:
-            # Daily-only mode: reserve the prompt first, then spend as much of
-            # the remaining daily allowance as this individual call requests.
-            daily_remaining = self.daily_ledger.available_tokens() if self.daily_ledger is not None else max_tokens + reserved_input
-            allowance = min(max_tokens, daily_remaining - reserved_input)
-        else:
-            allowance = min(max_tokens, self.token_budget - self.tokens_used - reserved_input)
-        if allowance < min_output_tokens:
-            kind = "daily" if self.token_budget is None else "run"
-            raise BudgetExceeded("Insufficient remaining budget for the minimum output cap", kind=kind)
-        reservation = reserved_input + allowance
-        if self.daily_ledger is not None and not self.daily_ledger.reserve(reservation):
-            raise BudgetExceeded("Daily token budget is exhausted", kind="daily")
+        expected_output = min(max_tokens, int(os.getenv("SELF_EXPECTED_OUTPUT_TOKENS", "1024")))
+        reservation_estimate = reserved_input + expected_output
+
+        actual_reservation = 0
+        if self.daily_ledger is not None:
+            available = self.daily_ledger.available_tokens()
+            if available <= 0:
+                raise BudgetExceeded("Daily token limit reached", kind="daily")
+            actual_reservation = reservation_estimate
+            if not self.daily_ledger.reserve(actual_reservation):
+                raise BudgetExceeded("Daily token limit reached", kind="daily")
+
         try:
-            call_args = {"system": system, "messages": messages, "tools": tools, "max_tokens": allowance}
+            call_args = {"system": system, "messages": messages, "tools": tools, "max_tokens": max_tokens}
             if model is not None:
                 call_args["model"] = model
             result = self.client.call(**call_args)
-        except Exception:
-            self.tokens_used += reservation
-            if self.daily_ledger is not None:
-                self.daily_ledger.settle(reservation, None)
-            self.logger.log("token_spend", usage_known=False, reserved_tokens=reservation,
-                            effective_cap=allowance,
-                            run_tokens_used=self.tokens_used,
-                            run_token_budget=self.token_budget if self.token_budget is not None else (self.daily_ledger.cap if self.daily_ledger else 0),
-                            run_budget_mode="per_run" if self.token_budget is not None else "daily_only")
+        except Exception as exc:
+            if _is_network_error(exc):
+                if self.daily_ledger is not None and actual_reservation > 0:
+                    self.daily_ledger.settle(actual_reservation, 0)
+                self.logger.log("token_spend", usage_known=True, reserved_tokens=actual_reservation,
+                                tokens_released=actual_reservation,
+                                max_output_tokens=max_tokens,
+                                tokens_used=self.tokens_used,
+                                daily_token_budget=self.daily_ledger.cap if self.daily_ledger else 0,
+                                reason="network_error_released")
+                raise
+            self.tokens_used += actual_reservation
+            if self.daily_ledger is not None and actual_reservation > 0:
+                self.daily_ledger.settle(actual_reservation, None)
+            self.logger.log("token_spend", usage_known=False, reserved_tokens=actual_reservation,
+                            max_output_tokens=max_tokens,
+                            tokens_used=self.tokens_used,
+                            daily_token_budget=self.daily_ledger.cap if self.daily_ledger else 0)
             raise
+
         self.tokens_used += result.total_tokens
-        result.max_output_tokens = allowance
+        result.max_output_tokens = max_tokens
         if self.daily_ledger is not None:
-            self.daily_ledger.settle(reservation, result.total_tokens)
+            self.daily_ledger.settle(actual_reservation, result.total_tokens)
         self.logger.log("token_spend", usage_known=True, call_input_tokens=result.input_tokens,
-                        call_output_tokens=result.output_tokens, effective_cap=allowance,
-                        run_tokens_used=self.tokens_used,
-                        run_token_budget=self.token_budget if self.token_budget is not None else (self.daily_ledger.cap if self.daily_ledger else 0),
-                        run_budget_mode="per_run" if self.token_budget is not None else "daily_only")
+                        call_output_tokens=result.output_tokens, max_output_tokens=max_tokens,
+                        tokens_used=self.tokens_used,
+                        daily_token_budget=self.daily_ledger.cap if self.daily_ledger else 0)
         return result
 
 
@@ -312,7 +304,8 @@ class LLMClient:
                 status_code = getattr(exc, "status_code", None)
                 if self._is_key_limit_error(status_code, exc) and self._rotate_key():
                     continue
-                retryable = status_code in {500, 502, 503, 504} or "Internal Server Error" in str(exc)
+                is_net_err = _is_network_error(exc)
+                retryable = is_net_err or status_code in {500, 502, 503, 504} or "Internal Server Error" in str(exc)
                 self.logger.log(
                     "llm_call_failed",
                     provider=self.provider,
@@ -324,13 +317,17 @@ class LLMClient:
                     effective_cap=max_tokens,
                 )
                 if not retryable or transient_retries >= 2:
-                    self.model_registry.record_call(
-                        selected_model, failed=True,
-                        not_found=(status_code in {404, "404"} or type(exc).__name__ == "NotFoundError"),
-                        latency_ms=round((time.monotonic() - started) * 1000))
+                    latency_ms = round((time.monotonic() - started) * 1000)
+                    if is_net_err:
+                        self.model_registry.record_network_error(selected_model, latency_ms=latency_ms)
+                    else:
+                        self.model_registry.record_call(
+                            selected_model, failed=True,
+                            not_found=(status_code in {404, "404"} or type(exc).__name__ == "NotFoundError"),
+                            latency_ms=latency_ms)
                     raise
                 transient_retries += 1
-                time.sleep(1.5 * (attempt + 1))
+                time.sleep(min(10.0, 1.5 * (2 ** transient_retries)))
 
         if response is None:
             self.model_registry.record_call(selected_model, failed=True,
@@ -344,6 +341,15 @@ class LLMClient:
         content = [block.model_dump(exclude_none=True) for block in response.content]
         latency_ms = round((time.monotonic() - started) * 1000)
         self.model_registry.record_call(selected_model, failed=False, latency_ms=latency_ms)
+        result = LLMResult(
+            content=content,
+            input_tokens=input_tokens,
+            output_tokens=output_tokens,
+            stop_reason=response.stop_reason,
+            model=response.model,
+        )
+        if response_truncated(result, max_tokens):
+            self.model_registry.record_truncated_call(selected_model)
         self.logger.log(
             "llm_call_completed",
             provider=self.provider,
@@ -355,11 +361,6 @@ class LLMClient:
             output_tokens=output_tokens,
             total_tokens=input_tokens + output_tokens,
             latency_ms=latency_ms,
+            truncated=response_truncated(result, max_tokens),
         )
-        return LLMResult(
-            content=content,
-            input_tokens=input_tokens,
-            output_tokens=output_tokens,
-            stop_reason=response.stop_reason,
-            model=response.model,
-        )
+        return result

@@ -24,14 +24,14 @@ class ConversationManager:
 
     def __init__(self, workspace: str | Path, logger: EventLogger,
                  ledger: DailyTokenLedger, llm_client: Any | None = None,
-                 *, max_workers: int | None = None, max_tokens: int = 1_200) -> None:
+                 *, max_workers: int | None = None, max_tokens: int | None = None) -> None:
         self.workspace = Path(workspace)
         self.logger = logger
         self.ledger = ledger
         self.client = llm_client
         self.max_workers = max(1, int(max_workers or os.getenv("SELF_MAX_CONVERSATION_WORKERS", "2")))
-        configured_tokens = int(os.getenv("SELF_CONVERSATION_MAX_TOKENS", str(max_tokens)))
-        self.max_tokens = max(256, min(configured_tokens, 4_096))
+        configured_tokens = os.getenv("SELF_CONVERSATION_MAX_TOKENS")
+        self.max_tokens = int(configured_tokens) if configured_tokens else max_tokens
         self.executor = ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix="self-chat")
         self.path = self.workspace / "state" / "conversation_threads.jsonl"
         self._lock = threading.Lock()
@@ -80,20 +80,17 @@ class ConversationManager:
             "from uncertainty. Keep the answer concise."
         )
         message = f"Context:\n{context}\n\nHuman message:\n{text}"
-        # BudgetedLLM's allowance covers both its conservative input estimate
-        # and output tokens. A response-only budget of 1200 would reject every
-        # normal conversation once the live state snapshot is included.
-        payload = json.dumps(
-            {"system": system_prompt, "messages": [{"role": "user", "content": message}], "tools": []},
-            ensure_ascii=False,
-        )
-        input_reservation = (len(payload.encode("utf-8")) + 1) // 2 + 512
-        call_budget = input_reservation + self.max_tokens + 128
-        budget = BudgetedLLM(self.client, self.logger, call_budget, self.ledger, adaptive_budget=False)
+        model_registry = getattr(self.client, "model_registry", None)
+        base_model = getattr(self.client, "base_model", None)
+        ceiling = None
+        if model_registry is not None and base_model is not None:
+            ceiling = model_registry.get_output_cap(base_model)
+        cap = self.max_tokens or ceiling or int(os.getenv("SELF_DEFAULT_OUTPUT_CEILING", "32768"))
+        budget = BudgetedLLM(self.client, self.logger, None, self.ledger)
         result = budget.call(
             system=system_prompt,
             messages=[{"role": "user", "content": message}],
-            tools=[], max_tokens=self.max_tokens,
+            tools=[], max_tokens=cap,
         )
         response = "\n".join(str(block.get("text", "")).strip() for block in result.content
                               if block.get("type") == "text" and str(block.get("text", "")).strip()).strip()

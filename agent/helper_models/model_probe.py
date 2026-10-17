@@ -23,13 +23,12 @@ FETCH_CAP = 12_000
 CODE_TIMEOUT_SECONDS = 2
 
 PROBE_CASES = (
-    ("reasoning", "A shelf has four boxes with three pencils in each. Five pencils are taken away, then two are added. Reply with only the final integer.", 1_024),
-    ("summarization", "Summarize this passage in at most 20 words. Mention the new Saturday opening time and unchanged weekday hours: The town library moved its Saturday opening from 9 a.m. to 10 a.m. during repairs. Weekday hours did not change.", 1_024),
-    ("json", 'Return only a JSON object with exactly these fields and values: "status" is "ready" and "count" is 3.', 1_024),
-    ("code", "Write only Python source for def triangular(n: int) -> int, returning 1+2+...+n for nonnegative n. Use one return expression with only n, integer constants, +, -, *, and //; no calls, imports, comments, or markdown.", 1_536),
+    ("reasoning", "A shelf has four boxes with three pencils in each. Five pencils are taken away, then two are added. Reply with only the final integer."),
+    ("summarization", "Summarize this passage in at most 20 words. Mention the new Saturday opening time and unchanged weekday hours: The town library moved its Saturday opening from 9 a.m. to 10 a.m. during repairs. Weekday hours did not change."),
+    ("json", 'Return only a JSON object with exactly these fields and values: "status" is "ready" and "count" is 3.'),
+    ("code", "Write only Python source for def triangular(n: int) -> int, returning 1+2+...+n for nonnegative n. Use one return expression with only n, integer constants, +, -, *, and //; no calls, imports, comments, or markdown."),
 )
 
-EMPTY_RETRY_TOKENS = 2_048
 INCONCLUSIVE_NOTE = "Treat inconclusive output as unknown, not as a model failure."
 
 
@@ -163,15 +162,20 @@ class ModelProber:
 
     def probe_model(self, name: str) -> dict[str, Any]:
         """Probe a configured model and store observed capability results."""
+        if name not in self.registry.names:
+            valid, err = self.registry.validate_model_name(name)
+            raise ValueError(err)
         probe_id = self.registry.begin_probe(name, self.session_id, now=self.clock())
         cases: list[dict[str, Any]] = []
         failed = True
         objective_failed = False
         inconclusive = False
         try:
-            for kind, prompt, max_tokens in PROBE_CASES:
+            cap = self.registry.get_output_cap(name)
+            for case_item in PROBE_CASES:
+                kind, prompt = case_item[0], case_item[1]
                 attempts: list[dict[str, Any]] = []
-                for attempt, cap in ((1, max_tokens), (2, EMPTY_RETRY_TOKENS)):
+                for attempt in (1, 2):
                     started = time.monotonic()
                     try:
                         response = call_with_minimum(self.llm, cap,
@@ -284,13 +288,17 @@ class ModelProber:
 
     def research_model(self, name: str) -> dict[str, Any]:
         """Research official model information and save verified findings."""
+        if name not in self.registry.names:
+            valid, err = self.registry.validate_model_name(name)
+            raise ValueError(err)
         entry = self.registry.get_model(name)
         if entry["status"] == "disabled":
             raise ValueError("Model is disabled")
         url = _official_url(self.provider, name)
         if url is None:
             return self.registry.record_research(name, status="no_official_page",
-                                                 source_url=None, facts=[])
+                                                 source_url=None, facts=[],
+                                                 status_message="No official documentation URL is configured for this provider.")
         fetched = self.fetcher(url, self.logger)
         source_url = str(fetched.get("source_url") or url)
         parsed = urllib.parse.urlsplit(source_url)
@@ -299,6 +307,10 @@ class ModelProber:
         body = str(fetched.get("body", ""))[:FETCH_CAP]
         status = fetched.get("status")
         facts = []
+        total_params = None
+        active_params = None
+        context_window = None
+        status_message = ""
         if status == 200 and fetched.get("content_type", "text/html") in {"text/html", "text/plain"}:
             parser = _Text()
             parser.feed(body)
@@ -306,15 +318,32 @@ class ModelProber:
             match = re.search(re.escape(name), visible, flags=re.I)
             if match:
                 facts.append({"field": "model_name_mentioned", "value": name,
-                              "excerpt": visible[max(0, match.start() - 100):match.end() + 100]})
+                              "excerpt": visible[max(0, match.start() - 100):match.end() + 100],
+                              "origin": "web"})
+            param_match = re.search(r"(\d+(?:\.\d+)?)\s*[Bb](?:illion)?\s*(?:total)?\s*(?:parameters|params)?", visible)
+            if param_match:
+                total_params = param_match.group(0).strip()
+            ctx_match = re.search(r"(\d+[\d,]*)\s*(?:k|K)?\s*context", visible)
+            if ctx_match:
+                context_window = ctx_match.group(0).strip()
             research_status = "verified_mention" if facts else "fetched_no_model_fact"
+        elif status == 404:
+            visible = ""
+            research_status = "no_official_page"
+            status_message = "Official documentation page returned 404 Not Found"
         else:
             visible = ""
-            research_status = "no_official_page" if status == 404 else "unavailable"
+            research_status = "unreachable"
+            status_message = "Official documentation page unreachable from container network"
         stored = self.registry.record_research(name, status=research_status,
-                                               source_url=source_url if status == 200 else None,
-                                               facts=facts)
+                                               source_url=source_url,
+                                               facts=facts,
+                                               status_message=status_message,
+                                               total_params=total_params,
+                                               active_params=active_params,
+                                               context_window=context_window)
         stored["status"] = research_status
-        stored["source_url"] = source_url if status == 200 else None
+        stored["status_message"] = status_message
+        stored["source_url"] = source_url
         stored["body_excerpt"] = self.logger.redactor.text(visible[:4_000])
         return stored

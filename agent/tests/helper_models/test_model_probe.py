@@ -96,7 +96,7 @@ class ModelProbeTests(unittest.TestCase):
             self.assertEqual([case["case"] for case in result["cases"]],
                              ["reasoning", "summarization", "json", "code"])
             self.assertEqual([call["model"] for call in client.calls], ["helper"] * 4)
-            self.assertTrue(all(1_024 <= call["max_tokens"] <= 2_048 for call in client.calls))
+            self.assertTrue(all(call["max_tokens"] == registry.get_output_cap("helper") for call in client.calls))
             self.assertEqual(result["outcome"], "passed")
             self.assertEqual(ledger.available_tokens(), ledger.cap - 48)
             self.assertEqual(registry.get_model("helper")["measured_stats"]["calls"], 4)
@@ -187,7 +187,7 @@ class ModelProbeTests(unittest.TestCase):
         with tempfile.TemporaryDirectory() as temp:
             outputs = [
                 {"text": "9", "stop_reason": "max_tokens", "output_tokens": 8},
-                {"text": GOOD_OUTPUTS[1], "output_tokens": PROBE_CASES[1][2]},
+                {"text": GOOD_OUTPUTS[1], "output_tokens": 32_768},
                 GOOD_OUTPUTS[2], GOOD_OUTPUTS[3],
             ]
             prober, registry, client, _, _ = self.setup_prober(Path(temp), outputs=outputs)
@@ -210,7 +210,7 @@ class ModelProbeTests(unittest.TestCase):
             self.assertEqual([a["outcome"] for a in first["attempts"]],
                              ["inconclusive", "passed"])
             self.assertEqual([call["max_tokens"] for call in client.calls[:2]],
-                             [1_024, 2_048])
+                             [registry.get_output_cap("helper"), registry.get_output_cap("helper")])
             self.assertEqual(registry.get_model("helper")["measured_stats"]["calls"], 5)
             self.assertEqual(registry.get_model("helper")["measured_stats"]["failures"], 0)
 

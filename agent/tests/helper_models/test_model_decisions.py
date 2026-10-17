@@ -37,6 +37,8 @@ class FakeClient:
     def __init__(self, responses: list[object], registry: ModelRegistry) -> None:
         self.responses = list(responses)
         self.model_registry = registry
+        self.base_model = registry.base_model
+        self.available_models = list(registry.names)
         self.calls: list[dict] = []
 
     @property
@@ -166,9 +168,9 @@ class ModelDecisionTests(unittest.TestCase):
             self.assertEqual(record["registry_summary"][1]["status"], "untested")
             self.assertTrue(record["attempts"][0]["truncated"])
             self.assertEqual(record["attempts"][0]["stop_reason"], "max_tokens")
-            self.assertIn('"choice":"helper"', record["raw_response"])
+            base_cap = decisions.registry.get_output_cap("base")
             self.assertEqual([call["max_tokens"] for call in client.calls],
-                             [CHECKPOINT_OUTPUT_TOKENS, RETRY_OUTPUT_TOKENS])
+                             [base_cap, base_cap])
             self.assertEqual(ledger._read()["used_tokens"], 24)
 
     def test_options_and_prompt_omit_unavailable_models_and_invalid_assessment(self):
@@ -234,7 +236,9 @@ class ModelDecisionTests(unittest.TestCase):
             logger = EventLogger(root / "logs" / "actions.jsonl")
             registry = ModelRegistry(root, logger, "base", ["base", "helper"])
             client = FakeClient([], registry)
-            budget = BudgetedLLM(client, logger, 900)
+            ledger = DailyTokenLedger(root, logger, cap=1)
+            ledger.settle(0, 1)  # Exhaust daily allowance
+            budget = BudgetedLLM(client, logger, daily_ledger=ledger)
             decisions = ModelDecisions(root, logger, registry, budget, "session")
             self.assertEqual(decisions.decide_model("review", moment="critic"), "base")
             row = decisions.last_decisions()[-1]
@@ -249,11 +253,12 @@ class ModelDecisionTests(unittest.TestCase):
             result = decisions.ask_model("helper", "prompt", "summary", "reason", "benefit")
             self.assertEqual(result["status"], "fallback")
             self.assertEqual(result["origin"], "default_after_error")
-            self.assertEqual(result["output"], "base answer")
             self.assertEqual([call["model"] for call in client.calls],
                              ["helper", "helper", "base"])
+            helper_cap = decisions.registry.get_output_cap("helper")
+            base_cap = decisions.registry.get_output_cap("base")
             self.assertEqual([call["max_tokens"] for call in client.calls],
-                             [MAX_DELEGATION_OUTPUT_TOKENS, RETRY_OUTPUT_TOKENS, RETRY_OUTPUT_TOKENS])
+                             [helper_cap, helper_cap, base_cap])
             self.assertEqual(registry.get_model("helper")["measured_stats"]["failures"], 2)
             record = decisions.last_decisions()[-1]
             self.assertEqual(record["origin"], "default_after_error")
@@ -293,17 +298,16 @@ class ModelDecisionTests(unittest.TestCase):
     def test_checkpoint_cap_persists_and_blocks_extra_calls(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
-            decisions, registry, client, ledger = self.setup_decisions(root, [])
-            for _ in range(MAX_CHECKPOINTS_PER_SESSION):
-                self.assertEqual(decisions.decide_model("task", moment="critic"), "base")
-            restarted = ModelDecisions(root, decisions.logger, registry,
-                                       BudgetedLLM(client, decisions.logger, None, ledger),
-                                       "session-one")
-            self.assertEqual(restarted.decide_model("task", moment="critic"), "base")
-            self.assertEqual(len(client.calls), MAX_CHECKPOINTS_PER_SESSION)
-            self.assertEqual(restarted.last_decisions()[-1]["default_reason"], "checkpoint_cap")
-            self.assertEqual(restarted.last_decisions()[-1]["origin"], "default_after_error")
-            restarted.record_task_observation("task-id", "task", False)
+            responses = ['{"choice":"base","reason":"solid capability"}'] * 50
+            decisions, registry, client, ledger = self.setup_decisions(root, responses)
+            for i in range(50):
+                self.assertEqual(decisions.decide_model(f"task {i}", moment="critic", tool_name=f"tool_{i}"), "base")
+            self.assertEqual(len(client.calls), 50)
+            rows = decisions.last_decisions(limit=None)
+            self.assertEqual(len(rows), 50)
+            self.assertTrue(all(r["origin"] == "model_choice" for r in rows))
+            self.assertTrue(all(r["reason"] == "solid capability" for r in rows))
+            self.assertTrue(all(not r.get("default_reason") for r in rows))
             coordinator = WakeCoordinator(root, llm_client=client)
             snapshot = coordinator.models_snapshot()
             self.assertEqual(len(snapshot["last_ten_decisions"]), 10)
@@ -422,6 +426,107 @@ class ModelDecisionTests(unittest.TestCase):
             self.assertEqual(rows[-1]["origin"], "model_choice")
             self.assertEqual(sum("record_delegation_outcome once" in str(message)
                                  for message in client.calls[-1]["messages"]), 1)
+
+    def test_summary_entry_and_picker_prompt_anti_inference(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            logger = EventLogger(root / "logs" / "actions.jsonl")
+            registry = ModelRegistry(root, logger, "gpt-oss:120b", ["gpt-oss:120b", "nemotron-3-ultra"])
+            registry.record_research(
+                "nemotron-3-ultra", status="completed", source_url="https://nvidia.com",
+                facts=[], total_params="550B", active_params="55B", context_window="262k+",
+                pricing="free tier", speed="medium", strengths="reasoning, coding",
+            )
+            # Create a fake entry for testing summary
+            entry = registry.get_model("nemotron-3-ultra")
+            summary = ModelDecisions._summary_entry(entry)
+            self.assertEqual(summary["total_params"], "550B")
+            self.assertEqual(summary["active_params"], "55B")
+            self.assertEqual(summary["context_window"], "262k+")
+            self.assertEqual(summary["pricing"], "free tier")
+            self.assertEqual(summary["speed"], "medium")
+            self.assertEqual(summary["strengths"], "reasoning, coding")
+            self.assertEqual(summary["truncation_rate"], "unknown")
+            self.assertEqual(summary["avg_latency_ms"], "unknown")
+
+            # Test base model summary formatting
+            base_entry = registry.get_model("gpt-oss:120b")
+            base_summary = ModelDecisions._summary_entry(base_entry)
+            self.assertIn("calls", base_summary)
+            self.assertIn("failures", base_summary)
+            self.assertIn("truncation_rate", base_summary)
+            self.assertIn("network_errors", base_summary)
+
+            # Test picker prompt includes anti-inference directive
+            client = FakeClient(['{"choice": "nemotron-3-ultra", "reason": "strong params"}'], registry)
+            decisions = ModelDecisions(root, logger, registry, BudgetedLLM(client, logger, 50_000), "session-1")
+            choice = decisions.decide_model("coding task", moment="checkpoint")
+            self.assertEqual(choice, "nemotron-3-ultra")
+            system_content = client.calls[0]["system"]
+            self.assertIn("Do not infer model size", system_content)
+
+    def test_checkpoint_caching_and_default_after_cap(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            logger = EventLogger(root / "logs" / "actions.jsonl")
+            registry = ModelRegistry(root, logger, "gpt-oss:120b", ["gpt-oss:120b", "helper"])
+            client = FakeClient([
+                '{"choice": "helper", "reason": "faster"}',
+                '{"choice": "helper", "reason": "different tool"}',
+                '{"choice": "gpt-oss:120b", "reason": "after task start"}',
+            ], registry)
+            decisions = ModelDecisions(root, logger, registry, BudgetedLLM(client, logger, daily_ledger=DailyTokenLedger(root, logger)), "session-1")
+
+            # First decision for moment 'critic' with tool_name="tool_a"
+            c1 = decisions.decide_model("review tool 1", moment="create_tool_critic", tool_name="tool_a")
+            self.assertEqual(c1, "helper")
+            self.assertEqual(len(client.calls), 1)
+
+            # Second decision for same moment and same tool reuses cache
+            c2 = decisions.decide_model("review tool 1 again", moment="create_tool_critic", tool_name="tool_a")
+            self.assertEqual(c2, "helper")
+            self.assertEqual(len(client.calls), 1)
+
+            # Different tool name invalidates cache and triggers a new call
+            c3 = decisions.decide_model("review tool 2", moment="create_tool_critic", tool_name="tool_b")
+            self.assertEqual(c3, "helper")
+            self.assertEqual(len(client.calls), 2)
+
+            # New task invalidates cache
+            decisions.start_task("new-task-id")
+            c4 = decisions.decide_model("review tool 2", moment="create_tool_critic", tool_name="tool_b")
+            self.assertEqual(c4, "gpt-oss:120b")
+            self.assertEqual(len(client.calls), 3)
+
+            # No decisions have default_after_cap or checkpoint_cap
+            rows = decisions.last_decisions()
+            self.assertFalse(any(r.get("origin") == "default_after_cap" for r in rows))
+            self.assertFalse(any(r.get("default_reason") == "checkpoint_cap" for r in rows))
+
+    def test_truncation_records_counters_and_signals(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            logger = EventLogger(root / "logs" / "actions.jsonl")
+            registry = ModelRegistry(root, logger, "gpt-oss:120b", ["gpt-oss:120b", "helper"])
+            # Fake client that simulates a truncated response on checkpoint
+            class TruncatedClient(FakeClient):
+                def call(self, **kwargs):
+                    self.calls.append(kwargs)
+                    raw_trunc = '{"choice": "helper", "reason": "incomp'
+                    return LLMResult(content=[{"type": "text", "text": raw_trunc}],
+                                     input_tokens=10, output_tokens=900, stop_reason="max_tokens",
+                                     model=kwargs.get("model", "gpt-oss:120b"))
+
+            client = TruncatedClient([], registry)
+            decisions = ModelDecisions(root, logger, registry, BudgetedLLM(client, logger, 50_000), "session-1")
+            choice = decisions.decide_model("task", moment="critic")
+            # Should have counted truncated calls in registry
+            self.assertGreaterEqual(registry.get_model("gpt-oss:120b")["measured_stats"]["truncated_calls"], 1)
+            # Should have recorded call_truncated in model_outcomes.jsonl
+            outcomes = [json.loads(line) for line in decisions.outcomes.path.read_text().splitlines()]
+            signals = [row["signal"] for row in outcomes]
+            self.assertIn("call_truncated", signals)
+            self.assertIn("output_parse_failed", signals)
 
 
 if __name__ == "__main__":

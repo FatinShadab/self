@@ -10,6 +10,7 @@ from unittest.mock import patch
 
 from agent.tools.base_tools import ToolRunner
 from agent.infra.event_log import EventLogger
+from agent.infra.hardening import DailyTokenLedger
 from agent.llm.llm import BudgetedLLM, LLMResult
 from agent.runtime.loop import AgentConfig, AgentLoop
 from agent.tools.tool_registry import KeywordToolSearch, ToolRegistry, schema_from_code
@@ -245,7 +246,8 @@ class LoopToolTests(unittest.TestCase):
             workspace = Path(temp)
             logger = EventLogger(workspace / "logs" / "actions.jsonl")
             reviewer = Reviewer()
-            budget = BudgetedLLM(reviewer, logger, 1)
+            ledger = DailyTokenLedger(workspace, logger, cap=1)
+            budget = BudgetedLLM(reviewer, logger, daily_ledger=ledger)
             registry = ToolRegistry(workspace, logger, budget.call, set())
             from agent.llm.llm import BudgetExceeded
             with self.assertRaises(BudgetExceeded):

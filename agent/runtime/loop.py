@@ -93,7 +93,7 @@ class AgentConfig:
     workspace: Path = Path("/home/entity")
     max_iterations: int | None = None
     token_budget: int | None = None
-    max_tokens_per_call: int = 4_096
+    max_tokens_per_call: int | None = None
     top_k_tools: int = 5
     task: str = ""
     base_tool_names: tuple[str, ...] | None = None
@@ -172,19 +172,10 @@ class AgentLoop:
         self.config = config
         self.logger = logger
         self.daily_ledger = config.daily_ledger or DailyTokenLedger(config.workspace, logger)
-        adaptive_enabled = os.getenv("SELF_ADAPTIVE_TOKEN_BUDGET", "1").lower() not in {"0", "false", "no", "off"}
-        try:
-            configured_max = int(os.getenv("SELF_MAX_ADAPTIVE_TOKEN_BUDGET", str(self.daily_ledger.cap)))
-        except ValueError:
-            configured_max = self.daily_ledger.cap
-        max_token_budget = max(config.token_budget or 1, configured_max) if config.token_budget is not None else None
         self.llm = BudgetedLLM(
             llm,
             logger,
-            config.token_budget,
-            self.daily_ledger,
-            adaptive_budget=adaptive_enabled,
-            max_token_budget=max_token_budget,
+            daily_ledger=self.daily_ledger,
         )
         self.tools = tools
         self.helper_mode = os.getenv("SELF_HELPER_MODELS", "on").strip().lower() == "on"
@@ -193,6 +184,13 @@ class AgentLoop:
             self.model_registry = getattr(llm, "model_registry", None) or ModelRegistry(
                 config.workspace, logger, llm.base_model, llm.available_models)
         self.tools.model_registry = self.model_registry
+        base_model_name = getattr(llm, "base_model", "gpt-oss:120b")
+        if config.max_tokens_per_call is not None and config.max_tokens_per_call != 4096:
+            self.max_tokens_per_call = config.max_tokens_per_call
+        elif self.model_registry is not None:
+            self.max_tokens_per_call = self.model_registry.get_output_cap(base_model_name)
+        else:
+            self.max_tokens_per_call = int(os.getenv("SELF_DEFAULT_OUTPUT_CEILING", "32768"))
         self.tools.model_prober = (
             ModelProber(self.model_registry, self.llm, logger,
                         config.session_id or uuid.uuid4().hex,
@@ -266,6 +264,25 @@ class AgentLoop:
                 encoding="utf-8",
             )
             self.logger.log("daily_budget_human_request_created", path=str(request))
+
+    def _pause_until_daily_reset(self) -> None:
+        """Pause safely until the daily ledger resets or is increased."""
+        self._request_daily_budget_action()
+        self.logger.narrate("I reached today's daily token limit. Pausing until daily reset or limit increase.")
+        self.logger.log("daily_token_limit_paused", session_id=self.config.session_id)
+        while not self._stopped():
+            if self.daily_ledger is None or self.daily_ledger.available_tokens() > 0:
+                self.logger.narrate("Daily token limit reset or increased. Resuming.")
+                self.logger.log("daily_token_limit_resumed", session_id=self.config.session_id)
+                if self.human_request.exists():
+                    try:
+                        text = self.human_request.read_text(encoding="utf-8", errors="replace")
+                        if "daily token-budget decision" in text.lower():
+                            self.human_request.unlink(missing_ok=True)
+                    except OSError:
+                        pass
+                return
+            time.sleep(1.0)
 
     def _narrate_content(self, content: list[dict[str, Any]]) -> str:
         reports: list[str] = []
@@ -397,11 +414,6 @@ class AgentLoop:
                 self.logger.log("run_stopped", reason="human_request_pending")
                 reason = "human_request_pending"
                 break
-            if (self.config.token_budget is not None and
-                    self.llm.tokens_used >= self.config.token_budget):
-                self.logger.narrate("The run token budget is exhausted; stopping before another call.")
-                reason = "token_budget"
-                break
 
             self.logger.narrate(f"Cycle {cycle}: retrieving relevant tools and memories...")
             query = f"{STANDING_GOAL}\n{active_task}\nPrevious report: {last_report}"
@@ -419,13 +431,29 @@ class AgentLoop:
                 )
             else:
                 context = "This focused test has no prior memories."
+            helper_prompt = ""
+            if cycle == 1 and self.model_registry is not None:
+                needing = self.model_registry.helpers_needing_evaluation()
+                eval_hint = ""
+                if needing:
+                    eval_hint = (
+                        f"Helper models needing evaluation before other work: {', '.join(needing)}.\n"
+                        "Evaluate each using exact names from list_models: first probe_model, then research_model, "
+                        "then record_model_assessment with the probe id as evidence. Write each assessment as one compact, "
+                        "comparable line (e.g. '550B/55B active, slow (~15-25s), strong reasoning, ctx 262k+; probe 4/4 passed') "
+                        "and explicitly state which figures were measured and which came from the web.\n\n"
+                    )
+                helper_prompt = (
+                    "Helper models are available. Consider ask_model for sub-tasks it fits, or continue alone.\n\n"
+                    + eval_hint
+                )
             failure_context = self.registry.recent_failure_context()
             messages: list[dict[str, Any]] = [
                 {
                     "role": "user",
                     "content": (
                         f"Begin exploration cycle {cycle}.\n\n"
-                        + ("Helper models are available. Consider ask_model for sub-tasks it fits, or continue alone.\n\n" if cycle == 1 and self.model_registry is not None else "") +
+                        f"{helper_prompt}"
                         f"Specific task for this run: {active_task or STANDING_GOAL}\n\n"
                         f"Relevant tools and memories:\n{context}\n\n"
                         f"Previous cycle report:\n{last_report}\n\n"
@@ -478,16 +506,13 @@ class AgentLoop:
                 definitions = base + [CREATE_TOOL_DEFINITION] + selected
                 try:
                     result = self.llm.call(system=self._system_prompt(), messages=messages,
-                                           tools=definitions, max_tokens=self.config.max_tokens_per_call)
-                except BudgetExceeded as exc:
-                    if exc.kind == "daily":
-                        self._request_daily_budget_action()
-                        self.logger.narrate("I reached today's daily token limit. I paused and left a human request: increase the limit or configure a backup provider.")
-                        reason = "human_request_pending"
-                    else:
-                        self.logger.narrate("Too little token budget remains for another actor or critic call.")
-                        reason = "token_budget"
-                    break
+                                           tools=definitions, max_tokens=self.max_tokens_per_call)
+                except BudgetExceeded:
+                    self._pause_until_daily_reset()
+                    if self._stopped():
+                        reason = "stop_file"
+                        break
+                    continue
                 except Exception as exc:
                     provider_error_count += 1
                     self.logger.log("run_failed", error_type=type(exc).__name__, provider_error=True)
@@ -532,15 +557,12 @@ class AgentLoop:
                                 observation = {"ok": False, "error": "Tool not offered in this step; use task keywords to retrieve it."}
                             else:
                                 observation = self.tools.execute(name, arguments)
-                        except BudgetExceeded as exc:
-                            if exc.kind == "daily":
-                                self._request_daily_budget_action()
-                                self.logger.narrate("I reached today's daily token limit. I paused and left a human request: increase the limit or configure a backup provider.")
-                                reason = "human_request_pending"
-                            else:
-                                self.logger.narrate("Critic cannot run within the remaining token budget; stopping.")
-                                reason = "token_budget"
-                            break
+                        except BudgetExceeded:
+                            self._pause_until_daily_reset()
+                            if self._stopped():
+                                reason = "stop_file"
+                                break
+                            continue
                     tool_results.append(
                         {
                             "type": "tool_result",
@@ -635,12 +657,13 @@ def parse_args() -> argparse.Namespace:
         "--token-budget",
         type=int,
         default=None,
-        help="Optional test/override ceiling for this run; omit it for daily-only budgeting.",
+        help="Deprecated and ignored; only the daily token limit is enforced.",
     )
     parser.add_argument(
         "--max-tokens-per-call",
         type=int,
-        default=int(os.getenv("SELF_MAX_TOKENS_PER_CALL", "4096")),
+        default=None,
+        help="Optional per-call output token limit override; defaults to model registry ceiling.",
     )
     return parser.parse_args()
 
@@ -648,17 +671,18 @@ def parse_args() -> argparse.Namespace:
 def main() -> int:
     """Parse command-line arguments and run this module's entry point."""
     args = parse_args()
+    if args.token_budget is not None:
+        import warnings
+        warnings.warn("--token-budget is deprecated and ignored; only the daily token limit is enforced.", stacklevel=2)
     workspace = Path("/home/entity")
     logger = EventLogger(workspace / "logs" / "actions.jsonl")
     try:
         llm = LLMClient(logger)
-        configured_budget = args.token_budget if args.token_budget is not None else int(os.getenv("SELF_TOKEN_BUDGET", "0"))
-        configured_budget = configured_budget if configured_budget > 0 else None
         config = AgentConfig(
             workspace=workspace,
             max_iterations=args.max_iterations if args.max_iterations > 0 else None,
-            token_budget=configured_budget,
-            max_tokens_per_call=max(64, args.max_tokens_per_call),
+            token_budget=None,
+            max_tokens_per_call=args.max_tokens_per_call,
             task=args.task,
             top_k_tools=max(0, args.top_k_tools),
             curriculum=args.curriculum,

@@ -23,7 +23,7 @@ from agent.infra.event_log import EventLogger
 from agent.infra.hardening import DailyTokenLedger
 from agent.identity.identity import IdentityStore
 from agent.learning.learning import LearningStore
-from agent.llm.llm import BudgetedLLM, LLMClient
+from agent.llm.llm import BudgetedLLM, LLMClient, response_truncated
 from agent.helper_models.model_decisions import ModelDecisions
 from agent.infra.file_lock import locked_file
 from agent.runtime.loop import AgentConfig, AgentLoop, STANDING_GOAL
@@ -739,24 +739,74 @@ class WakeCoordinator:
             budget = BudgetedLLM(self._llm, self.logger, self.token_budget, self.daily_ledger)
             reflection_model = None
             model_registry = getattr(self._llm, "model_registry", None)
+            decisions = None
             if model_registry is not None and purpose == "shutdown reflection":
                 decision_budget = BudgetedLLM(self._llm, self.logger, None, self.daily_ledger)
                 decisions = ModelDecisions(self.workspace, self.logger, model_registry,
                                            decision_budget, self.status.session_id)
                 reflection_model = decisions.decide_model(
                     f"{purpose}: {extra[:400]}", moment="session_end_handoff")
+            effective_model = reflection_model or getattr(self._llm, "base_model", "gpt-oss:120b")
             call_args = {"model": reflection_model} if reflection_model is not None else {}
-            result = budget.call(
-                system="You are SELF preparing a truthful durable handoff. Return ONLY JSON with attempted, achieved, summary, plan (objects: step, why, priority, status), mood_of_run, failures_and_lessons, open_questions. Explain what this session was trying to do, what it actually achieved, and the updated next plan. Do not invent facts; use only supplied state. Redact secrets.",
-                messages=[{"role": "user", "content": self.logger.redactor.text(f"Purpose: {purpose}\nOld handoff: {json.dumps(self.handoff, ensure_ascii=False)[:7000]}\nCurrent plan: {json.dumps(self.plan)}\n{extra}")}],
-                tools=[], max_tokens=900, **call_args,
-            )
-            text = "\n".join(str(block.get("text", "")) for block in result.content if block.get("type") == "text").strip()
-            if text.startswith("```"):
-                text = text.strip("`").removeprefix("json").strip()
-            reflected = json.loads(text)
-            if not isinstance(reflected, dict) or not isinstance(reflected.get("plan", []), list):
-                raise ValueError("reflection did not return a plan object")
+            reflection_cap = (model_registry.get_output_cap(effective_model)
+                              if model_registry is not None else int(os.getenv("SELF_DEFAULT_OUTPUT_CEILING", "32768")))
+
+            reflected = None
+            truncated = False
+            parse_failed = False
+            base_prompt = self.logger.redactor.text(f"Purpose: {purpose}\nOld handoff: {json.dumps(self.handoff, ensure_ascii=False)[:7000]}\nCurrent plan: {json.dumps(self.plan)}\n{extra}")
+            system_prompt = "You are SELF preparing a truthful durable handoff. Return ONLY JSON with attempted, achieved, summary, plan (objects: step, why, priority, status), mood_of_run, failures_and_lessons, open_questions. Explain what this session was trying to do, what it actually achieved, and the updated next plan. Do not invent facts; use only supplied state. Redact secrets."
+            last_text = ""
+            for attempt_num in (1, 2):
+                if attempt_num == 1:
+                    messages = [{"role": "user", "content": base_prompt}]
+                else:
+                    messages = [
+                        {"role": "user", "content": base_prompt},
+                        {"role": "assistant", "content": last_text[:4000]},
+                        {"role": "user", "content": "Your previous reflection was truncated or not valid JSON. Be more concise: keep the handoff concise and return ONLY the valid JSON object with the required fields."}
+                    ]
+                result = budget.call(
+                    system=system_prompt,
+                    messages=messages,
+                    tools=[], max_tokens=reflection_cap, **call_args,
+                )
+                is_trunc = response_truncated(result, reflection_cap)
+                text = "\n".join(str(block.get("text", "")) for block in result.content if block.get("type") == "text").strip()
+                last_text = text
+                if text.startswith("```"):
+                    text = text.strip("`").removeprefix("json").strip()
+                try:
+                    parsed = json.loads(text)
+                    if not isinstance(parsed, dict) or not isinstance(parsed.get("plan", []), list):
+                        raise ValueError("reflection did not return a plan object")
+                    reflected = parsed
+                    if is_trunc:
+                        truncated = True
+                    break
+                except Exception:
+                    truncated = is_trunc
+                    parse_failed = True
+                    if attempt_num == 1:
+                        continue
+                    break
+
+            if model_registry is not None and truncated:
+                model_registry.record_truncated_call(effective_model)
+            if decisions is not None:
+                decision_id = getattr(decisions, "last_checkpoint_call_id", None)
+                if decision_id:
+                    if truncated:
+                        decisions.outcomes.append(decision_id, effective_model, "checkpoint:session_end_handoff",
+                                                 "call_truncated", True, "objective",
+                                                 session_id=self.status.session_id)
+                    if parse_failed:
+                        decisions.outcomes.append(decision_id, effective_model, "checkpoint:session_end_handoff",
+                                                 "output_parse_failed", True, "objective",
+                                                 session_id=self.status.session_id)
+
+            if reflected is None:
+                raise ValueError("reflection failed to parse valid JSON")
             self.logger.log("session_reflection_completed", purpose=purpose, tokens_used=budget.tokens_used)
             return self.logger.redactor.value(reflected)
         except Exception as exc:
@@ -934,13 +984,32 @@ class WakeCoordinator:
                 "Use the relevant shell/tool action now, record the result with update_environment_map, "
                 "and do not spend this cycle only planning."
             )
+        if self._llm is None:
+            self._llm = LLMClient(self.logger)
+        model_reg = getattr(self._llm, "model_registry", None)
+        needing_eval = model_reg.helpers_needing_evaluation() if model_reg is not None else []
+        if needing_eval:
+            self.logger.narrate(f"Startup priority: helper models needing evaluation: {', '.join(needing_eval)}")
+            eval_instructions = (
+                f"Helper models needing evaluation before other work: {', '.join(needing_eval)}. "
+                "Evaluate each helper model using exact names from list_models: "
+                "first probe_model, then research_model, then record_model_assessment with the probe id as evidence. "
+                "Write each assessment as one compact, comparable line (e.g. '550B/55B active, slow (~15-25s), strong reasoning, ctx 262k+; probe 4/4 passed') "
+                "and explicitly state which figures were measured and which came from the web."
+            )
+            if startup_context:
+                startup_context = f"{startup_context}\n\n{eval_instructions}"
+            else:
+                startup_context = eval_instructions
+
         checkpoint = _read_json(self.workspace / "state" / "run_checkpoint.json")
-        stale_startup_task = str(checkpoint.get("task", "")).startswith("Immediately inventory the installed Python packages")
+        stale_startup_task = (
+            str(checkpoint.get("task", "")).startswith("Immediately inventory the installed Python packages") or
+            str(checkpoint.get("task", "")).startswith("Helper models needing evaluation")
+        )
         resume_checkpoint_task = not stale_startup_task
         runner = ToolRunner(self.logger, self.workspace)
         runner.identity = self.identity
-        if self._llm is None:
-            self._llm = LLMClient(self.logger)
         loop = AgentLoop(
             AgentConfig(
                 workspace=self.workspace,

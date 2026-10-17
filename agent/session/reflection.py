@@ -12,7 +12,7 @@ from typing import Any, Callable
 
 from agent.infra.event_log import EventLogger
 from agent.infra.hardening import DailyTokenLedger
-from agent.llm.llm import BudgetExceeded, BudgetedLLM, LLMClient
+from agent.llm.llm import BudgetExceeded, BudgetedLLM, LLMClient, response_truncated
 from agent.helper_models.model_decisions import ModelDecisions
 from agent.infra.file_lock import locked_file
 
@@ -34,7 +34,7 @@ class ReflectionManager:
         enabled: bool = True,
         max_per_session: int = 3,
         min_cycles: int = 3,
-        max_tokens: int = 384,
+        max_tokens: int | None = None,
         stop_provider: Callable[[], bool] | None = None,
     ) -> None:
         self.workspace = Path(workspace)
@@ -44,7 +44,7 @@ class ReflectionManager:
         self.enabled = enabled
         self.max_per_session = max(1, min(int(max_per_session), 20))
         self.min_cycles = max(1, min(int(min_cycles), 100))
-        self.max_tokens = max(64, min(int(max_tokens), 1_024))
+        self.max_tokens = int(max_tokens) if max_tokens is not None else None
         self.stop_provider = stop_provider
         self.path = self.workspace / "state" / "reflection_threads.jsonl"
         self.state_path = self.workspace / "state" / "reflection_state.json"
@@ -205,37 +205,86 @@ class ReflectionManager:
         if self.ledger.available_tokens() - input_reservation < 64:
             self.logger.log("reflection_skipped", cycle=candidate["cycle"], reason="budget")
             return None
-        call_budget = input_reservation + self.max_tokens + 128
-        budget = BudgetedLLM(self.client, self.logger, call_budget, self.ledger, adaptive_budget=False)
+        model_registry = getattr(self.client, "model_registry", None)
+        decisions = None
+        reflection_model = None
+        if model_registry is not None:
+            decision_budget = BudgetedLLM(self.client, self.logger, None, self.ledger)
+            decisions = ModelDecisions(
+                self.workspace, self.logger, model_registry, decision_budget,
+                candidate["session_id"])
+            reflection_model = decisions.decide_model(
+                f"Background reflection after cycle {candidate['cycle']}: {context[:400]}",
+                moment="background_reflection")
+        effective_model = reflection_model or getattr(self.client, "base_model", "gpt-oss:120b")
+        reflection_cap = (model_registry.get_output_cap(effective_model)
+                          if model_registry is not None
+                          else (self.max_tokens or int(os.getenv("SELF_DEFAULT_OUTPUT_CEILING", "32768"))))
+        model_arg = {"model": reflection_model} if reflection_model is not None else {}
+        budget = BudgetedLLM(self.client, self.logger, None, self.ledger)
+
+        parsed_value = None
+        truncated = False
+        parse_failed = False
+        last_text = ""
         try:
-            reflection_model = None
-            model_registry = getattr(self.client, "model_registry", None)
-            if model_registry is not None:
-                decision_budget = BudgetedLLM(self.client, self.logger, None, self.ledger)
-                reflection_model = ModelDecisions(
-                    self.workspace, self.logger, model_registry, decision_budget,
-                    candidate["session_id"]).decide_model(
-                        f"Background reflection after cycle {candidate['cycle']}: {context[:400]}",
-                        moment="background_reflection")
-            model_arg = {"model": reflection_model} if reflection_model is not None else {}
-            response = budget.call(system=system, messages=[{"role": "user", "content": context}],
-                                   tools=[], max_tokens=self.max_tokens, **model_arg)
+            for attempt_num in (1, 2):
+                if attempt_num == 1:
+                    messages = [{"role": "user", "content": context}]
+                else:
+                    messages = [
+                        {"role": "user", "content": context},
+                        {"role": "assistant", "content": last_text[:4000]},
+                        {"role": "user", "content": "Your previous reflection was truncated or not valid JSON. Be more concise: return ONLY a valid JSON object with the required fields: {\"post\": boolean, \"message\": string, \"question\": string|null}."}
+                    ]
+                response = budget.call(system=system, messages=messages,
+                                       tools=[], max_tokens=reflection_cap, **model_arg)
+                is_trunc = response_truncated(response, reflection_cap)
+                text = "\n".join(
+                    str(block.get("text", "")).strip()
+                    for block in response.content
+                    if block.get("type") == "text" and str(block.get("text", "")).strip()
+                ).strip()
+                last_text = text
+                if text.startswith("```"):
+                    text = text.strip("`").removeprefix("json").strip()
+                try:
+                    val = json.loads(text)
+                    if not isinstance(val, dict):
+                        raise ValueError("Reflection response is not a dict")
+                    parsed_value = val
+                    if is_trunc:
+                        truncated = True
+                    break
+                except Exception:
+                    truncated = is_trunc
+                    parse_failed = True
+                    if attempt_num == 1:
+                        continue
+                    break
         except BudgetExceeded:
             self.logger.log("reflection_skipped", cycle=candidate["cycle"], reason="budget")
             return None
-        text = "\n".join(
-            str(block.get("text", "")).strip()
-            for block in response.content
-            if block.get("type") == "text" and str(block.get("text", "")).strip()
-        ).strip()
-        if text.startswith("```"):
-            text = text.strip("`").removeprefix("json").strip()
-        try:
-            value = json.loads(text)
-        except json.JSONDecodeError:
+
+        if model_registry is not None and truncated:
+            model_registry.record_truncated_call(effective_model)
+        if decisions is not None:
+            decision_id = getattr(decisions, "last_checkpoint_call_id", None)
+            if decision_id:
+                if truncated:
+                    decisions.outcomes.append(decision_id, effective_model, "checkpoint:background_reflection",
+                                             "call_truncated", True, "objective",
+                                             session_id=candidate["session_id"])
+                if parse_failed:
+                    decisions.outcomes.append(decision_id, effective_model, "checkpoint:background_reflection",
+                                             "output_parse_failed", True, "objective",
+                                             session_id=candidate["session_id"])
+
+        if parsed_value is None:
             self.logger.log("reflection_skipped", cycle=candidate["cycle"], reason="malformed_response")
             return None
-        if not isinstance(value, dict) or not isinstance(value.get("post"), bool) or not value["post"]:
+        value = parsed_value
+        if not isinstance(value.get("post"), bool) or not value["post"]:
             self.logger.log("reflection_declined", cycle=candidate["cycle"])
             return None
         if not isinstance(value.get("message"), str) or (value.get("question") is not None and not isinstance(value.get("question"), str)):

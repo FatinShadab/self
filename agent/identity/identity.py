@@ -328,7 +328,7 @@ Checked at {now()}. This is a plain-language reading of the harness and editable
 - **Tool loading:** `{references['tools']}` loads registered tools from the mounted workspace and selects a bounded relevant subset for a model step. New tools must be reviewed and tested before registration.
 - **Memory and sessions:** `state/` is on the mounted workspace. The wake coordinator (`{references['wake']}`) creates handoffs and resumes durable session information after restart.
 - **Logs and redaction:** `{references['logging']}` writes append-only JSONL events and applies a redaction filter before harness output is persisted.
-- **Budgets and kill controls:** `{references['budget']}` persists daily token use; the loop enforces run iteration, token, and wall-clock limits. A workspace `STOP` file halts cleanly.
+- **Budgets and kill controls:** `{references['budget']}` persists daily token use (the single active token limit); the loop checks run iteration and wall-clock bounds. A workspace `STOP` file halts cleanly.
 - **Credentials and reach:** `{references['capability']}` writes human review requests for credentials and other expansions instead of changing host configuration.
 - **Editable layer:** `/home/entity/self/README.md:1` is the writable place for extension prompts, heuristics, planning logic, and themes.
 

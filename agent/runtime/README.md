@@ -16,7 +16,7 @@ The bounded autonomous action loop. It joins model calls, tools, memory, identit
 
 ## How it works
 
-AgentLoop builds the prompt and available tools, calls the base model, executes tool actions, records outcomes, and stops on budget, STOP, iteration, or clock limits.
+AgentLoop builds the prompt and available tools, calls the base model with the model ceiling, executes tool actions, records outcomes, and stops on STOP, iteration, or clock limits. When the daily token allowance is reached, it pauses cleanly until reset.
 
 ## State it touches
 

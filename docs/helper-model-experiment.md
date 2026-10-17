@@ -92,3 +92,30 @@ The task set has three tasks per category:
 | `container_investigation` | `investigate_python`, `investigate_tools`, `investigate_os` |
 
 The analysis excludes contaminated and infrastructure-error runs but lists and counts them. It separates tasks that are at 0% or 100% in every arm, reports sample sizes and a within-task bootstrap interval, and states whether that interval excludes zero. An interval that includes zero is inconclusive at the observed sample size; it does not establish that helper access has no effect. A small pilot is mainly a test of the harness and task difficulty.
+
+## Operator Guide: Model Evaluation & Routing
+
+### 1. Onboarding & Re-evaluation
+- On wake-up, the agent checks `helpers_needing_evaluation`: any configured helper lacking a probe at the current probe format version, with an invalidated probe, with `not_checked` research status, or lacking an agent assessment is surfaced to the agent.
+- The agent performs the evaluation itself using `probe_model`, then `research_model`, then `record_model_assessment` (citing the probe ID as evidence).
+- Assessments are recorded as compact, single-line comparisons (e.g. `550B/55B active, slow (~15-25s), strong reasoning, ctx 262k+; probe 4/4 passed`), explicitly distinguishing measured stats from web-researched facts.
+
+### 2. Validation & Model Names
+- Model names must exactly match configured registry entries. Calling tools with a missing or extra `-cloud` suffix returns an actionable alias hint explaining that results will not attach to the configured entry.
+- `ask_model` rejects the fixed base model (`gpt-oss:120b`) and lists enabled helpers. Unknown arguments return friendly errors listing valid arguments rather than raising Python `TypeError`.
+
+### 3. Checkpoints & Decision Caching
+- Checkpoint caps have been removed (`MAX_CHECKPOINTS_PER_SESSION`); every checkpoint decision is a real deliberate choice with a reason.
+- Decisions are cached per moment (e.g. `create_tool_critic`, `session_end_handoff`) within the active task and current tool attempt. The cache is invalidated on a new tool name, new task start (`start_task`), or any tool/provider failure.
+- Honest error fallbacks (`origin: "default_after_error"`) remain only for real network or unrecoverable provider failures.
+
+### 4. Output Ceilings, Bounded Retries & Daily Token Allowance
+- The daily token allowance (`DailyTokenLedger` / `SELF_MAX_TOKENS_PER_DAY`) is the single token limit. Per-run and per-session budgets have been eliminated.
+- Calls reserve an input estimate plus expected output tokens rather than the full ceiling, so a large model ceiling never blocks a call when the daily allowance covers likely usage. Mid-call daily exhaustion allows the call to finish, while the subsequent call pauses until reset.
+- Structured callers (reflection, critic, checkpoint) use the model's registry ceiling (`get_output_cap`, defaulting to 32,768). On truncation (`stop_reason: max_tokens`) or parse failure, exactly one bounded retry is executed requesting concise output conforming to valid JSON.
+- Truncated calls increment `truncated_calls` in `measured_stats` and record `call_truncated` and `output_parse_failed` signals in `model_outcomes.jsonl`.
+- Transient network and connection errors (`APIConnectionError`, `ConnectionError`, timeouts) are retried with exponential backoff and recorded as `network_errors`. They do not touch `failures` or `consecutive_failures`, and token reservations in `BudgetedLLM` are released.
+
+### 5. Interpreting `critic_flagged_but_tests_passed`
+- The `critic_flagged_but_tests_passed` signal is **ambiguous**: it often indicates that the critic astutely caught a subtle bug, security flaw, or edge case that an incomplete or weak unit test suite missed.
+- Do **not** treat this signal as negative evidence against the critic model; flag it for manual review of both the generated code and unit tests.

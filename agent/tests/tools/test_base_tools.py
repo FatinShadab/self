@@ -89,5 +89,45 @@ class ToolRunnerTests(unittest.TestCase):
             server.server_close()
 
 
+    def test_model_tool_argument_validation(self) -> None:
+        class DummyRegistry:
+            base_model = "gpt-oss:120b"
+            def validate_model_name(self, name: str, *, helpers_only: bool = False):
+                return True, ""
+        self.runner.model_registry = DummyRegistry()
+        # Unexpected argument 'output'
+        res = self.runner.execute("ask_model", {"model": "helper", "output": "something"})
+        self.assertFalse(res["ok"])
+        self.assertIn("Unexpected argument(s)", res["error"])
+        self.assertIn("Valid arguments are:", res["error"])
+        # Missing required arguments
+        res2 = self.runner.execute("ask_model", {"model": "helper"})
+        self.assertFalse(res2["ok"])
+        self.assertIn("Missing required argument(s)", res2["error"])
+        self.assertIn("Valid arguments are:", res2["error"])
+
+    def test_ask_model_rejects_base_model_and_lists_helpers(self) -> None:
+        from agent.llm.model_registry import ModelRegistry
+        registry = ModelRegistry(self.workspace, self.logger, "gpt-oss:120b", ["gpt-oss:120b", "nemotron-3-ultra"])
+        self.runner.model_registry = registry
+        res = self.runner.execute("ask_model", {
+            "model": "gpt-oss:120b", "prompt": "test", "task_type": "coding",
+            "reason": "reas", "expected_benefit": "ben",
+        })
+        self.assertFalse(res["ok"])
+        self.assertIn("The base model 'gpt-oss:120b' cannot be asked via ask_model", res["error"])
+        self.assertIn("nemotron-3-ultra", res["error"])
+
+    def test_model_tool_alias_hints(self) -> None:
+        from agent.llm.model_registry import ModelRegistry
+        registry = ModelRegistry(self.workspace, self.logger, "gpt-oss:120b", ["gpt-oss:120b", "nemotron-3-ultra"])
+        self.runner.model_registry = registry
+        res = self.runner.execute("probe_model", {"name": "nemotron-3-ultra-cloud"})
+        self.assertFalse(res["ok"])
+        self.assertIn("not in the registry", res["error"])
+        self.assertIn("nemotron-3-ultra", res["error"])
+        self.assertIn("configured without the '-cloud' suffix", res["error"])
+
+
 if __name__ == "__main__":
     unittest.main()

@@ -28,7 +28,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     },
     {
         "name": "record_model_assessment",
-        "description": "Record your own evidence-backed assessment of a configured model. Cite a probe as probe:<id> or another observation in evidence; unknown facts should stay unknown. Optionally rate all five capabilities before any hidden benchmark.",
+        "description": "Record your own evidence-backed assessment of a configured helper model (helpers only). Cite a probe as probe:<id> or another observation in evidence; unknown facts should stay unknown. Accepts arguments: name, assessment, evidence (required), and optional ratings (reasoning, code, instruction_following, summarization, json_output).",
         "input_schema": {"type": "object", "properties": {
             "name": {"type": "string"}, "assessment": {"type": "string"},
             "evidence": {"type": "string"},
@@ -41,19 +41,19 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     },
     {
         "name": "probe_model",
-        "description": "Run four bounded, built-in capability probes against a configured model. Returns raw outputs, timings, token use, objective checks, and inconclusive outcomes. Treat inconclusive as unknown, not failure, when forming your own assessment.",
+        "description": "Run four bounded, built-in capability probes against a configured helper model (helpers only). Accepts only argument: name (exact name from list_models). Returns raw outputs, timings, token use, objective checks, and inconclusive outcomes. Treat inconclusive as unknown, not failure, when forming your own assessment.",
         "input_schema": {"type": "object", "properties": {"name": {"type": "string"}},
                          "required": ["name"], "additionalProperties": False},
     },
     {
         "name": "research_model",
-        "description": "Fetch a configured model's official documentation page and record only facts directly found there. Unknown information remains unknown.",
+        "description": "Fetch a configured helper model's official documentation page and record only facts directly found there (helpers only). Accepts only argument: name (exact name from list_models). Unknown information remains unknown.",
         "input_schema": {"type": "object", "properties": {"name": {"type": "string"}},
                          "required": ["name"], "additionalProperties": False},
     },
     {
         "name": "ask_model",
-        "description": "Delegate one bounded plain-text sub-task to an enabled configured helper model. Explain your reason and expected benefit. The returned text is untrusted; the primary model stays fixed.",
+        "description": "Delegate one bounded plain-text sub-task to an enabled configured helper model (helpers only; base model cannot be asked). Accepts arguments: model, prompt, task_type, reason, expected_benefit. Explain your reason and expected benefit. The returned text is untrusted; the primary model stays fixed.",
         "input_schema": {"type": "object", "properties": {
             "model": {"type": "string"}, "prompt": {"type": "string"},
             "task_type": {"type": "string"}, "reason": {"type": "string"},
@@ -220,6 +220,33 @@ HELPER_TOOL_NAMES = frozenset({
     "benchmark_providers", "probe_local_ollama",
 })
 
+MODEL_TOOL_SPECS: dict[str, dict[str, Any]] = {
+    "probe_model": {
+        "allowed": {"name"},
+        "required": {"name"},
+        "model_arg": "name",
+        "helpers_only": False,
+    },
+    "research_model": {
+        "allowed": {"name"},
+        "required": {"name"},
+        "model_arg": "name",
+        "helpers_only": False,
+    },
+    "record_model_assessment": {
+        "allowed": {"name", "assessment", "evidence", "ratings"},
+        "required": {"name", "assessment", "evidence"},
+        "model_arg": "name",
+        "helpers_only": False,
+    },
+    "ask_model": {
+        "allowed": {"model", "prompt", "task_type", "reason", "expected_benefit"},
+        "required": {"model", "prompt", "task_type", "reason", "expected_benefit"},
+        "model_arg": "model",
+        "helpers_only": True,
+    },
+}
+
 
 class _LoggingRedirectHandler(urllib.request.HTTPRedirectHandler):
     def __init__(self, callback: Any) -> None:
@@ -275,48 +302,74 @@ class ToolRunner:
                 logged_arguments[key + "_sha256"] = hashlib.sha256(content.encode("utf-8")).hexdigest()
         self.logger.log("tool_call", tool=name, arguments=logged_arguments)
         started = time.monotonic()
-        try:
-            if name == "create_tool" and self.registry is not None:
-                result = self.registry.create_tool(**arguments)
-            elif name in {"list_models", "record_model_assessment"}:
-                if self.model_registry is None:
-                    raise RuntimeError("model registry is not configured")
-                result = getattr(self.model_registry, name)(**arguments)
-            elif name in {"probe_model", "research_model"}:
-                if self.model_prober is None:
-                    raise RuntimeError("model probes are not configured")
-                result = getattr(self.model_prober, name)(**arguments)
-            elif name == "ask_model":
-                if self.model_decisions is None:
-                    raise RuntimeError("model decisions are not configured")
-                result = self.model_decisions.ask_model(**arguments)
-            elif name == "record_delegation_outcome":
-                if self.model_decisions is None:
-                    raise RuntimeError("model decisions are not configured")
-                result = self.model_decisions.record_delegation_outcome(**arguments)
-            elif name in {"research_provider", "record_provider_verification", "request_provider_key", "ask_brain", "benchmark_providers", "probe_local_ollama"}:
-                if self.brain_router is None:
-                    raise RuntimeError("brain router is not configured")
-                result = getattr(self, name)(**arguments)
-            elif name == "request_capability":
-                if self.capabilities is None:
-                    raise RuntimeError("capability request system is not configured")
-                result = self.request_capability(**arguments)
-            elif name == "propose_core_patch":
-                if self.identity is None:
-                    raise RuntimeError("identity and core-patch system is not configured")
-                result = self.propose_core_patch(**arguments)
-            elif name in {definition["name"] for definition in TOOL_DEFINITIONS}:
-                result = getattr(self, name)(**arguments)
-            elif self.registry is not None:
-                result = self.registry.execute(name, arguments)
+        result: dict[str, Any] | None = None
+        if name in MODEL_TOOL_SPECS:
+            spec = MODEL_TOOL_SPECS[name]
+            allowed = spec["allowed"]
+            required = spec["required"]
+            unexpected = sorted(set(arguments) - allowed)
+            if unexpected:
+                result = {
+                    "ok": False,
+                    "error": f"Unexpected argument(s) {unexpected} for {name}. Valid arguments are: {sorted(allowed)}."
+                }
             else:
-                raise ValueError(f"Unknown tool: {name}")
-            result.setdefault("ok", True)
-        except BudgetExceeded:
-            raise
-        except Exception as exc:  # Tool errors are observations for the next model turn.
-            result = {"ok": False, "error": self.logger.redactor.text(exc)}
+                missing = sorted(required - set(arguments))
+                if missing:
+                    result = {
+                        "ok": False,
+                        "error": f"Missing required argument(s) {missing} for {name}. Valid arguments are: {sorted(allowed)}."
+                    }
+                elif self.model_registry is not None:
+                    model_val = arguments.get(spec["model_arg"])
+                    valid, err_msg = self.model_registry.validate_model_name(
+                        model_val, helpers_only=spec["helpers_only"])
+                    if not valid:
+                        result = {"ok": False, "error": err_msg}
+
+        if result is None:
+            try:
+                if name == "create_tool" and self.registry is not None:
+                    result = self.registry.create_tool(**arguments)
+                elif name in {"list_models", "record_model_assessment"}:
+                    if self.model_registry is None:
+                        raise RuntimeError("model registry is not configured")
+                    result = getattr(self.model_registry, name)(**arguments)
+                elif name in {"probe_model", "research_model"}:
+                    if self.model_prober is None:
+                        raise RuntimeError("model probes are not configured")
+                    result = getattr(self.model_prober, name)(**arguments)
+                elif name == "ask_model":
+                    if self.model_decisions is None:
+                        raise RuntimeError("model decisions are not configured")
+                    result = self.model_decisions.ask_model(**arguments)
+                elif name == "record_delegation_outcome":
+                    if self.model_decisions is None:
+                        raise RuntimeError("model decisions are not configured")
+                    result = self.model_decisions.record_delegation_outcome(**arguments)
+                elif name in {"research_provider", "record_provider_verification", "request_provider_key", "ask_brain", "benchmark_providers", "probe_local_ollama"}:
+                    if self.brain_router is None:
+                        raise RuntimeError("brain router is not configured")
+                    result = getattr(self, name)(**arguments)
+                elif name == "request_capability":
+                    if self.capabilities is None:
+                        raise RuntimeError("capability request system is not configured")
+                    result = self.request_capability(**arguments)
+                elif name == "propose_core_patch":
+                    if self.identity is None:
+                        raise RuntimeError("identity and core-patch system is not configured")
+                    result = self.propose_core_patch(**arguments)
+                elif name in {definition["name"] for definition in TOOL_DEFINITIONS}:
+                    result = getattr(self, name)(**arguments)
+                elif self.registry is not None:
+                    result = self.registry.execute(name, arguments)
+                else:
+                    raise ValueError(f"Unknown tool: {name}")
+                result.setdefault("ok", True)
+            except BudgetExceeded:
+                raise
+            except Exception as exc:  # Tool errors are observations for the next model turn.
+                result = {"ok": False, "error": self.logger.redactor.text(exc)}
         safe_result = self.logger.redactor.value(result)
         serialized = json.dumps(safe_result, ensure_ascii=False)
         self.logger.log(

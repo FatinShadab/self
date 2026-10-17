@@ -21,6 +21,10 @@ Bounded helper-model probes, task decisions, and outcome records. It stores agen
 ## How it works
 
 ModelProber checks eligible models; ModelDecisions records a choice and optional delegation; ModelOutcomes links later signals to calls.
+- **Picker Summary**: `_summary_entry` surfaces rich model profiles (up to 300 char assessment, probe pass/fail/inconclusive counts, measured average and max latency, truncation rate, researched total/active parameter counts, context window, pricing, speed, strengths; missing values marked `"unknown"`). The base model is presented with the identical format.
+- **Anti-Inference Prompting**: The model picker prompt explicitly directs the deciding model not to infer capability, parameter count, or architecture from model names (e.g. "120b", "ultra"), but instead compare using supplied facts and recorded stats.
+- **Unlimited Checkpoints & Moment Caching**: Checkpoint caps have been removed; every checkpoint decision is a real deliberate choice with a reason. Decisions are cached per moment within the active task and current tool attempt, and invalidated on a new tool name, task start, or failure.
+- **Model Output Ceilings & Bounded Retries**: Calls utilize the model's output ceiling from the registry. If a structured call (checkpoint, critic, reflection) hits truncation, exactly one bounded retry is executed requesting concise output conforming to valid JSON.
 
 ## State it touches
 
@@ -36,4 +40,5 @@ Run `python -m unittest discover -s /opt/agent/tests/helper_models -v` in the co
 
 ## Gotchas
 
-A helper being used is observational. Only randomized arm comparisons support a causal claim.
+1. A helper being used is observational. Only randomized arm comparisons support a causal claim.
+2. `critic_flagged_but_tests_passed` is ambiguous (the critic may have caught a subtle security flaw or bug that unit tests failed to test). It requires manual review and must not be treated as evidence against the critic model.

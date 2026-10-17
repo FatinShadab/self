@@ -23,6 +23,7 @@ MAX_COUNTER = 1_000_000_000
 MAX_FILE_BYTES = 1_000_000
 MAX_PROBES_PER_SESSION = 2
 PROBE_COOLDOWN_SECONDS = 3_600
+SCHEMA_VERSION = 2
 PROBE_FORMAT_VERSION = 2
 LEGACY_PROBE_INVALIDATION_REASON = "Earlier probe output caps did not account for hidden thinking or provider truncation."
 RATING_CATEGORIES = ("reasoning", "code", "instruction_following", "summarization", "json_output")
@@ -34,6 +35,46 @@ def _env_limit(name: str, default: int, minimum: int, maximum: int) -> int:
         return max(minimum, min(maximum, int(os.getenv(name, str(default)))))
     except ValueError:
         return default
+
+
+def get_helpers_needing_evaluation(data_or_registry: dict[str, Any] | ModelRegistry) -> list[str]:
+    """Compute helpers that need evaluation from models.json data or a ModelRegistry.
+
+    A helper needs evaluation if it has no probe in probe_history at the current probe_format_version,
+    or its latest probe is invalidated, or research.status is not_checked, or it has no agent_assessment.
+    """
+    if hasattr(data_or_registry, "list_models"):
+        data = data_or_registry.list_models()
+    elif isinstance(data_or_registry, dict):
+        data = data_or_registry
+    else:
+        return []
+    format_version = int(data.get("probe_format_version", PROBE_FORMAT_VERSION) or PROBE_FORMAT_VERSION)
+    needing: list[str] = []
+    for model in data.get("models", []):
+        if not isinstance(model, dict):
+            continue
+        if model.get("role") == "base" or model.get("status") == "disabled" or model.get("configured") is False:
+            continue
+        name = model.get("name")
+        if not name:
+            continue
+        history = [item for item in model.get("probe_history", []) if isinstance(item, dict)]
+        has_current_probe = any(
+            not item.get("invalidated") and int(item.get("format_version", format_version) or format_version) == format_version
+            for item in history
+        )
+        latest_invalidated = bool(history and history[-1].get("invalidated"))
+        research = model.get("research", {})
+        research_status = research.get("status", "not_checked") if isinstance(research, dict) else "not_checked"
+        has_assessment = bool(str(model.get("agent_assessment", "")).strip())
+
+        if not has_current_probe or latest_invalidated or research_status == "not_checked" or not has_assessment:
+            needing.append(name)
+    return needing
+
+
+DEFAULT_MODEL_OUTPUT_CEILING = 32_768
 
 
 class ModelRegistry:
@@ -51,6 +92,7 @@ class ModelRegistry:
             raise ValueError("Configured model list is empty, too large, or contains an invalid name")
         self.base_model = base_model
         self.names = names
+        self._logged_assumed_ceilings: set[str] = set()
         self.probe_cooldown_seconds = _env_limit(
             "SELF_PROBE_COOLDOWN_SECONDS", PROBE_COOLDOWN_SECONDS, 0, 86_400)
         self.probes_per_model_per_session = _env_limit(
@@ -61,6 +103,7 @@ class ModelRegistry:
         return {
             "name": name,
             "role": "base" if name == self.base_model else "helper",
+            "configured": True,
             "status": "configured",
             "status_message": "",
             "last_failure_at": None,
@@ -68,14 +111,16 @@ class ModelRegistry:
             "assessment_evidence": "",
             "ratings": None,
             "ratings_at": None,
-            "measured_stats": {"calls": 0, "failures": 0, "latency_ms_total": 0,
+            "measured_stats": {"calls": 0, "failures": 0, "truncated_calls": 0, "network_errors": 0,
+                               "latency_ms_total": 0,
                                "latency_ms_min": None, "latency_ms_max": None,
                                "consecutive_failures": 0, "probe_passes": 0,
                                "probe_failures": 0, "probe_inconclusive": 0},
             "notes": "",
             "probe_history": [],
-            "research": {"status": "not_checked", "source_url": None,
+            "research": {"status": "not_checked", "status_message": "", "source_url": None,
                          "last_checked": None, "last_verified": None, "facts": [],
+                         "total_params": None, "active_params": None,
                          "context_window": None, "pricing": None,
                          "speed": None, "strengths": None},
         }
@@ -94,7 +139,8 @@ class ModelRegistry:
                 return value
         except (OSError, ValueError):
             pass
-        return {"schema_version": 1, "base_model": self.base_model, "models": []}
+        return {"schema_version": SCHEMA_VERSION, "probe_format_version": PROBE_FORMAT_VERSION,
+                "base_model": self.base_model, "models": []}
 
     def _write(self, data: dict[str, Any]) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
@@ -117,78 +163,147 @@ class ModelRegistry:
             entries = []
             for name in self.names:
                 entry = self._blank(name)
-                old = existing.get(name, {})
-                for field, limit in (("agent_assessment", MAX_ASSESSMENT_CHARS),
-                                     ("assessment_evidence", MAX_EVIDENCE_CHARS),
-                                     ("notes", MAX_NOTES_CHARS)):
-                    entry[field] = str(old.get(field, ""))[:limit]
-                prior_ratings = old.get("ratings")
-                if (isinstance(prior_ratings, dict) and
-                    set(prior_ratings) == set(RATING_CATEGORIES) and
-                    all(value in RATING_VALUES for value in prior_ratings.values())):
-                    entry["ratings"] = prior_ratings
-                    entry["ratings_at"] = old.get("ratings_at")
-                if old.get("status") in {"configured", "reachable", "last_call_failed", "not_found"}:
-                    entry["status"] = old["status"]
-                if old.get("status") == "disabled":
-                    entry["status"] = "disabled"
-                entry["status_message"] = str(old.get("status_message", ""))[:300]
-                entry["last_failure_at"] = old.get("last_failure_at")
-                if isinstance(old.get("probe_history"), list):
-                    entry["probe_history"] = [
-                        {"id": str(item.get("id", ""))[:32],
-                         "session_id": str(item.get("session_id", ""))[:80],
-                         "at": float(item.get("at", 0) or 0),
-                         "status": str(item.get("status", ""))[:20],
-                         "invalidated": old_probe_format < PROBE_FORMAT_VERSION or bool(item.get("invalidated", False)),
-                         "invalidation_reason": (LEGACY_PROBE_INVALIDATION_REASON if old_probe_format < PROBE_FORMAT_VERSION
-                                                 else str(item.get("invalidation_reason", ""))[:300])}
-                        for item in old["probe_history"][-32:] if isinstance(item, dict)
-                    ]
-                invalidated_ids = {item["id"] for item in entry["probe_history"] if item["invalidated"]}
-                if any(f"probe:{probe_id}" in entry["assessment_evidence"] for probe_id in invalidated_ids):
-                    entry["agent_assessment"] = ""
-                    entry["assessment_evidence"] = ""
-                    entry["ratings"] = None
-                    entry["ratings_at"] = None
-                if isinstance(old.get("research"), dict):
-                    research = old["research"]
-                    entry["research"] = {
-                        "status": str(research.get("status", "not_checked"))[:40],
-                        "source_url": str(research["source_url"])[:500] if research.get("source_url") else None,
-                        "last_checked": str(research["last_checked"])[:80] if research.get("last_checked") else None,
-                        "last_verified": str(research["last_verified"])[:80] if research.get("last_verified") else None,
-                        "facts": [
-                            {"field": str(item.get("field", ""))[:80],
-                             "value": str(item.get("value", ""))[:500],
-                             "excerpt": str(item.get("excerpt", ""))[:500],
-                             "source_url": str(item.get("source_url", ""))[:500],
-                             "last_verified": str(item.get("last_verified", ""))[:80]}
-                            for item in research.get("facts", [])[:8] if isinstance(item, dict)
-                        ],
-                        "context_window": None,
-                        "pricing": None,
-                        "speed": None,
-                        "strengths": None,
-                    }
-                stats = old.get("measured_stats", {})
-                if isinstance(stats, dict):
-                    for field in ("calls", "failures", "latency_ms_total", "consecutive_failures",
-                                  "probe_passes", "probe_failures", "probe_inconclusive"):
-                        entry["measured_stats"][field] = min(
-                            MAX_COUNTER, max(0, int(stats.get(field, 0) or 0)))
-                    if "consecutive_failures" not in stats and entry["status"] == "last_call_failed":
-                        entry["measured_stats"]["consecutive_failures"] = 1
-                    for field in ("latency_ms_min", "latency_ms_max"):
-                        value = stats.get(field)
-                        entry["measured_stats"][field] = (
-                            min(MAX_COUNTER, max(0, int(value))) if value is not None else None
-                        )
+                old = existing.pop(name, None)
+                if old is not None:
+                    for field, limit in (("agent_assessment", MAX_ASSESSMENT_CHARS),
+                                         ("assessment_evidence", MAX_EVIDENCE_CHARS),
+                                         ("notes", MAX_NOTES_CHARS)):
+                        entry[field] = str(old.get(field, ""))[:limit]
+                    prior_ratings = old.get("ratings")
+                    if (isinstance(prior_ratings, dict) and
+                        set(prior_ratings) == set(RATING_CATEGORIES) and
+                        all(value in RATING_VALUES for value in prior_ratings.values())):
+                        entry["ratings"] = prior_ratings
+                        entry["ratings_at"] = old.get("ratings_at")
+                    if old.get("status") in {"configured", "reachable", "last_call_failed", "not_found"}:
+                        entry["status"] = old["status"]
+                    if old.get("status") == "disabled":
+                        entry["status"] = "disabled"
+                    entry["status_message"] = str(old.get("status_message", ""))[:300]
+                    entry["last_failure_at"] = old.get("last_failure_at")
+                    if isinstance(old.get("probe_history"), list):
+                        entry["probe_history"] = [
+                            {"id": str(item.get("id", ""))[:32],
+                             "session_id": str(item.get("session_id", ""))[:80],
+                             "at": float(item.get("at", 0) or 0),
+                             "status": str(item.get("status", ""))[:20],
+                             "format_version": int(item.get("format_version", old_probe_format) or old_probe_format),
+                             "invalidated": old_probe_format < PROBE_FORMAT_VERSION or bool(item.get("invalidated", False)),
+                             "invalidation_reason": (LEGACY_PROBE_INVALIDATION_REASON if old_probe_format < PROBE_FORMAT_VERSION
+                                                     else str(item.get("invalidation_reason", ""))[:300])}
+                            for item in old["probe_history"][-32:] if isinstance(item, dict)
+                        ]
+                    invalidated_ids = {item["id"] for item in entry["probe_history"] if item["invalidated"]}
+                    if any(f"probe:{probe_id}" in entry["assessment_evidence"] for probe_id in invalidated_ids):
+                        entry["agent_assessment"] = ""
+                        entry["assessment_evidence"] = ""
+                        entry["ratings"] = None
+                        entry["ratings_at"] = None
+                    if isinstance(old.get("research"), dict):
+                        research = old["research"]
+                        entry["research"] = {
+                            "status": str(research.get("status", "not_checked"))[:40],
+                            "status_message": str(research.get("status_message", ""))[:300],
+                            "source_url": str(research["source_url"])[:500] if research.get("source_url") else None,
+                            "last_checked": str(research["last_checked"])[:80] if research.get("last_checked") else None,
+                            "last_verified": str(research["last_verified"])[:80] if research.get("last_verified") else None,
+                            "facts": [
+                                {"field": str(item.get("field", ""))[:80],
+                                 "value": str(item.get("value", ""))[:500],
+                                 "excerpt": str(item.get("excerpt", ""))[:500],
+                                 "source_url": str(item.get("source_url", ""))[:500] if item.get("source_url") else None,
+                                 "origin": str(item.get("origin", "web"))[:20],
+                                 "last_verified": str(item.get("last_verified", ""))[:80]}
+                                for item in research.get("facts", [])[:8] if isinstance(item, dict)
+                            ],
+                            "total_params": str(research.get("total_params", ""))[:40] if research.get("total_params") else None,
+                            "active_params": str(research.get("active_params", ""))[:40] if research.get("active_params") else None,
+                            "context_window": str(research.get("context_window", ""))[:40] if research.get("context_window") else None,
+                            "pricing": str(research.get("pricing", ""))[:80] if research.get("pricing") else None,
+                            "speed": str(research.get("speed", ""))[:40] if research.get("speed") else None,
+                            "strengths": str(research.get("strengths", ""))[:120] if research.get("strengths") else None,
+                        }
+                    stats = old.get("measured_stats", {})
+                    if isinstance(stats, dict):
+                        for field in ("calls", "failures", "truncated_calls", "network_errors", "latency_ms_total", "consecutive_failures",
+                                      "probe_passes", "probe_failures", "probe_inconclusive"):
+                            entry["measured_stats"][field] = min(
+                                MAX_COUNTER, max(0, int(stats.get(field, 0) or 0)))
+                        if "consecutive_failures" not in stats and entry["status"] == "last_call_failed":
+                            entry["measured_stats"]["consecutive_failures"] = 1
+                        for field in ("latency_ms_min", "latency_ms_max"):
+                            value = stats.get(field)
+                            entry["measured_stats"][field] = (
+                                min(MAX_COUNTER, max(0, int(value))) if value is not None else None
+                            )
                 entries.append(entry)
-            data = {"schema_version": 1, "probe_format_version": PROBE_FORMAT_VERSION,
+            for old_name, old_entry in existing.items():
+                # Preserve renamed or discontinued model history without attaching to new entries
+                preserved = dict(old_entry)
+                preserved["configured"] = False
+                preserved["status"] = "unconfigured"
+                preserved["status_message"] = (
+                    f"Model '{old_name}' is no longer configured in the registry; historical assessment and probes belong to this discontinued name."
+                )
+                entries.append(preserved)
+            data = {"schema_version": SCHEMA_VERSION, "probe_format_version": PROBE_FORMAT_VERSION,
                     "base_model": self.base_model, "models": entries}
             if data != prior:
                 self._write(data)
+
+    def helpers_needing_evaluation(self) -> list[str]:
+        """Return helper models needing evaluation."""
+        return get_helpers_needing_evaluation(self)
+
+    def get_output_cap(self, name: str, default_cap: int | None = None) -> int:
+        """Return configured per-model output cap override if set, else registry ceiling, else 32768."""
+        env_key = "SELF_OUTPUT_CAP_" + re.sub(r"[^A-Za-z0-9]", "_", name).upper()
+        env_val = os.getenv(env_key)
+        if env_val:
+            try:
+                val = int(env_val)
+                if val > 0:
+                    return val
+            except ValueError:
+                pass
+        with self._locked():
+            data = self._read()
+            entry = next((item for item in data.get("models", []) if item.get("name") == name), None)
+            if entry:
+                cap = entry.get("output_cap") or entry.get("max_tokens")
+                if isinstance(cap, int) and cap > 0:
+                    return cap
+        if default_cap is not None and default_cap > 0 and default_cap != 1024:
+            return default_cap
+        ceiling = int(os.getenv("SELF_DEFAULT_OUTPUT_CEILING", str(DEFAULT_MODEL_OUTPUT_CEILING)))
+        if name not in self._logged_assumed_ceilings:
+            self._logged_assumed_ceilings.add(name)
+            self.logger.log("assumed_output_ceiling", model=name, ceiling=ceiling,
+                            reason="Maximum output length not in registry or env; using assumed ceiling.")
+        return ceiling
+
+    def validate_model_name(self, name: str, *, helpers_only: bool = False) -> tuple[bool, str]:
+        """Validate model name against registry with alias hints and helpers-only rule."""
+        if not isinstance(name, str) or not name.strip():
+            valid_names = sorted(n for n in self.names if not helpers_only or n != self.base_model)
+            return False, f"Model name must be a non-empty string. Valid models are: {', '.join(valid_names)}."
+        cleaned = name.strip()
+        if helpers_only and cleaned == self.base_model:
+            enabled_helpers = sorted(m["name"] for m in self.list_models()["models"]
+                                     if m.get("configured", True) and m["role"] == "helper" and m["status"] != "disabled")
+            return False, (
+                f"The base model '{cleaned}' cannot be asked via ask_model. "
+                f"ask_model is for helper models only. Enabled helper models are: {', '.join(enabled_helpers)}."
+            )
+        if cleaned not in self.names:
+            valid_names = sorted(n for n in self.names if not helpers_only or n != self.base_model)
+            alias_hint = ""
+            if cleaned.endswith("-cloud") and cleaned[:-6] in self.names:
+                alias_hint = f" Note: '{cleaned[:-6]}' is configured without the '-cloud' suffix; results will not be attached to '{cleaned[:-6]}'."
+            elif f"{cleaned}-cloud" in self.names:
+                alias_hint = f" Note: '{cleaned}-cloud' is configured with the '-cloud' suffix; results will not be attached to '{cleaned}-cloud'."
+            return False, f"Model '{cleaned}' is not in the registry. Valid models are: {', '.join(valid_names)}.{alias_hint}"
+        return True, ""
 
     def list_models(self) -> dict[str, Any]:
         """Return all configured models with assessments and measured stats."""
@@ -301,6 +416,39 @@ class ModelRegistry:
             entry["last_failure_at"] = time.time()
             self._write(data)
 
+    def record_truncated_call(self, name: str) -> None:
+        """Count a response that ended in max_tokens/truncation without marking clean success."""
+        if name not in self.names:
+            return
+        with self._locked():
+            data = self._read()
+            entry = next((item for item in data["models"] if item["name"] == name), None)
+            if entry is not None:
+                stats = entry["measured_stats"]
+                stats["truncated_calls"] = min(MAX_COUNTER, stats.get("truncated_calls", 0) + 1)
+                self._write(data)
+
+    def record_network_error(self, name: str, *, latency_ms: int = 0) -> None:
+        """Record a transient network/connection error without counting it as a model failure."""
+        if name not in self.names:
+            return
+        latency = min(MAX_COUNTER, max(0, int(latency_ms)))
+        with self._locked():
+            data = self._read()
+            entry = next((item for item in data["models"] if item["name"] == name), None)
+            if entry is not None:
+                stats = entry["measured_stats"]
+                stats["network_errors"] = min(MAX_COUNTER, stats.get("network_errors", 0) + 1)
+                stats["calls"] = min(MAX_COUNTER, stats["calls"] + 1)
+                stats["latency_ms_total"] = min(MAX_COUNTER, stats["latency_ms_total"] + latency)
+                if stats["latency_ms_min"] is None:
+                    stats["latency_ms_min"] = latency
+                else:
+                    stats["latency_ms_min"] = min(stats["latency_ms_min"], latency)
+                stats["latency_ms_max"] = max(stats.get("latency_ms_max") or 0, latency)
+                # Note: We do NOT increment failures or consecutive_failures, nor set status to last_call_failed
+                self._write(data)
+
     def begin_probe(self, name: str, session_id: str, *, now: float | None = None) -> str:
         """Mark a model probe as in progress."""
         if name not in self.names:
@@ -321,7 +469,8 @@ class ModelRegistry:
                 raise ValueError("Model probe cooldown is active")
             probe_id = uuid.uuid4().hex
             history.append({"id": probe_id, "session_id": session_id,
-                            "at": when, "status": "running", "invalidated": False,
+                            "at": when, "status": "running", "format_version": PROBE_FORMAT_VERSION,
+                            "invalidated": False,
                             "invalidation_reason": ""})
             entry["probe_history"] = history[-32:]
             self._write(data)
@@ -339,7 +488,10 @@ class ModelRegistry:
             self._write(data)
 
     def record_research(self, name: str, *, status: str, source_url: str | None,
-                        facts: list[dict[str, Any]]) -> dict[str, Any]:
+                        facts: list[dict[str, Any]], status_message: str = "",
+                        total_params: str | None = None, active_params: str | None = None,
+                        context_window: str | None = None, pricing: str | None = None,
+                        speed: str | None = None, strengths: str | None = None) -> dict[str, Any]:
         """Store official research evidence for a configured model."""
         if name not in self.names:
             raise ValueError("Model is not configured")
@@ -349,16 +501,26 @@ class ModelRegistry:
             safe_facts.append({"field": str(fact["field"])[:80],
                                "value": self.logger.redactor.text(str(fact["value"]))[:500],
                                "excerpt": self.logger.redactor.text(str(fact["excerpt"]))[:500],
-                               "source_url": source_url, "last_verified": checked})
+                               "source_url": source_url,
+                               "origin": str(fact.get("origin", "web"))[:20],
+                               "last_verified": checked})
         with self._locked():
             data = self._read()
             entry = next(item for item in data["models"] if item["name"] == name)
-            entry["research"] = {"status": status, "source_url": source_url,
-                                 "last_checked": checked,
-                                 "last_verified": checked if safe_facts else None,
-                                 "facts": safe_facts, "context_window": None,
-                                 "pricing": None, "speed": None,
-                                 "strengths": None}
+            entry["research"] = {
+                "status": status,
+                "status_message": str(status_message)[:300],
+                "source_url": source_url,
+                "last_checked": checked,
+                "last_verified": checked if safe_facts else None,
+                "facts": safe_facts,
+                "total_params": str(total_params)[:40] if total_params else None,
+                "active_params": str(active_params)[:40] if active_params else None,
+                "context_window": str(context_window)[:40] if context_window else None,
+                "pricing": str(pricing)[:80] if pricing else None,
+                "speed": str(speed)[:40] if speed else None,
+                "strengths": str(strengths)[:120] if strengths else None,
+            }
             self._write(data)
         self.logger.log("model_research_recorded", name=name, status=status,
                         source_url=source_url, fact_count=len(safe_facts))

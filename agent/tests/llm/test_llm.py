@@ -209,6 +209,58 @@ class LLMKeyRotationTests(unittest.TestCase):
             self.assertNotIn("first", log)
             self.assertNotIn("second", log)
 
+    def test_helpers_needing_evaluation_lifecycle(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            logger = EventLogger(os.path.join(temp, "logs", "actions.jsonl"))
+            registry = ModelRegistry(temp, logger, "base", ["base", "helper"])
+            self.assertEqual(registry.helpers_needing_evaluation(), ["helper"])
+
+            probe_id = registry.begin_probe("helper", "session-1")
+            registry.finish_probe("helper", probe_id, failed=False)
+            registry.record_research("helper", status="completed", source_url="https://example.com", facts=[])
+            registry.record_model_assessment("helper", "Great helper", f"probe:{probe_id}")
+
+            self.assertEqual(registry.helpers_needing_evaluation(), [])
+
+            reopened = ModelRegistry(temp, logger, "base", ["base", "helper-v2"])
+            self.assertEqual(reopened.helpers_needing_evaluation(), ["helper-v2"])
+            helper_v2 = reopened.get_model("helper-v2")
+            self.assertEqual(helper_v2["agent_assessment"], "")
+            self.assertEqual(helper_v2["probe_history"], [])
+            data = reopened._read()
+            old_entry = next(m for m in data["models"] if m["name"] == "helper")
+            self.assertFalse(old_entry.get("configured"))
+            self.assertEqual(old_entry.get("status"), "unconfigured")
+
+    def test_network_errors_retry_and_release_budget(self) -> None:
+        class NetworkErrorAnthropic:
+            instances = []
+            def __init__(self, **kwargs):
+                self.calls = 0
+                self.messages = self
+                NetworkErrorAnthropic.instances.append(self)
+            def create(self, **kwargs):
+                self.calls += 1
+                raise ConnectionError("Connection refused by peer")
+
+        with tempfile.TemporaryDirectory() as temp:
+            logger = EventLogger(os.path.join(temp, "logs", "actions.jsonl"))
+            ledger = DailyTokenLedger(temp, logger, cap=10_000)
+            env = {"OLLAMA_API_KEYS": "key1", "OLLAMA_MODEL": "base"}
+            with patch("agent.llm.llm.Anthropic", NetworkErrorAnthropic), patch.dict(os.environ, env, clear=True), patch("time.sleep", return_value=None):
+                client = LLMClient(logger)
+                budget = BudgetedLLM(client, logger, 5_000, daily_ledger=ledger)
+                with self.assertRaises(ConnectionError):
+                    budget.call(system="sys", messages=[{"role": "user", "content": "hi"}], tools=[], max_tokens=100)
+
+                self.assertEqual(budget.tokens_used, 0)
+                self.assertEqual(ledger.available_tokens(), 10_000)
+
+                stats = client.model_registry.get_model("base")["measured_stats"]
+                self.assertEqual(stats["network_errors"], 1)
+                self.assertEqual(stats["failures"], 0)
+                self.assertEqual(stats["consecutive_failures"], 0)
+
 
 if __name__ == "__main__":
     unittest.main()

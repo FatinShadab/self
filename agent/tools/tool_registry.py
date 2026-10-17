@@ -16,6 +16,7 @@ from typing import Any, Callable, Protocol
 
 from agent.infra.event_log import EventLogger, SECRET_NAME_MARKERS
 from agent.infra.process_runner import run_process
+from agent.llm.llm import response_truncated
 
 
 CREATE_TOOL_DEFINITION = {
@@ -147,6 +148,7 @@ class ToolRegistry:
         self.search = search or KeywordToolSearch()
         self.tools: dict[str, dict[str, Any]] = {}
         self.attempt_counts: dict[str, int] = {}
+        self._logged_rejections: set[str] = set()
         self.refresh()
 
     @staticmethod
@@ -179,8 +181,12 @@ class ToolRegistry:
                     if digest((folder / file).read_text(encoding="utf-8")) != meta[key]:
                         raise ValueError(f"{file} changed outside create_tool; re-test and review it")
                 loaded[folder.name] = meta
+                self._logged_rejections.discard(folder.name)
             except (OSError, ValueError, KeyError, TypeError) as exc:
-                self.logger.log("tool_load_rejected", name=folder.name, error=str(exc))
+                if folder.name not in self._logged_rejections:
+                    self._logged_rejections.add(folder.name)
+                    self.logger.log("tool_load_rejected", name=folder.name, error=str(exc),
+                                    how_to_clear="Re-test and re-register through create_tool to clear this rejection.")
         changed = {name for name, meta in loaded.items() if self.tools.get(name) != meta}
         self.tools = loaded
         for name in sorted(changed):
@@ -250,32 +256,92 @@ class ToolRegistry:
             # Do not apply prose redaction to Python source; it can corrupt code.
             (candidate / "tool.py").write_text(code, encoding="utf-8")
             (candidate / "test_tool.py").write_text(test_code, encoding="utf-8")
-            self.logger.narrate(f"Reviewing proposed tool {name} with the critic...")
-            review_model = (self.model_decisions.decide_model(
-                f"Review proposed Python tool {name}: {description[:240]}", moment="create_tool_critic")
-                if self.model_decisions is not None else None)
+            review_model = None
+            if self.model_decisions is not None:
+                try:
+                    review_model = self.model_decisions.decide_model(
+                        f"Review proposed Python tool {name}: {description[:240]}",
+                        moment="create_tool_critic", tool_name=name)
+                except TypeError:
+                    review_model = self.model_decisions.decide_model(
+                        f"Review proposed Python tool {name}: {description[:240]}",
+                        moment="create_tool_critic")
             if os.getenv("SELF_HELPER_MODELS", "on").strip().lower() != "on":
                 review_model = os.getenv("SELF_CRITIC_MODEL", "").strip() or None
             critic_call_id = (getattr(self.model_decisions, "last_checkpoint_call_id", None)
                               if self.model_decisions is not None else None)
             critic_model = review_model or critic_model
-            call_args = dict(system=CRITIC_PROMPT, messages=[{"role": "user", "content": json.dumps({
+            model_reg = getattr(self.model_decisions, "registry", None) if self.model_decisions else None
+            critic_cap = (model_reg.get_output_cap(critic_model)
+                          if model_reg else int(os.getenv("SELF_DEFAULT_OUTPUT_CEILING", "32768")))
+
+            verdict = None
+            critic_truncated = False
+            critic_parse_failed = False
+            raw_prompt = json.dumps({
                 "name": name, "description": description, "code": code, "test_code": test_code,
-            })}], tools=[], max_tokens=1024)
-            if review_model is not None:
-                call_args["model"] = review_model
-            try:
-                response = self.review_call(**call_args)
-            except Exception:
-                if self.model_decisions is not None and hasattr(self.model_decisions, "record_provider_error"):
-                    self.model_decisions.record_provider_error()
-                raise
-            text = "\n".join(str(block.get("text", "")) for block in response.content if block.get("type") == "text").strip()
-            if text.startswith("```json") and text.endswith("```"):
-                text = text[7:-3].strip()
-            verdict = json.loads(text)
-            if not isinstance(verdict, dict) or not isinstance(verdict.get("issues"), list):
-                raise ValueError("Critic did not return a valid verdict")
+            })
+            last_text = ""
+            for attempt_num in (1, 2):
+                if attempt_num == 1:
+                    messages = [{"role": "user", "content": raw_prompt}]
+                else:
+                    messages = [
+                        {"role": "user", "content": raw_prompt},
+                        {"role": "assistant", "content": last_text[:4000]},
+                        {"role": "user", "content": "Your previous review was truncated or invalid JSON. Be concise: summarize any issues briefly and return ONLY the valid JSON object: {\"approved\": bool, \"issues\": [...]}."}
+                    ]
+                call_args = dict(system=CRITIC_PROMPT, messages=messages, tools=[], max_tokens=critic_cap)
+                if review_model is not None:
+                    call_args["model"] = review_model
+                try:
+                    response = self.review_call(**call_args)
+                except Exception:
+                    if self.model_decisions is not None and hasattr(self.model_decisions, "record_provider_error"):
+                        self.model_decisions.record_provider_error()
+                    raise
+                is_trunc = response_truncated(response, critic_cap)
+                text = "\n".join(str(block.get("text", "")) for block in response.content if block.get("type") == "text").strip()
+                last_text = text
+                if text.startswith("```json") and text.endswith("```"):
+                    text = text[7:-3].strip()
+                elif text.startswith("```") and text.endswith("```"):
+                    text = text.strip("`").removeprefix("json").strip()
+                try:
+                    parsed = json.loads(text)
+                    if not isinstance(parsed, dict) or not isinstance(parsed.get("issues"), list):
+                        raise ValueError("Critic did not return a valid verdict")
+                    verdict = parsed
+                    if is_trunc:
+                        critic_truncated = True
+                    break
+                except Exception:
+                    critic_truncated = is_trunc
+                    critic_parse_failed = True
+                    if attempt_num == 1:
+                        continue
+                    break
+
+            if model_reg is not None and critic_truncated:
+                model_reg.record_truncated_call(critic_model)
+            if critic_call_id and self.model_decisions is not None:
+                if critic_truncated:
+                    self.model_decisions.outcomes.append(
+                        critic_call_id, critic_model, "checkpoint:create_tool_critic",
+                        "call_truncated", True, "objective",
+                        session_id=self.model_decisions.session_id,
+                        task_id=self.model_decisions.active_task_id,
+                        tool_name=name, attempt=attempt)
+                if critic_parse_failed:
+                    self.model_decisions.outcomes.append(
+                        critic_call_id, critic_model, "checkpoint:create_tool_critic",
+                        "output_parse_failed", True, "objective",
+                        session_id=self.model_decisions.session_id,
+                        task_id=self.model_decisions.active_task_id,
+                        tool_name=name, attempt=attempt)
+
+            if verdict is None:
+                raise ValueError("Critic did not return a valid verdict" + (": response was truncated" if critic_truncated else ""))
             entry["critic"] = self.logger.redactor.value(verdict)
             self.logger.log("tool_critic", name=name, attempt=attempt, verdict=entry["critic"])
             critic_approved = verdict.get("approved") is True and not verdict["issues"]
