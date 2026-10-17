@@ -1,7 +1,7 @@
 # Document 10: Coupling, Host/Body Assumptions & Plugin Seams
 
-**Git Commit:** `14ffa606468920a97c672b39fbf3a43fccc52bdf`  
-**Date:** 2026-10-17  
+**Git Commit:** `p12-safety`  
+**Date:** 2026-10-18  
 **Status:** Read-only architecture documentation
 
 ---
@@ -179,18 +179,32 @@ graph TD
   - `agent/plugins/manager.py`: Each plugin maintains its isolated persistent state in `workspace/plugins/<name>/state/`.
   - `compute_plugin_hash()`: Content hash checking explicitly ignores `state/`, `__pycache__`, and `*.pyc`, allowing plugins to read/write state freely without triggering hash mismatches.
 
+### Seam 7: Permission Broker & Stop Watcher Seam
+- **Status:** **IMPLEMENTED (Prompt 12)** via `agent.infra.PermissionBroker` and `agent.infra.StopWatcher`.
+- **Target Interface:**
+  - `PermissionBroker`: Core-owned mediation of every action across bodies and plugins. Hierarchical action tiers (L0 observe, L1 reversible, L2 destructive, L3 actuation), default deny >L0 until granted in human-controlled `/config/permissions.json`, sliding-window action rate limits, dry-run mode, and single-use undo hooks. Automatically panics on repeated failures and triggers `Body.emergency_stop()`.
+  - `StopWatcher`: Lightweight background thread polling stop triggers (STOP file, pause flag, broker panic) and trapping `SIGINT`/`SIGTERM` signals independent of coordinator or LLM idle state, immediately halting actuation via `Body.emergency_stop()`.
+- **Implementation:**
+  - `agent/infra/permission_broker.py`: Implements core `PermissionBroker`.
+  - `agent/infra/stop_watcher.py`: Implements background `StopWatcher`.
+  - `agent/body/base.py` & `agent/body/container.py`: Integrated `body.broker` authorization and panic/stop handling.
+  - `agent/plugins/manager.py`: Plugin actions mediated via `broker.authorize(actor=f"plugin:{plugin_name}", ...)`.
+  - `agent/tools/base_tools.py`: Tool actions authorized via broker before execution.
+  - `agent/runtime/loop.py` & `agent/session/coordinator.py`: Wired broker, stop watcher, and audit trail into cycle lifecycle.
+
 ---
 
 ## 4. Ranked Difficulty Summary of Seams
 
 | Rank | Seam | Difficulty | Primary Challenge & Rationale | Status |
-| :---: | :--- | :---: | :--- | :--- |
+| :---: | :--- | :--- | :--- | :--- |
 | **1** | **Body Interface (`Sense` / `Act` / `Permissions`)** | **HIGH** | `base_tools.py`, `process_runner.py`, and `wake.py` contain deep, pervasive assumptions about Linux bash, root execution, cgroups, `/proc`, and container filesystems. Abstracting these into an interface without breaking existing tool behavior or security requires substantial refactoring. | **IMPLEMENTED (Prompt 10)** |
-| **2** | **Prompt Assembly & System Prompt** | **MEDIUM** | Prompts are fragile. Splitting `SYSTEM_PROMPT` into core autonomy vs. body embodiment requires careful phrasing so the agent retains its first-person non-subservient voice and strict safety rules regardless of body. | **IMPLEMENTED (Prompt 10 & 11)** |
-| **3** | **State Partitioning & File Organization** | **MEDIUM** | Existing workspace state files have interdependencies across `learning.py`, `plan.py`, and `report.py`. Moving files into namespaced subdirectories requires careful path migrations. | **IMPLEMENTED (Prompt 11)** |
-| **4** | **Tool Registry & Dynamic Offerings** | **LOW** | `ToolRegistry` already dynamically loads and tests tools; wrapping base tools into provider interfaces is a natural extension of existing design. | **IMPLEMENTED (Prompt 11)** |
-| **5** | **Plan Seeding & Startup Tasks** | **LOW** | Removing the hardcoded Python package inventory startup priority and parameterizing `seed_task` is localized to `wake.py:1385` and `loop.py:394`. | **IMPLEMENTED (Prompt 10 & 11)** |
-| **6** | **Identity Framing & Default Interests** | **LOW** | Parameterizing `interests` in `default_identity()` is localized to `agent/identity/identity.py:86`. | **IMPLEMENTED (Prompt 10)** |
+| **2** | **Permission Broker & Stop Watcher Seam** | **HIGH** | Mediating all body and plugin actions through a centralized core broker without introducing circular dependencies or performance bottlenecks, while ensuring asynchronous stop signals reliably kill in-flight actuation independent of LLM thinking rounds. | **IMPLEMENTED (Prompt 12)** |
+| **3** | **Prompt Assembly & System Prompt** | **MEDIUM** | Prompts are fragile. Splitting `SYSTEM_PROMPT` into core autonomy vs. body embodiment requires careful phrasing so the agent retains its first-person non-subservient voice and strict safety rules regardless of body. | **IMPLEMENTED (Prompt 10 & 11)** |
+| **4** | **State Partitioning & File Organization** | **MEDIUM** | Existing workspace state files have interdependencies across `learning.py`, `plan.py`, and `report.py`. Moving files into namespaced subdirectories requires careful path migrations. | **IMPLEMENTED (Prompt 11)** |
+| **5** | **Tool Registry & Dynamic Offerings** | **LOW** | `ToolRegistry` already dynamically loads and tests tools; wrapping base tools into provider interfaces is a natural extension of existing design. | **IMPLEMENTED (Prompt 11)** |
+| **6** | **Plan Seeding & Startup Tasks** | **LOW** | Removing the hardcoded Python package inventory startup priority and parameterizing `seed_task` is localized to `wake.py:1385` and `loop.py:394`. | **IMPLEMENTED (Prompt 10 & 11)** |
+| **7** | **Identity Framing & Default Interests** | **LOW** | Parameterizing `interests` in `default_identity()` is localized to `agent/identity/identity.py:86`. | **IMPLEMENTED (Prompt 10)** |
 
 ---
 

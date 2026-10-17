@@ -251,7 +251,10 @@ def get_env_vars():
         {"name": "SELF_VOICE_ENABLED", "default": "false", "where_read": "agent/ui/voice.py:19", "meaning": "Enable or disable speech synthesis / voice output."},
         {"name": "SELF_WORKSPACE_DIR", "default": "./workspace", "where_read": "docker-compose.yml:17", "meaning": "Host directory mounted to /home/entity inside container."},
         {"name": "SELF_CONFIG_DIR", "default": "./config", "where_read": "docker-compose.yml:22", "meaning": "Host configuration directory mounted read-only for human plugin control."},
-        {"name": "EVAL_WORKSPACE_DIR", "default": "./workspace", "where_read": "docker-compose.yml:34", "meaning": "Host directory mounted as read-only workspace for eval container."}
+        {"name": "EVAL_WORKSPACE_DIR", "default": "./workspace", "where_read": "docker-compose.yml:34", "meaning": "Host directory mounted as read-only workspace for eval container."},
+        {"name": "HTTP_PROXY", "default": "", "where_read": "docker-compose.yml:78", "meaning": "HTTP forward proxy for container egress filtering under hardened profile."},
+        {"name": "HTTPS_PROXY", "default": "", "where_read": "docker-compose.yml:79", "meaning": "HTTPS forward proxy for container egress filtering under hardened profile."},
+        {"name": "NO_PROXY", "default": "localhost,127.0.0.1", "where_read": "docker-compose.yml:82", "meaning": "Bypass list for proxy connections under hardened profile."}
     ]
 
 def get_state_files():
@@ -289,9 +292,13 @@ def get_state_files():
         {"path": "workspace/state/capability_requests.md", "purpose": "Human-facing requests for new capabilities (mounts, credentials, etc.)", "writer": "agent/infra/hardening.py", "reader": "agent/ui/wake.py"},
         {"path": "workspace/state/key_requests.md", "purpose": "Human-facing requests for supplementary provider API keys", "writer": "agent/llm/providers/registry.py", "reader": "agent/ui/wake.py"},
         {"path": "workspace/state/egress.jsonl", "purpose": "Audit log of external HTTP requests made by tools", "writer": "agent/infra/hardening.py", "reader": "agent/reporting/report.py"},
+        {"path": "workspace/state/audit_trail.jsonl", "purpose": "Append-only hash-chained action audit log with SHA-256 verification", "writer": "agent/infra/audit_trail.py", "reader": "agent/infra/audit_trail.py"},
+        {"path": "workspace/state/extension_diffs.log", "purpose": "Append-only diff log for self-modifications loaded from /home/entity/self/", "writer": "agent/infra/untrusted.py", "reader": "agent/infra/untrusted.py"},
         {"path": "workspace/logs/actions.jsonl", "purpose": "Primary append-only event log containing all system and agent events", "writer": "agent/infra/event_log.py", "reader": "agent/infra/event_log.py, agent/reporting/report.py, agent/ui/wake.py"},
         {"path": "workspace/memory/lessons.jsonl", "purpose": "Recorded tool failure lessons after 3 failed creation attempts", "writer": "agent/tools/tool_registry.py", "reader": "agent/runtime/loop.py"},
-        {"path": "config/plugins.json", "purpose": "Human-owned configuration file recording plugin enablement status and SHA-256 hash pins", "writer": "agent/plugins/manager.py", "reader": "agent/plugins/manager.py"}
+        {"path": "config/plugins.json", "purpose": "Human-owned configuration file recording plugin enablement status and SHA-256 hash pins", "writer": "agent/plugins/manager.py", "reader": "agent/plugins/manager.py"},
+        {"path": "config/permissions.json", "purpose": "Human-owned permission policy defining action levels (L0-L3) and actor grants", "writer": "Human operator", "reader": "agent/infra/permission_broker.py"},
+        {"path": "config/egress_allowlist.txt", "purpose": "Human-owned domain and IP prefix allowlist for hardened egress proxy sidecar", "writer": "Human operator", "reader": "scripts/egress_proxy.py"}
     ]
 
 def get_entry_points():
@@ -305,6 +312,7 @@ def get_entry_points():
         {"name": "agent.ui.version_check", "path": "agent/ui/version_check.py", "type": "CLI / Hook", "description": "Verify code hash against expected image version to catch stale containers."},
         {"name": "agent.ui.phase8_verify", "path": "agent/ui/phase8_verify.py", "type": "CLI", "description": "Verification script for Phase 8 identity and plan integration."},
         {"name": "agent.tools.tool_worker", "path": "agent/tools/tool_worker.py", "type": "Subprocess Worker", "description": "Subprocess runner for custom tools; reads JSON from stdin and emits JSON envelope."},
+        {"name": "scripts/egress_proxy.py", "path": "scripts/egress_proxy.py", "type": "Proxy Sidecar", "description": "Forward HTTP/HTTPS filtering proxy sidecar with domain allowlist for hardened profile."},
         {"name": "scripts/run-tests.ps1", "path": "scripts/run-tests.ps1", "type": "Host Script", "description": "Build CI image and run agent unit tests and isolated eval unit tests in Docker."},
         {"name": "scripts/run-tests.sh", "path": "scripts/run-tests.sh", "type": "Host Script", "description": "Shell script equivalent of run-tests.ps1 for Linux/macOS hosts."},
         {"name": "scripts/live-check.ps1", "path": "scripts/live-check.ps1", "type": "Host Script", "description": "Diagnostic health check verifying image, plan, models, errors, framing, and environment."}
@@ -312,7 +320,7 @@ def get_entry_points():
 
 def get_packages():
     return [
-        {"package": "agent.infra", "layer": 0, "purpose": "Event logging, file locks, process runner, provider call caps, and daily token budget hardening."},
+        {"package": "agent.infra", "layer": 0, "purpose": "Event logging, file locks, process runner, provider call caps, daily token budget, permission broker, untrusted data delimiters, stop watcher, and audit trail."},
         {"package": "agent.llm", "layer": 1, "purpose": "LLM client, BudgetedLLM wrapper, model registry, provider adapters, and brain router."},
         {"package": "agent.body", "layer": 1, "purpose": "Body interface, capability declarations, sensing, hardware/OS actions, and ContainerBody implementation."},
         {"package": "agent.tools", "layer": 2, "purpose": "Base tools, tool runner, tool registry, tool creation pipeline, and tool worker subprocess."},
