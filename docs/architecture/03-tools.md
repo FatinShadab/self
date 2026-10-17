@@ -10,6 +10,8 @@
 
 The harness defines 23 tools (22 base tools in `agent/tools/base_tools.py` plus `create_tool` in `agent/tools/tool_registry.py`).
 
+`ToolRunner` (`agent/tools/base_tools.py:270`) accepts an optional `Body` instance (defaulting to `ContainerBody` from `agent/body/container.py`). All 6 body-specific actions (`run_shell`, `read_file`, `write_file`, `list_dir`, `http_get`, `probe_local_ollama`) and core path enforcement are delegated directly to `self.body`. The tool names, argument schemas, and return formats remain strictly identical for backward compatibility with existing agent cognition and custom tools.
+
 | Tool Name | Arguments | Return Shape | Module | Core vs. Body-Specific | Risk Class |
 | :--- | :--- | :--- | :--- | :--- | :--- |
 | `list_models` | None `{}` | `{"ok": bool, "base_model": str, "models": list[dict]}` | `agent/tools/base_tools.py:25` | **Core** (cognition) | Reads |

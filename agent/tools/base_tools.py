@@ -12,6 +12,7 @@ import uuid
 from pathlib import Path
 from typing import Any
 
+from agent.body.base import Body
 from agent.infra.event_log import EventLogger
 from agent.llm.llm import BudgetExceeded
 from agent.infra.process_runner import run_process
@@ -335,6 +336,7 @@ class ToolRunner:
         output_cap: int | None = None,
         core_root: str | Path = "/opt/agent/core",
         agent_root: str | Path = "/opt/agent",
+        body: Body | None = None,
     ) -> None:
         self.logger = logger
         self.workspace = Path(workspace)
@@ -342,16 +344,36 @@ class ToolRunner:
         self.agent_root = Path(agent_root)
         configured_cap = int(os.getenv("SELF_MAX_OUTPUT_CHARS", str(DEFAULT_OUTPUT_CAP)))
         self.output_cap = max(1_000, output_cap or configured_cap)
+        if body is None:
+            from agent.body.container import ContainerBody
+            body = ContainerBody(
+                workspace=self.workspace,
+                logger=self.logger,
+                core_root=self.core_root,
+                agent_root=self.agent_root,
+                output_cap=self.output_cap,
+            )
+        self.body = body
         self.registry: Any = None
         self.learning: Any = None
         self.brain_router: Any = None
         self.capabilities: Any = None
-        self.identity: Any = None
+        self._identity: Any = None
         self.model_registry: Any = None
         self.model_prober: Any = None
         self.model_decisions: Any = None
         self.plan_store: Any = None
         self.current_cycle: int = 1
+
+    @property
+    def identity(self) -> Any:
+        return self._identity
+
+    @identity.setter
+    def identity(self, value: Any) -> None:
+        self._identity = value
+        if hasattr(self.body, "identity"):
+            self.body.identity = value
 
     def execute(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
         """Execute a named tool with its supplied arguments."""
@@ -454,22 +476,7 @@ class ToolRunner:
 
     def run_shell(self, cmd: str, timeout: float = 30) -> dict[str, Any]:
         """Run a bounded shell command inside the container."""
-        stream_id = uuid.uuid4().hex[:12]
-        safe_command = self.logger.redactor.text(cmd)
-        self.logger.log("command_started", stream_id=stream_id, command=safe_command[:2_000], timeout=float(timeout))
-
-        def on_output(chunk: str) -> None:
-            self.logger.log("command_output", stream_id=stream_id,
-                            output=self.logger.redactor.text(chunk)[:4_000])
-
-        def on_complete(result: dict[str, Any]) -> None:
-            self.logger.log("command_finished", stream_id=stream_id,
-                            exit_code=result.get("exit_code"), timed_out=bool(result.get("timed_out")),
-                            output_bytes=result.get("output_bytes", 0), truncated=bool(result.get("truncated")))
-
-        return run_process(["/bin/bash", "-lc", cmd], cwd=self.workspace,
-                           timeout=float(timeout), cap=self.output_cap,
-                           on_output=on_output, on_complete=on_complete)
+        return self.body.run_shell(cmd=cmd, timeout=timeout)
 
     def read_plan(self, include_history: bool = False, **arguments: Any) -> dict[str, Any]:
         """Read the persistent plan state."""
@@ -514,7 +521,7 @@ class ToolRunner:
 
     def probe_local_ollama(self) -> dict[str, Any]:
         """Check local Ollama availability without starting or pulling a model."""
-        return self.brain_router.probe_local_ollama()
+        return self.body.probe_local_ollama()
 
     def request_capability(self, kind: str, summary: str, reason: str, provider: str = "", env_names: list[str] | None = None, signup_url: str = "") -> dict[str, Any]:
         """Record a human-facing request for expanded capabilities."""
@@ -526,6 +533,9 @@ class ToolRunner:
 
     def _is_core_path(self, path: Path) -> bool:
         """Treat symlink and traversal variants of image-owned harness paths as protected."""
+        checker = getattr(self.body, "_is_core_path", None)
+        if callable(checker):
+            return bool(checker(path))
         try:
             candidate = path.resolve(strict=False)
             return any(candidate.is_relative_to(root.resolve(strict=False)) for root in (self.core_root, self.agent_root))
@@ -534,100 +544,19 @@ class ToolRunner:
 
     def read_file(self, path: str, max_chars: int = DEFAULT_OUTPUT_CAP) -> dict[str, Any]:
         """Read a file that passes the runner's path checks."""
-        limit = max(1, min(int(max_chars), self.output_cap))
-        file_path = Path(path)
-        with file_path.open("r", encoding="utf-8", errors="replace") as handle:
-            content = handle.read(limit + 1)
-        return {
-            "path": str(file_path),
-            "content": content[:limit],
-            "truncated": len(content) > limit,
-        }
+        return self.body.read_file(path=path, max_chars=max_chars)
 
     def write_file(self, path: str, content: str, append: bool = False) -> dict[str, Any]:
         """Write a workspace file after enforcing path and size limits."""
-        file_path = Path(path)
-        if self._is_core_path(file_path):
-            raise PermissionError(
-                "The image-owned /opt/agent harness (including /opt/agent/core) is protected. Save a diff with propose_core_patch so the human can review and apply it from the host."
-            )
-        if self.identity is not None and self.identity.is_managed_path(file_path):
-            raise PermissionError(
-                "Identity-managed state cannot be overwritten through write_file. Preserve the append-only identity trail; the human may edit identity.json from the host, while the harness records evidence-backed reflection changes."
-            )
-        file_path.parent.mkdir(parents=True, exist_ok=True)
-        safe_content = self.logger.redactor.known(content)
-        with file_path.open("a" if append else "w", encoding="utf-8") as handle:
-            written = handle.write(safe_content)
-        try:
-            relative = file_path.resolve().relative_to((self.workspace / "tools").resolve())
-        except ValueError:
-            relative = None
-        if relative is not None:
-            self.logger.log("tool_created" if not append else "tool_updated", path=str(file_path), bytes=written)
-        return {"path": str(file_path), "chars_written": written, "append": bool(append)}
+        if self._identity is not None and getattr(self.body, "identity", None) is None:
+            self.body.identity = self._identity
+        return self.body.write_file(path=path, content=content, append=append)
 
     def list_dir(self, path: str, max_entries: int = 500) -> dict[str, Any]:
         """List directory entries up to a bounded count without following links."""
-        limit = max(1, min(int(max_entries), 5_000))
-        entries: list[dict[str, Any]] = []
-        truncated = False
-        with os.scandir(path) as iterator:
-            for index, entry in enumerate(iterator):
-                if index >= limit:
-                    truncated = True
-                    break
-                item: dict[str, Any] = {
-                    "name": entry.name,
-                    "type": "dir" if entry.is_dir(follow_symlinks=False) else "file",
-                }
-                if entry.is_symlink():
-                    item["type"] = "symlink"
-                elif item["type"] == "file":
-                    item["size"] = entry.stat(follow_symlinks=False).st_size
-                entries.append(item)
-        entries.sort(key=lambda item: (item["type"], item["name"].lower()))
-        return {"path": str(path), "entries": entries, "truncated": truncated}
-
-    def _log_network(self, url: str, method: str = "GET", **extra: Any) -> None:
-        parsed = urllib.parse.urlsplit(url)
-        self.logger.log(
-            "network_request",
-            method=method,
-            host=parsed.hostname or "",
-            path=parsed.path or "/",
-            **extra,
-        )
+        return self.body.list_dir(path=path, max_entries=max_entries)
 
     def http_get(self, url: str, timeout: float = 20, max_chars: int = DEFAULT_OUTPUT_CAP) -> dict[str, Any]:
         """Fetch a URL and record observable network access."""
-        parsed = urllib.parse.urlsplit(url)
-        if parsed.scheme not in {"http", "https"} or not parsed.hostname:
-            raise ValueError("http_get requires an http:// or https:// URL with a host")
-        limit = max(1, min(int(max_chars), self.output_cap))
-        self._log_network(url)
-        opener = urllib.request.build_opener(_LoggingRedirectHandler(self._log_network))
-        request = urllib.request.Request(url, headers={"User-Agent": "SELF/0.2"}, method="GET")
-        try:
-            with opener.open(request, timeout=max(0.1, float(timeout))) as response:
-                body = response.read(limit + 1)
-                content_type = response.headers.get_content_type()
-                charset = response.headers.get_content_charset() or "utf-8"
-                status = response.status
-                final_url = response.geturl()
-        except urllib.error.HTTPError as exc:
-            body = exc.read(limit + 1)
-            content_type = exc.headers.get_content_type() if exc.headers else "text/plain"
-            charset = exc.headers.get_content_charset() if exc.headers else None
-            charset = charset or "utf-8"
-            status = exc.code
-            final_url = exc.geturl()
-        final = urllib.parse.urlsplit(final_url)
-        return {
-            "status": status,
-            "host": final.hostname or "",
-            "path": final.path or "/",
-            "content_type": content_type,
-            "body": body[:limit].decode(charset, errors="replace"),
-            "truncated": len(body) > limit,
-        }
+        return self.body.http_get(url=url, timeout=timeout, max_chars=max_chars)
+

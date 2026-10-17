@@ -13,6 +13,11 @@
       "purpose": "LLM client, BudgetedLLM wrapper, model registry, provider adapters, and brain router."
     },
     {
+      "package": "agent.body",
+      "layer": 1,
+      "purpose": "Body interface, capability declarations, sensing, hardware/OS actions, and ContainerBody implementation."
+    },
+    {
       "package": "agent.tools",
       "layer": 2,
       "purpose": "Base tools, tool runner, tool registry, tool creation pipeline, and tool worker subprocess."
@@ -40,7 +45,7 @@
     {
       "package": "agent.session",
       "layer": 4,
-      "purpose": "Session management, inter-session handoff, independent conversations, and background reflections."
+      "purpose": "Headless WakeCoordinator, session management, inter-session handoff, independent conversations, and background reflections."
     },
     {
       "package": "agent.reporting",
@@ -50,7 +55,7 @@
     {
       "package": "agent.ui",
       "layer": 5,
-      "purpose": "Wake coordinator, Textual TUI, cardiac monitor, voice interface, and startup version checks."
+      "purpose": "Textual TUI front-end, cardiac monitor, voice interface, and terminal front-end."
     }
   ],
   "entry_points": [
@@ -59,6 +64,12 @@
       "path": "agent/ui/wake.py",
       "type": "CLI / Main Service",
       "description": "Primary container entrypoint running WakeCoordinator with Textual TUI or --headless mode."
+    },
+    {
+      "name": "agent.run",
+      "path": "agent/run.py",
+      "type": "CLI / Entrypoint",
+      "description": "Headless agent entrypoint running WakeCoordinator without Textual UI (--headless mode)."
     },
     {
       "name": "agent.runtime.loop",
@@ -288,7 +299,7 @@
     {
       "name": "about_human_line_deleted",
       "emitters": [
-        "agent/identity/identity.py:571"
+        "agent/identity/identity.py:595"
       ],
       "fields": [
         "line_number",
@@ -298,7 +309,7 @@
     {
       "name": "about_human_recorded",
       "emitters": [
-        "agent/identity/identity.py:542"
+        "agent/identity/identity.py:566"
       ],
       "fields": [
         "chars",
@@ -308,7 +319,7 @@
     {
       "name": "agent_step",
       "emitters": [
-        "agent/runtime/loop.py:300"
+        "agent/runtime/loop.py:331"
       ],
       "fields": [
         "message"
@@ -340,7 +351,7 @@
     {
       "name": "code_version",
       "emitters": [
-        "agent/ui/version_check.py:44"
+        "agent/session/version_check.py:44"
       ],
       "fields": [
         "plan_store_present",
@@ -350,7 +361,7 @@
     {
       "name": "command_finished",
       "emitters": [
-        "agent/tools/base_tools.py:466"
+        "agent/body/container.py:413"
       ],
       "fields": [
         "exit_code",
@@ -363,7 +374,7 @@
     {
       "name": "command_output",
       "emitters": [
-        "agent/tools/base_tools.py:462"
+        "agent/body/container.py:409"
       ],
       "fields": [
         "output",
@@ -373,7 +384,7 @@
     {
       "name": "command_started",
       "emitters": [
-        "agent/tools/base_tools.py:459"
+        "agent/body/container.py:406"
       ],
       "fields": [
         "command",
@@ -384,7 +395,7 @@
     {
       "name": "context_retrieval",
       "emitters": [
-        "agent/runtime/loop.py:153"
+        "agent/runtime/loop.py:179"
       ],
       "fields": [
         "files_scanned",
@@ -395,7 +406,7 @@
     {
       "name": "conversation_thread_completed",
       "emitters": [
-        "agent/session/conversation.py:109"
+        "agent/session/conversation.py:123"
       ],
       "fields": [
         "chars",
@@ -405,7 +416,7 @@
     {
       "name": "conversation_thread_failed",
       "emitters": [
-        "agent/session/conversation.py:66"
+        "agent/session/conversation.py:92"
       ],
       "fields": [
         "error_type",
@@ -415,7 +426,7 @@
     {
       "name": "conversation_thread_started",
       "emitters": [
-        "agent/session/conversation.py:57"
+        "agent/session/conversation.py:83"
       ],
       "fields": [
         "chars",
@@ -425,7 +436,7 @@
     {
       "name": "core_patch_proposed",
       "emitters": [
-        "agent/identity/identity.py:706"
+        "agent/identity/identity.py:730"
       ],
       "fields": [
         "diff_chars",
@@ -436,7 +447,7 @@
     {
       "name": "curriculum_proposed",
       "emitters": [
-        "agent/learning/learning.py:294"
+        "agent/learning/learning.py:302"
       ],
       "fields": [
         "difficulty",
@@ -458,7 +469,7 @@
     {
       "name": "cycle_completed",
       "emitters": [
-        "agent/runtime/loop.py:627"
+        "agent/runtime/loop.py:660"
       ],
       "fields": [
         "actions",
@@ -470,7 +481,7 @@
     {
       "name": "daily_budget_human_request_created",
       "emitters": [
-        "agent/runtime/loop.py:270"
+        "agent/runtime/loop.py:301"
       ],
       "fields": [
         "path"
@@ -502,7 +513,7 @@
     {
       "name": "daily_token_limit_paused",
       "emitters": [
-        "agent/runtime/loop.py:276"
+        "agent/runtime/loop.py:307"
       ],
       "fields": [
         "session_id"
@@ -511,7 +522,7 @@
     {
       "name": "daily_token_limit_resumed",
       "emitters": [
-        "agent/runtime/loop.py:280"
+        "agent/runtime/loop.py:311"
       ],
       "fields": [
         "session_id"
@@ -520,7 +531,7 @@
     {
       "name": "editable_self_layer_initialized",
       "emitters": [
-        "agent/identity/identity.py:222"
+        "agent/identity/identity.py:229"
       ],
       "fields": [
         "path"
@@ -529,7 +540,7 @@
     {
       "name": "environment_map_initialized",
       "emitters": [
-        "agent/learning/learning.py:79"
+        "agent/learning/learning.py:81"
       ],
       "fields": [
         "entries"
@@ -538,7 +549,7 @@
     {
       "name": "environment_map_updated",
       "emitters": [
-        "agent/learning/learning.py:156"
+        "agent/learning/learning.py:158"
       ],
       "fields": [
         "keys",
@@ -548,7 +559,7 @@
     {
       "name": "first_awakening_stage_completed",
       "emitters": [
-        "agent/identity/identity.py:235"
+        "agent/identity/identity.py:242"
       ],
       "fields": [
         "session_id",
@@ -598,7 +609,7 @@
     {
       "name": "human_name_saved",
       "emitters": [
-        "agent/identity/identity.py:447"
+        "agent/identity/identity.py:471"
       ],
       "fields": [
         "previous",
@@ -608,7 +619,7 @@
     {
       "name": "identity_changed",
       "emitters": [
-        "agent/identity/identity.py:132"
+        "agent/identity/identity.py:139"
       ],
       "fields": [
         "change",
@@ -618,7 +629,7 @@
     {
       "name": "identity_context_fallback",
       "emitters": [
-        "agent/runtime/loop.py:334"
+        "agent/runtime/loop.py:365"
       ],
       "fields": [
         "error_type"
@@ -627,7 +638,7 @@
     {
       "name": "identity_initialized",
       "emitters": [
-        "agent/identity/identity.py:206"
+        "agent/identity/identity.py:213"
       ],
       "fields": [
         "session_id"
@@ -717,7 +728,7 @@
     {
       "name": "memory_recorded",
       "emitters": [
-        "agent/learning/learning.py:187"
+        "agent/learning/learning.py:189"
       ],
       "fields": [
         "outcome",
@@ -727,7 +738,7 @@
     {
       "name": "memory_retrieval",
       "emitters": [
-        "agent/learning/learning.py:219"
+        "agent/learning/learning.py:221"
       ],
       "fields": [
         "query",
@@ -808,7 +819,7 @@
     {
       "name": "name_context_resolved",
       "emitters": [
-        "agent/identity/identity.py:527"
+        "agent/identity/identity.py:551"
       ],
       "fields": [
         "name",
@@ -828,6 +839,8 @@
     {
       "name": "network_request",
       "emitters": [
+        "agent/body/container.py:500",
+        "agent/body/container.py:545",
         "agent/helper_models/model_probe.py:129",
         "agent/helper_models/model_probe.py:124",
         "agent/llm/brain_router.py:175",
@@ -835,8 +848,7 @@
         "agent/llm/llm.py:275",
         "agent/llm/providers/registry.py:118",
         "agent/tests/infra/test_hardening.py:42",
-        "agent/tests/infra/test_hardening.py:43",
-        "agent/tools/base_tools.py:594"
+        "agent/tests/infra/test_hardening.py:43"
       ],
       "fields": [
         "host",
@@ -1078,7 +1090,7 @@
     {
       "name": "repeated_tool_action_blocked",
       "emitters": [
-        "agent/runtime/loop.py:585"
+        "agent/runtime/loop.py:618"
       ],
       "fields": [
         "tool"
@@ -1097,7 +1109,7 @@
     {
       "name": "run_completed",
       "emitters": [
-        "agent/runtime/loop.py:658"
+        "agent/runtime/loop.py:691"
       ],
       "fields": [
         "iterations",
@@ -1108,8 +1120,8 @@
     {
       "name": "run_failed",
       "emitters": [
-        "agent/runtime/loop.py:745",
-        "agent/runtime/loop.py:551"
+        "agent/runtime/loop.py:778",
+        "agent/runtime/loop.py:584"
       ],
       "fields": [
         "error",
@@ -1120,7 +1132,7 @@
     {
       "name": "run_started",
       "emitters": [
-        "agent/runtime/loop.py:397"
+        "agent/runtime/loop.py:430"
       ],
       "fields": [
         "curriculum",
@@ -1136,9 +1148,9 @@
     {
       "name": "run_stopped",
       "emitters": [
-        "agent/runtime/loop.py:230",
-        "agent/runtime/loop.py:741",
-        "agent/runtime/loop.py:432"
+        "agent/runtime/loop.py:261",
+        "agent/runtime/loop.py:774",
+        "agent/runtime/loop.py:465"
       ],
       "fields": [
         "reason"
@@ -1147,7 +1159,7 @@
     {
       "name": "self_notes_rewritten",
       "emitters": [
-        "agent/learning/learning.py:268"
+        "agent/learning/learning.py:276"
       ],
       "fields": [
         "chars"
@@ -1186,7 +1198,7 @@
     {
       "name": "session_reflection_completed",
       "emitters": [
-        "agent/ui/wake.py:1176"
+        "agent/session/coordinator.py:572"
       ],
       "fields": [
         "purpose",
@@ -1196,7 +1208,7 @@
     {
       "name": "session_reflection_fallback",
       "emitters": [
-        "agent/ui/wake.py:1179"
+        "agent/session/coordinator.py:575"
       ],
       "fields": [
         "error_type",
@@ -1217,7 +1229,7 @@
     {
       "name": "session_summary",
       "emitters": [
-        "agent/ui/wake.py:1486"
+        "agent/session/coordinator.py:868"
       ],
       "fields": [
         "message"
@@ -1226,14 +1238,14 @@
     {
       "name": "session_unexpected_exception",
       "emitters": [
-        "agent/ui/wake.py:1501"
+        "agent/session/coordinator.py:881"
       ],
       "fields": []
     },
     {
       "name": "stale_budget_plan_recovered",
       "emitters": [
-        "agent/ui/wake.py:1266"
+        "agent/session/coordinator.py:659"
       ],
       "fields": [
         "available_daily_tokens"
@@ -1242,7 +1254,7 @@
     {
       "name": "stale_image_suspected",
       "emitters": [
-        "agent/ui/version_check.py:50"
+        "agent/session/version_check.py:50"
       ],
       "fields": [
         "expected_hash",
@@ -1273,7 +1285,7 @@
       "name": "tool_call",
       "emitters": [
         "agent/tests/identity/test_identity.py:66",
-        "agent/tools/base_tools.py:372"
+        "agent/tools/base_tools.py:394"
       ],
       "fields": [
         "arguments",
@@ -1346,7 +1358,7 @@
       "name": "tool_result",
       "emitters": [
         "agent/tests/identity/test_identity.py:67",
-        "agent/tools/base_tools.py:444"
+        "agent/tools/base_tools.py:466"
       ],
       "fields": [
         "duration_ms",
@@ -1392,7 +1404,7 @@
     {
       "name": "zero_cycle_session_preserved",
       "emitters": [
-        "agent/ui/wake.py:1453"
+        "agent/session/coordinator.py:837"
       ],
       "fields": [
         "end_reason",

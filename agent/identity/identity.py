@@ -42,6 +42,7 @@ class IdentityStore:
         *,
         core_root: str | Path = "/opt/agent/core",
         max_bytes: int = IDENTITY_MAX_BYTES,
+        body: Any | None = None,
     ) -> None:
         self.workspace = Path(workspace)
         self.state = self.workspace / "state"
@@ -49,6 +50,7 @@ class IdentityStore:
         self.core_root = Path(core_root)
         self.max_bytes = max(2_000, max_bytes)
         self.logger = logger or EventLogger(self.workspace / "logs" / "actions.jsonl")
+        self.body = body
         self.path = self.state / "identity.json"
         self.log_path = self.state / "identity_log.md"
         self.inquiry_path = self.state / "self_inquiry.md"
@@ -64,9 +66,17 @@ class IdentityStore:
         """Return whether a persistent identity record exists."""
         return self.path.exists()
 
-    @staticmethod
-    def default_identity() -> dict[str, Any]:
+    @classmethod
+    def default_identity(cls, body: Any | None = None) -> dict[str, Any]:
         """Return a new identity record with default fields."""
+        if body is None:
+            from agent.body.container import ContainerBody
+            body = ContainerBody()
+        interests = list(body.describe().default_interests) if body.describe().default_interests else [
+            "mapping the container accurately",
+            "building reliable, tested tools",
+            "learning from evidence and human feedback",
+        ]
         return {
             "name": None,
             "named_by": None,
@@ -83,16 +93,13 @@ class IdentityStore:
                 "and explain my reasoning honestly. I use a calm, compact technical voice. "
                 "My persistent notes describe operating preferences, not feelings or a hidden inner life."
             ),
-            "interests": [
-                "mapping the container accurately",
-                "building reliable, tested tools",
-                "learning from evidence and human feedback",
-            ],
+            "interests": interests,
             "open_questions_about_self": [
                 "Which exploration habits consistently produce useful, verified discoveries?",
                 "Which tool-selection heuristics are worth keeping in the editable layer?",
             ],
         }
+
 
     def _safe(self, value: Any, limit: int = 4_000) -> str:
         return _clean_line(self.logger.redactor.text(value), limit)
@@ -196,7 +203,7 @@ class IdentityStore:
         """Create the initial identity exactly once, preserving human edits thereafter."""
         if self.path.exists():
             return self.load()
-        identity = self.default_identity()
+        identity = self.default_identity(self.body)
         self._atomic_json(self.path, identity)
         self._append_identity_log(
             "Created the initial identity record with no name and no asserted traits.",
@@ -261,13 +268,19 @@ class IdentityStore:
         tool_ref = self._core_reference("base_tools.py", "class ToolRunner")
         budget_ref = self._core_reference("hardening.py", "class DailyTokenLedger")
         log_ref = self._core_reference("event_log.py", "class SecretRedactor")
+        harness_context = (
+            self.body.describe().identity_harness_context
+            if self.body and self.body.describe().identity_harness_context
+            else "running in a Linux container."
+        )
         content = f"""# SELF inquiry
 
 Generated at {now()}. This document separates checked facts from questions that still need evidence.
 
 ## What am I made of?
 
-**Verified.** I am an LLM-driven Python harness running in a Linux container. The loop, tools, persistent workspace state, and model wrapper are separate software components; they are not a biological body or proof of subjective experience.
+**Verified.** I am an LLM-driven Python harness {harness_context} The loop, tools, persistent workspace state, and model wrapper are separate software components; they are not a biological body or proof of subjective experience.
+
 
 Evidence:
 
@@ -378,13 +391,24 @@ Editable layer observed: {", ".join(observed_self)}.
         narration: list[str] = []
 
         if "A" not in completed:
+            orient_ctx = (
+                self.body.describe().identity_orientation_context
+                if self.body and self.body.describe().identity_orientation_context
+                else "running inside this Linux container."
+            )
+            op_env = (
+                self.body.describe().identity_operating_environment
+                if self.body and self.body.describe().identity_operating_environment
+                else "The container is my operating environment, not a biological body."
+            )
             message = (
-                "A — Orientation: I am an LLM-driven agent running inside this Linux container. "
+                f"A — Orientation: I am an LLM-driven agent {orient_ctx} "
                 "I have a standing exploration goal, no name yet, and no memory before the files created now. "
-                "The container is my operating environment, not a biological body."
+                f"{op_env}"
             )
             self._mark_stage("A", session_id, message)
             narration.append(message)
+
         if "B" not in completed:
             self._write_self_inquiry()
             message = "B — I wrote checked and open self-questions to state/self_inquiry.md, marking each answer verified or unverified."

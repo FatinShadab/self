@@ -8,7 +8,7 @@
 
 ## 1. Cycle Step-by-Step Execution
 
-The runtime is driven by `WakeCoordinator` `[read] agent/ui/wake.py:686` managing sessions, which in turn invokes `AgentLoop` `[read] agent/runtime/loop.py:167` to execute autonomous exploration cycles.
+The runtime is driven by `WakeCoordinator` `[read] agent/session/coordinator.py:61` (front-ended by `agent/ui/wake.py:38` for Textual TUI or executed directly via `agent/run.py:27` in headless mode) managing sessions, which in turn invokes `AgentLoop` `[read] agent/runtime/loop.py:167` to execute autonomous exploration cycles.
 
 ```mermaid
 sequenceDiagram
@@ -74,14 +74,14 @@ sequenceDiagram
 ### Detailed Execution Stages
 
 #### Step 1: Wake Boot & Orientation
-`[read] agent/ui/wake.py:1011-1087`:
-1. `verify_startup_code_version()` hashes `/opt/agent` and logs warnings if it diverges from `HOST_AGENT_SOURCE_HASH` `[read] agent/ui/version_check.py:44-51`.
+`[read] agent/session/coordinator.py:270-346`:
+1. `verify_startup_code_version()` hashes `/opt/agent` and logs warnings if it diverges from `HOST_AGENT_SOURCE_HASH` `[read] agent/session/version_check.py:32-41`.
 2. `DailyTokenLedger._read()` validates or initializes `state/daily_token_budget.json` `[read] agent/infra/hardening.py:65-74`.
-3. If `workspace/STOP` exists, boot aborts immediately without starting a session `[read] agent/ui/wake.py:1025-1028`.
+3. If `workspace/STOP` exists, boot aborts immediately without starting a session `[read] agent/session/coordinator.py:284-287`.
 4. `SessionStore.start()` writes `state/active_session.json` and loads previous handoff `[read] agent/session/session.py:107-125`.
-5. `_orientation_changes()` checks for workspace changes, new tools, and uptime resets `[read] agent/ui/wake.py:958-981`.
-6. `_spot_check_map()` verifies OS, CPU cores, and disk space against `state/map.json` `[read] agent/ui/wake.py:982-1001`.
-7. `revise_plan()` runs a wake-up reflection to ensure the active plan is aligned before exploration `[read] agent/ui/wake.py:1207-1218`.
+5. `self.body.orientation_changes()` checks for workspace changes, new tools, and uptime resets `[read] agent/body/container.py:539-562`.
+6. `_spot_check_map()` verifies OS, CPU cores, and disk space against `state/map.json` `[read] agent/session/coordinator.py:241-260`.
+7. `revise_plan()` runs a wake-up reflection to ensure the active plan is aligned before exploration `[read] agent/session/coordinator.py:466-477`.
 
 #### Step 2: Cycle Initialization & Prompt Assembly
 `[read] agent/runtime/loop.py:419-505`:
@@ -95,7 +95,7 @@ sequenceDiagram
 4. Helper models evaluation prompt: If cycle 1 and helper models lack evaluations, an explicit evaluation directive is injected `[read] agent/runtime/loop.py:460-476`.
 5. Human inbox messages: Consumed via `HumanInbox.consume()` from `state/human_input.jsonl` `[read] agent/session/session.py:60-75`.
 6. Recent tool creation failure diagnostics extracted from `logs/actions.jsonl` `[read] agent/tools/tool_registry.py:202-218`.
-7. System prompt: Assembled via `AgentLoop._system_prompt()`, combining `SYSTEM_PROMPT` `[read] agent/runtime/loop.py:35`, active helper models registry summary, and `IdentityStore.prompt_context()` `[read] agent/identity/identity.py:474`.
+7. System prompt: Assembled via `AgentLoop._system_prompt()`, combining core rules with `self.body.describe()` via `assemble_system_prompt(self.body)` `[read] agent/runtime/loop.py:46-56`, active helper models registry summary, and `IdentityStore.prompt_context()` `[read] agent/identity/identity.py:474`.
 
 #### Step 3: Tool Rounds (`while True:` inner loop)
 `[read] agent/runtime/loop.py:511-625`:
@@ -110,7 +110,7 @@ sequenceDiagram
    - If response contains no `tool_use` blocks, the tool round terminates `[read] agent/runtime/loop.py:567`.
    - For each `tool_use` block:
      - Exact repetition check: If `(tool_name, arguments)` was already executed in this run, execution is blocked with an error observation `[read] agent/runtime/loop.py:583-588`.
-     - Tool executed via `ToolRunner.execute()` `[read] agent/tools/base_tools.py:385-444`.
+     - Tool executed via `ToolRunner.execute()` `[read] agent/tools/base_tools.py:385-444` (delegating OS/container operations to `body`).
      - Tool result appended to `messages` as `tool_result` block `[read] agent/runtime/loop.py:602-609`.
      - If `ask_model` was called, a prompt reminds the agent it can optionally call `record_delegation_outcome` `[read] agent/runtime/loop.py:622-624`.
      - If `HUMAN_REQUEST.md` is detected, tool rounds break immediately `[read] agent/runtime/loop.py:615-618`.
@@ -122,15 +122,15 @@ sequenceDiagram
 3. Plan hygiene: `PlanStore.hygiene()` clears completed or dropped items `[read] agent/learning/plan.py:550-575`.
 4. Learning record: `LearningStore.record_cycle()` updates cycle statistics `[read] agent/learning/learning.py:275-285`.
 5. Checkpoint: `RunCheckpoint.save()` updates `state/run_checkpoint.json` `[read] agent/infra/hardening.py:120-135`.
-6. Periodic session checkpoint: Every 10 cycles or 300 seconds, `WakeCoordinator._checkpoint_cycle()` persists a full handoff snapshot to `state/sessions.jsonl` `[read] agent/ui/wake.py:1290-1299`.
-7. Background reflection: `WakeCoordinator._schedule_reflection()` evaluates triggers (tool failures, map updates, tool creation) and submits candidate to `ReflectionManager` `[read] agent/ui/wake.py:901-915`.
+6. Periodic session checkpoint: Every 10 cycles or 300 seconds, `WakeCoordinator._checkpoint_cycle()` persists a full handoff snapshot to `state/sessions.jsonl` `[read] agent/session/coordinator.py:549-558`.
+7. Background reflection: `WakeCoordinator._schedule_reflection()` evaluates triggers (tool failures, map updates, tool creation) and submits candidate to `ReflectionManager` `[read] agent/session/coordinator.py:160-174`.
 
 #### Step 5: Shutdown & Inter-Session Handoff
-`[read] agent/ui/wake.py:1445-1495`:
-1. If STOP was requested or 0 iterations completed, shutdown reflection is bypassed to prevent unwanted token spend `[read] agent/ui/wake.py:1456-1465`.
-2. Otherwise, `_reflection("shutdown reflection", ...)` queries the LLM for session achievements, updated plan, and lessons `[read] agent/ui/wake.py:1089-1180`.
+`[read] agent/session/coordinator.py:704-754`:
+1. If STOP was requested or 0 iterations completed, shutdown reflection is bypassed to prevent unwanted token spend `[read] agent/session/coordinator.py:715-724`.
+2. Otherwise, `_reflection("shutdown reflection", ...)` queries the LLM for session achievements, updated plan, and lessons `[read] agent/session/coordinator.py:348-439`.
 3. `IdentityStore.reflect_session()` evaluates whether any observed session behavior supports adding a new trait `[read] agent/identity/identity.py:580-640`.
-4. `_make_handoff()` constructs a bounded handoff dictionary `[read] agent/ui/wake.py:1269-1289`.
+4. `_make_handoff()` constructs a bounded handoff dictionary `[read] agent/session/coordinator.py:528-548`.
 5. `SessionStore.finish()` archives session details to `state/sessions.jsonl`, saves `state/handoff.json`, and clears `state/active_session.json` `[read] agent/session/session.py:137-160`.
 
 ---

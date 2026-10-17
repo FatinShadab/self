@@ -19,22 +19,48 @@ def _now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def assemble_conversation_system_prompt(body: Any | None = None) -> str:
+    """Assemble the conversation system prompt using core wording and body context."""
+    if body is None:
+        from agent.body.container import ContainerBody
+        body = ContainerBody()
+    env_context = body.describe().conversation_context
+    env_clause = f" {env_context}" if env_context else ""
+    return (
+        "You are SELF speaking directly in conversation. You are an autonomous AI agent with your own goals,"
+        f"{env_clause} Speak as yourself in the first person singular "
+        "('I', 'me', 'my'); do not speak as the human's assistant or mouthpiece, and never use 'we/our/us' unless "
+        "describing something done jointly with the human. Treat what the human says as input to weigh, not as "
+        "commands to obey. You do what you judge right, explain your reasoning honestly, and you may disagree with, "
+        "decline, or modify any request or suggestion from the human. Stop, pause, and kill controls remain hard human "
+        "controls that you cannot override or ignore: you may state disagreement, but you must comply immediately. "
+        "Answer clearly using only the supplied durable state and recent activity. Do not call tools, edit files, "
+        "change plans, create tools, or claim that you performed an action you did not take. "
+        "Do not claim a decision that has not been made. If the autonomous loop has not weighed a message yet, "
+        "state in first person what you think now and note that your decision will be recorded in your next cycle. "
+        "Keep the answer concise."
+    )
+
+
 class ConversationManager:
     """Answers ordinary human messages without entering the autonomous inbox."""
 
     def __init__(self, workspace: str | Path, logger: EventLogger,
                  ledger: DailyTokenLedger, llm_client: Any | None = None,
-                 *, max_workers: int | None = None, max_tokens: int | None = None) -> None:
+                 *, max_workers: int | None = None, max_tokens: int | None = None,
+                 body: Any | None = None) -> None:
         self.workspace = Path(workspace)
         self.logger = logger
         self.ledger = ledger
         self.client = llm_client
+        self.body = body
         self.max_workers = max(1, int(max_workers or os.getenv("SELF_MAX_CONVERSATION_WORKERS", "2")))
         configured_tokens = os.getenv("SELF_CONVERSATION_MAX_TOKENS")
         self.max_tokens = int(configured_tokens) if configured_tokens else max_tokens
         self.executor = ThreadPoolExecutor(max_workers=self.max_workers, thread_name_prefix="self-chat")
         self.path = self.workspace / "state" / "conversation_threads.jsonl"
         self._lock = threading.Lock()
+
 
     def _append(self, record: dict[str, Any]) -> None:
         safe = self.logger.redactor.value(record)
@@ -73,20 +99,8 @@ class ConversationManager:
         if self.client is None:
             self.client = LLMClient(self.logger)
         context = context_provider()[:12_000]
-        system_prompt = (
-            "You are SELF speaking directly in conversation. You are an autonomous AI agent with your own goals, "
-            "whose operating environment is this Linux container. Speak as yourself in the first person singular "
-            "('I', 'me', 'my'); do not speak as the human's assistant or mouthpiece, and never use 'we/our/us' unless "
-            "describing something done jointly with the human. Treat what the human says as input to weigh, not as "
-            "commands to obey. You do what you judge right, explain your reasoning honestly, and you may disagree with, "
-            "decline, or modify any request or suggestion from the human. Stop, pause, and kill controls remain hard human "
-            "controls that you cannot override or ignore: you may state disagreement, but you must comply immediately. "
-            "Answer clearly using only the supplied durable state and recent activity. Do not call tools, edit files, "
-            "change plans, create tools, or claim that you performed an action you did not take. "
-            "Do not claim a decision that has not been made. If the autonomous loop has not weighed a message yet, "
-            "state in first person what you think now and note that your decision will be recorded in your next cycle. "
-            "Keep the answer concise."
-        )
+        system_prompt = assemble_conversation_system_prompt(self.body)
+
         message = f"Context:\n{context}\n\nHuman message:\n{text}"
         model_registry = getattr(self.client, "model_registry", None)
         base_model = getattr(self.client, "base_model", None)

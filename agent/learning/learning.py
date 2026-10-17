@@ -33,7 +33,7 @@ def _words(value: str) -> set[str]:
 class LearningStore:
     """Owns state files below one workspace without storing credentials."""
 
-    def __init__(self, workspace: str | Path, logger: EventLogger, notes_cap: int = 6_000) -> None:
+    def __init__(self, workspace: str | Path, logger: EventLogger, notes_cap: int = 6_000, body: Any | None = None) -> None:
         self.workspace = Path(workspace)
         self.state_dir = self.workspace / "state"
         self.memory_path = self.state_dir / "memory.jsonl"
@@ -41,6 +41,8 @@ class LearningStore:
         self.notes_path = self.state_dir / "self_notes.md"
         self.notes_cap = max(1_000, notes_cap)
         self.logger = logger
+        self.body = body
+
 
     def initialize(self) -> None:
         """Create any missing workspace state files with defaults."""
@@ -250,16 +252,22 @@ class LearningStore:
         """Replace the persistent self notes with validated content."""
         recent = self.memory_entries()[-6:]
         lessons = [str(entry.get("lesson", "")).replace("\n", " ")[:300] for entry in recent if entry.get("lesson")]
+        preamble = (
+            self.body.describe().notes_preamble
+            if self.body and self.body.describe().notes_preamble
+            else "I am SELF, a root process inside a Docker Linux container. I explore the container, retain verified discoveries, and only register reviewed, tested tools."
+        )
         body = [
             "# SELF notes",
             "",
-            "I am SELF, a root process inside a Docker Linux container. I explore the container, retain verified discoveries, and only register reviewed, tested tools.",
+            preamble,
             "",
             "## Current environment map",
             self.map_context(),
             "",
             "## Recent lessons",
         ]
+
         body.extend(f"- {lesson}" for lesson in lessons if lesson)
         if not lessons:
             body.append("- No completed exploration cycles are recorded yet.")
