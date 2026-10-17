@@ -10,7 +10,10 @@ from dataclasses import dataclass
 from typing import Any
 from urllib.parse import urlsplit
 
-from anthropic import Anthropic
+try:
+    from anthropic import Anthropic
+except ImportError:
+    Anthropic = None
 
 from agent.infra.event_log import EventLogger
 from agent.infra.provider_calls import reserve_provider_call
@@ -191,6 +194,11 @@ class LLMClient:
         self._key_index = 0
         ollama_keys = _env_key_list("OLLAMA_API_KEYS", "OLLAMA_API_KEY", "OLLAM_API_KEYS", "OLLAM_API_KEY")
         anthropic_keys = _env_key_list("ANTHROPIC_API_KEYS", "ANTHROPIC_API_KEY")
+        if (ollama_keys or anthropic_keys) and Anthropic is None:
+            raise RuntimeError(
+                "The 'anthropic' package is required to initialize LLMClient. "
+                "Install requirements via: pip install -r agent/requirements.txt"
+            )
         if ollama_keys:
             self.provider = "ollama"
             self.base_url = _first_env("OLLAMA_BASE_URL", "OLLAM_BASE_URL") or "https://ollama.com"
