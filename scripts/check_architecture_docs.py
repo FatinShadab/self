@@ -1,0 +1,109 @@
+#!/usr/bin/env python3
+"""check_architecture_docs.py - Fast static check to ensure system-map.json matches code."""
+
+import ast
+import json
+import re
+import sys
+from pathlib import Path
+
+REPO_ROOT = Path(__file__).resolve().parent.parent
+if str(REPO_ROOT) not in sys.path:
+    sys.path.insert(0, str(REPO_ROOT))
+MAP_FILE = REPO_ROOT / "docs" / "architecture" / "system-map.json"
+
+def check():
+    if not MAP_FILE.exists():
+        print(f"FAIL: {MAP_FILE} does not exist.")
+        return 1
+
+    try:
+        sys_map = json.loads(MAP_FILE.read_text(encoding="utf-8"))
+    except Exception as exc:
+        print(f"FAIL: {MAP_FILE} is not valid JSON: {exc}")
+        return 1
+
+    errors = []
+
+    # 1. Check tools
+    from agent.tools.base_tools import TOOL_DEFINITIONS
+    from agent.tools.tool_registry import CREATE_TOOL_DEFINITION
+
+    actual_tool_names = set(t["name"] for t in TOOL_DEFINITIONS) | {CREATE_TOOL_DEFINITION["name"]}
+    map_tool_names = set(t["name"] for t in sys_map.get("tools", []))
+
+    missing_tools = actual_tool_names - map_tool_names
+    extra_tools = map_tool_names - actual_tool_names
+    if missing_tools:
+        errors.append(f"Tools in code but missing from system-map.json: {sorted(missing_tools)}")
+    if extra_tools:
+        errors.append(f"Tools in system-map.json but missing from code: {sorted(extra_tools)}")
+
+    # 2. Check events
+    actual_events = set()
+    for p in REPO_ROOT.glob("agent/**/*.py"):
+        try:
+            tree = ast.parse(p.read_text(encoding="utf-8"), filename=str(p))
+        except Exception:
+            continue
+        for node in ast.walk(tree):
+            if isinstance(node, ast.Call):
+                func = node.func
+                if isinstance(func, ast.Attribute) and func.attr == "log":
+                    if node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
+                        actual_events.add(node.args[0].value)
+
+    map_events = set(e["name"] for e in sys_map.get("events", []))
+    missing_events = actual_events - map_events
+    extra_events = map_events - actual_events
+    if missing_events:
+        errors.append(f"Events in code but missing from system-map.json: {sorted(missing_events)}")
+    if extra_events:
+        errors.append(f"Events in system-map.json but not found in code: {sorted(extra_events)}")
+
+    # 3. Check env vars
+    map_env_vars = set(v["name"] for v in sys_map.get("env_vars", []))
+    for v in map_env_vars:
+        if v.endswith("<MODEL>"):
+            continue
+        # verify it appears somewhere in the code
+        found = False
+        for p in REPO_ROOT.glob("agent/**/*.py"):
+            if v in p.read_text(encoding="utf-8"):
+                found = True
+                break
+        if not found:
+            for p in [REPO_ROOT / "docker-compose.yml", REPO_ROOT / ".env.example"]:
+                if p.exists() and v in p.read_text(encoding="utf-8"):
+                    found = True
+                    break
+        if not found:
+            errors.append(f"Env var {v} in system-map.json not found in agent code, docker-compose.yml, or .env.example")
+
+    # 4. Check state files
+    map_state_files = [f["path"] for f in sys_map.get("state_files", [])]
+    for sf in map_state_files:
+        name = Path(sf).name
+        found = False
+        for p in REPO_ROOT.glob("agent/**/*.py"):
+            if name in p.read_text(encoding="utf-8"):
+                found = True
+                break
+        if not found and not (REPO_ROOT / sf).exists():
+            errors.append(f"State file {sf} not found in agent code or on disk")
+
+    if errors:
+        print("FAIL: Architecture drift detected:")
+        for err in errors:
+            print(f"  - {err}")
+        return 1
+
+    print("PASS: docs/architecture/system-map.json is consistent with code.")
+    print(f"  Tools verified: {len(map_tool_names)}")
+    print(f"  Events verified: {len(map_events)}")
+    print(f"  Env vars verified: {len(map_env_vars)}")
+    print(f"  State files verified: {len(map_state_files)}")
+    return 0
+
+if __name__ == "__main__":
+    sys.exit(check())

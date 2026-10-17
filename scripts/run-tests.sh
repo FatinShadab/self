@@ -5,6 +5,8 @@ repo="$(cd "$(dirname "${BASH_SOURCE[0]}")/.." && pwd)"
 cd "$repo"
 image="${SELF_TEST_IMAGE:-self-ci}"
 
+python scripts/check_architecture_docs.py
+
 docker build --tag "$image" .
 
 # Dockerfile supplies PYTHONPATH=/opt:/opt/agent for both suites.
