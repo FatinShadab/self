@@ -11,6 +11,7 @@
 The codebase currently couples the agent's cognition directly to the assumption that its "body" is a root process inside a Docker Linux container. Transforming SELF into a reusable core with plug-and-unplug bodies (e.g. an antivirus engine, a robotic/IoT microcontroller body) requires isolating these assumptions:
 
 ### A. Narrative & Prompt Strings
+*(Note: As of Prompt 10, all container narrative strings listed below have been extracted from core code into `agent.body.container.ContainerBody` and parameterized via `body.describe()`; core wording remains body-agnostic while preserving exact golden prompts for `ContainerBody`.)*
 - `[read] agent/runtime/loop.py:35`: `SYSTEM_PROMPT = f"""You are SELF, an autonomous AI agent whose body is this Linux container."""`
 - `[read] agent/runtime/loop.py:61`: `"You are root inside the container. The Docker container boundary is the security boundary."`
 - `[read] agent/runtime/loop.py:63`: `"`/opt/agent/core/` is protected image-owned harness code. Read it when useful, but do not modify it with normal tools."`
@@ -136,15 +137,16 @@ graph TD
 ```
 
 ### Seam 1: The "Body" Interface (`Sense`, `Act`, `Permissions`)
-- **Current Tight Coupling:** `AgentLoop` and `WakeCoordinator` directly call `run_process(["/bin/bash", ...])`, read `/proc/*`, `/sys/*`, and access local filesystem `[read] agent/tools/base_tools.py:461, agent/ui/wake.py:585-655`.
+- **Status:** **IMPLEMENTED (Prompt 10)** via `agent.body.base.Body` and `agent.body.container.ContainerBody`.
 - **Target Interface:**
-  - `Sense`: telemetry, system statistics (RAM, CPU, disk, interfaces), orientation changes, uptime.
-  - `Act`: `execute_action(action, params)` (replacing `run_shell`), `read_data(uri)`, `write_data(uri, data)`.
-  - `Permissions`: path validation (`is_safe_path`), command allowlists, hardware safety locks.
-- **Code to Change:**
-  - `agent/tools/base_tools.py`: Extract `run_shell`, `read_file`, `write_file`, `list_dir`, `http_get`, `probe_local_ollama` into a `ContainerBody` implementation of `BodyInterface`.
-  - `agent/ui/wake.py`: Replace `/proc/` and `/sys/` reads in `ContainerMetrics` and `_orientation_changes()` with `body.sense_metrics()`.
-- **Difficulty:** **HIGH**. Requires decoupling all OS-level calls in `base_tools.py` and `wake.py`, and refactoring `ToolRunner` to delegate hardware/OS actions to the body.
+  - `Sense`: telemetry, system statistics (RAM, CPU, disk, interfaces via `ContainerMetrics`), orientation changes, uptime.
+  - `Act`: `execute_action(action, params)` (`run_shell`, `read_file`, `write_file`, `list_dir`, `http_get`, `probe_local_ollama`).
+  - `Permissions`: path validation (`is_safe_path`, `_is_core_path`), boundary checks.
+- **Implementation:**
+  - `agent/body/base.py`: Declares `Body` ABC with `describe()`, `capabilities()`, `sense()`, `act()`, `health()`, and `emergency_stop()`.
+  - `agent/body/container.py`: Implements `ContainerBody(Body)` wrapping shell, filesystem, HTTP, Ollama, and cgroup/proc telemetry.
+  - `agent/tools/base_tools.py`: `ToolRunner` delegates OS and filesystem operations to `self.body`.
+  - `agent/session/coordinator.py`: Headless coordinator uses `self.body` for metrics, orientation changes, and initial startup tasks.
 
 ### Seam 2: Tool Registry & Tool Offerings
 - **Current Tight Coupling:** `TOOL_DEFINITIONS` is a hardcoded static list in `base_tools.py:23-270`. `AgentLoop` filters it via `HELPER_TOOL_NAMES`.
@@ -155,27 +157,22 @@ graph TD
 - **Difficulty:** **LOW**. The custom tool pipeline (`ToolRegistry`) already supports dynamic tool addition; extending this to base tools is straightforward.
 
 ### Seam 3: Prompt Assembly & Standing Goal
-- **Current Tight Coupling:** `SYSTEM_PROMPT` `[read] agent/runtime/loop.py:35` and `STANDING_GOAL` `[read] agent/runtime/loop.py:29` are hardcoded module-level constants containing container and Linux root wording.
-- **Target Interface:** Template-driven prompt builder where body plugins inject environment description, and domain plugins inject the standing goal and operating constraints.
-- **Code to Change:**
-  - `agent/runtime/loop.py`: Parameterize `AgentConfig` with `system_prompt_template` and `standing_goal`.
-  - `agent/session/conversation.py:76-89`: Parameterize conversation system prompt.
-- **Difficulty:** **MEDIUM**. Prompts are sensitive; must preserve exact phrasing, autonomy rules, first-person voice, and secret safety instructions across templates.
+- **Status:** **IMPLEMENTED (Prompt 10)** via `assemble_system_prompt(body)` and `assemble_conversation_system_prompt(body)`.
+- **Implementation:**
+  - `agent/runtime/loop.py`: Decomposed `SYSTEM_PROMPT` into core rules (`CORE_SYSTEM_PROMPT_HEAD`, `CORE_CAPABILITY_RULE`, `CORE_IDENTITY_RULES`) and dynamically appends `body.describe().embodiment`. `AgentLoop` accepts `body` parameter.
+  - `agent/session/conversation.py`: Parameterized conversation system prompt using `body.describe().conversation_environment`.
+  - `agent/learning/learning.py`: Parameterized self notes preamble using `body.describe().notes_preamble`.
 
 ### Seam 4: Plan Seeding & Curriculum
-- **Current Tight Coupling:** `PlanStore.initialize(seed_task)` defaults to `STANDING_GOAL` `[read] agent/runtime/loop.py:394`. `WakeCoordinator` hardcodes initial priority: `"Immediately inventory installed Python packages"` `[read] agent/ui/wake.py:1389`.
-- **Target Interface:** Body/Plugin hooks for initial seed task and domain curriculum generator.
-- **Code to Change:**
-  - `agent/ui/wake.py:1385-1395`: Remove hardcoded `pip list` startup priority; delegate to `body.initial_orientation_task()`.
-  - `agent/learning/learning.py:288`: Decouple `propose_curriculum()` from container filesystem tasks.
-- **Difficulty:** **LOW**. Small parameter changes in `AgentConfig` and `WakeCoordinator`.
+- **Status:** **IMPLEMENTED (Prompt 10)** via `body.initial_orientation_task()`.
+- **Implementation:**
+  - `agent/session/coordinator.py`: Startup priority delegates to `self.body.initial_orientation_task()` instead of hardcoded container package inventory.
+  - `agent/learning/plan.py`: Plan seeding uses body-provided initial orientation.
 
 ### Seam 5: Identity & Persona Framing
-- **Current Tight Coupling:** `IdentityStore.default_identity()` `[read] agent/identity/identity.py:68-95` hardcodes interests: `"mapping the container accurately"`, `"building reliable, tested tools"`.
-- **Target Interface:** Plugin identity configuration allowing domain-appropriate interests, open questions, and voice adjustments while retaining core autonomy principles.
-- **Code to Change:**
-  - `agent/identity/identity.py`: Allow default interests and questions to be supplied via plugin configuration on initialization.
-- **Difficulty:** **LOW**. Preserves existing schema and audit log.
+- **Status:** **IMPLEMENTED (Prompt 10)** via `IdentityStore.default_identity(body)`.
+- **Implementation:**
+  - `agent/identity/identity.py`: Default interests and self-inquiry questions are supplied by `body.describe().default_interests` and `body.describe().identity_harness_context`. Core autonomy, voice, and traits remain preserved.
 
 ### Seam 6: State Folders & Persistence Partitioning
 - **Current Tight Coupling:** `workspace/state/` contains an unpartitioned mix of cognitive files (`plan.json`, `identity.json`, `models.json`) and container-specific artifacts (`etc_recursive.json`, `service_dependency_map.json`).

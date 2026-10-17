@@ -25,9 +25,16 @@ self/
 │   ├── model_outcomes.py             # Root compatibility shim for model outcome reporting [read] agent/model_outcomes.py:1-12
 │   ├── report.py                     # Root compatibility shim for reporting CLI [read] agent/report.py:1-12
 │   ├── requirements.txt              # Production Python package dependencies [read] agent/requirements.txt:1-15
+│   ├── run.py                        # Headless entry point running WakeCoordinator without Textual [read] agent/run.py:1-42
 │   ├── wake.py                       # Root compatibility shim for agent.ui.wake CLI [read] agent/wake.py:1-12
 │   │
+│   ├── body/                         # Body interface, capability declarations, sensing, ContainerBody (Layer 1)
+│   │   ├── __init__.py               # Exports Body, BodyDescription, Capability, ContainerBody, ContainerMetrics [read] agent/body/__init__.py:1-12
+│   │   ├── base.py                   # Abstract Body base class, BodyDescription, Capability dataclasses [read] agent/body/base.py:1-69
+│   │   └── container.py              # ContainerBody wrapping shell, files, network, /proc and /sys metrics [read] agent/body/container.py:1-582
+│   │
 │   ├── helper_models/                # Multi-model management, probing, routing, and outcomes (Layer 2)
+
 │   │   ├── __init__.py               # Exports ModelProber, ModelDecisions, ModelOutcomes [read] agent/helper_models/__init__.py:1-11
 │   │   ├── model_decisions.py        # Model selector/picker, delegation routing, decision logging [read] agent/helper_models/model_decisions.py:1-720
 │   │   ├── model_outcomes.py         # Appends and analyzes structured outcome observations [read] agent/helper_models/model_outcomes.py:1-115
@@ -73,26 +80,29 @@ self/
 │   │   ├── __init__.py               # Exports AgentLoop, AgentConfig, RunSummary [read] agent/runtime/__init__.py:1-8
 │   │   └── loop.py                   # Main autonomous cycle: prompt assembly, tool execution, report [read] agent/runtime/loop.py:1-754
 │   │
-│   ├── session/                      # Session management, conversation, reflection (Layer 4)
-│   │   ├── __init__.py               # Exports SessionStore, HumanInbox, ConversationManager [read] agent/session/__init__.py:1-12
-│   │   ├── conversation.py           # Independent background conversation manager with dedicated LLM [read] agent/session/conversation.py:1-115
+│   ├── session/                      # Session management, headless WakeCoordinator, reflection (Layer 4)
+│   │   ├── __init__.py               # Exports WakeCoordinator, run_headless, SessionStore, HumanInbox [read] agent/session/__init__.py:1-12
+│   │   ├── coordinator.py            # Non-UI WakeCoordinator: session lifecycle, handoff, human inbox [read] agent/session/coordinator.py:1-903
+│   │   ├── conversation.py           # Independent background conversation manager with dedicated LLM [read] agent/session/conversation.py:1-140
 │   │   ├── reflection.py             # Scheduled background reflection threads and human Q&A [read] agent/session/reflection.py:1-360
-│   │   └── session.py                # Inter-session handoff, crash recovery, active_session.json [read] agent/session/session.py:1-240
+│   │   ├── session.py                # Inter-session handoff, crash recovery, active_session.json [read] agent/session/session.py:1-240
+│   │   └── version_check.py          # Pre-boot code hash verification moved to Layer 4 [read] agent/session/version_check.py:1-42
 │   │
 │   ├── tools/                        # Built-in base tools and dynamic tool creation (Layer 2)
 │   │   ├── __init__.py               # Exports ToolRunner, ToolRegistry, TOOL_DEFINITIONS [read] agent/tools/__init__.py:1-8
-│   │   ├── base_tools.py             # 22 built-in tools (shell, files, HTTP, plan, models, brain) [read] agent/tools/base_tools.py:1-624
+│   │   ├── base_tools.py             # 22 built-in tools (shell, files, HTTP, plan, models, brain) delegating to body [read] agent/tools/base_tools.py:1-624
 │   │   ├── benchmark.py              # Provider benchmark runner [read] agent/tools/benchmark.py:1-40
 │   │   ├── tool_registry.py          # Dynamic tool creation pipeline, critic review, test runner [read] agent/tools/tool_registry.py:1-448
 │   │   └── tool_worker.py            # Subprocess entry point executing custom tools via stdin JSON [read] agent/tools/tool_worker.py:1-28
 │   │
-│   ├── ui/                           # Wake coordinator, Textual TUI, cardiac monitor, voice (Layer 5)
+│   ├── ui/                           # Terminal TUI front-end, cardiac monitor, voice (Layer 5)
 │   │   ├── __init__.py               # Exports WakeCoordinator, run_tui, run_headless [read] agent/ui/__init__.py:1-8
 │   │   ├── disk_tool_demo.py         # Live demonstration of disk usage tool [read] agent/ui/disk_tool_demo.py:1-60
 │   │   ├── phase8_verify.py          # Verification CLI for Phase 8 identity and plan integration [read] agent/ui/phase8_verify.py:1-110
-│   │   ├── version_check.py          # Pre-boot check comparing code SHA against expected image hash [read] agent/ui/version_check.py:1-55
+│   │   ├── version_check.py          # Backward-compatible shim re-exporting agent.session.version_check [read] agent/ui/version_check.py:1-55
 │   │   ├── voice.py                  # Text-to-speech voice output helper [read] agent/ui/voice.py:1-125
-│   │   └── wake.py                   # WakeCoordinator, Textual application (SelfApp), cardiac trace [read] agent/ui/wake.py:1-2451
+│   │   └── wake.py                   # Textual UI front-end (SelfApp), cardiac trace, delegating to coordinator [read] agent/ui/wake.py:1-1390
+
 │   │
 │   └── tests/                        # 157 unit tests across all agent subsystems [ran]
 │
@@ -136,7 +146,8 @@ self/
 
 | Entry Point | Path | Type | Invocation Command | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| `agent.wake` | `agent/ui/wake.py` | Service / CLI | `python -m agent.wake [--headless]` | Container default entry point `[read] Dockerfile:52`. Boots wake coordinator, manages sessions, launches TUI or headless loop. |
+| `agent.wake` | `agent/ui/wake.py` | Service / CLI | `python -m agent.wake [--headless]` | Container default entry point `[read] Dockerfile:52`. Textual TUI front-end delegating to headless WakeCoordinator. |
+| `agent.run` | `agent/run.py` | CLI | `python -m agent.run [--headless]` | Headless entry point running WakeCoordinator directly without Textual TUI dependencies. |
 | `agent.runtime.loop` | `agent/runtime/loop.py` | CLI | `python -m agent.runtime.loop [--task "..."]` | Direct invocation of autonomous exploration loop `[read] agent/runtime/loop.py:753`. Runs cycles until bounds or STOP. |
 | `agent.reporting.report` | `agent/reporting/report.py` | CLI | `python -m agent.reporting.report [--since "..."]` | Generates markdown summary report of agent activity, token spend, and discoveries `[read] agent/reporting/report.py:228`. |
 | `agent.helper_models.model_outcomes` | `agent/helper_models/model_outcomes.py` | CLI | `python -m agent.helper_models.model_outcomes [workspace]` | Displays summary table of helper model decisions, outcomes, and stats `[read] agent/helper_models/model_outcomes.py:114`. |
@@ -146,6 +157,8 @@ self/
 | `agent.tools.tool_worker` | `agent/tools/tool_worker.py` | Subprocess | `python /opt/agent/tools/tool_worker.py` | Subprocess execution wrapper for custom tools; reads arguments on stdin, executes `run()`, writes envelope to stdout `[read] agent/tools/tool_worker.py:27`. |
 | `scripts/run-tests.ps1` | `scripts/run-tests.ps1` | Host Script | `.\scripts\run-tests.ps1` | Builds test image, runs 157 harness unit tests and 11 isolated eval tests in Docker `[read] scripts/run-tests.ps1:1-25`. |
 | `scripts/run-tests.sh` | `scripts/run-tests.sh` | Host Script | `./scripts/run-tests.sh` | Shell script equivalent for POSIX hosts `[read] scripts/run-tests.sh:1-19`. |
+| `scripts/live-check.ps1` | `scripts/live-check.ps1` | Host Script | `.\scripts\live-check.ps1` | Diagnostic health check verifying image freshness, plan, models, errors, framing, and environment. |
+
 
 ---
 

@@ -296,6 +296,7 @@ def get_state_files():
 def get_entry_points():
     return [
         {"name": "agent.wake", "path": "agent/ui/wake.py", "type": "CLI / Main Service", "description": "Primary container entrypoint running WakeCoordinator with Textual TUI or --headless mode."},
+        {"name": "agent.run", "path": "agent/run.py", "type": "CLI / Entrypoint", "description": "Headless agent entrypoint running WakeCoordinator without Textual UI (--headless mode)."},
         {"name": "agent.runtime.loop", "path": "agent/runtime/loop.py", "type": "CLI", "description": "Direct execution of autonomous exploration loop with --task, --max-iterations, etc."},
         {"name": "agent.reporting.report", "path": "agent/reporting/report.py", "type": "CLI", "description": "Generate markdown summary report of agent activity, token spend, and discoveries."},
         {"name": "agent.helper_models.model_outcomes", "path": "agent/helper_models/model_outcomes.py", "type": "CLI", "description": "Print summary table of helper model decisions, outcomes, and stats."},
@@ -312,15 +313,17 @@ def get_packages():
     return [
         {"package": "agent.infra", "layer": 0, "purpose": "Event logging, file locks, process runner, provider call caps, and daily token budget hardening."},
         {"package": "agent.llm", "layer": 1, "purpose": "LLM client, BudgetedLLM wrapper, model registry, provider adapters, and brain router."},
+        {"package": "agent.body", "layer": 1, "purpose": "Body interface, capability declarations, sensing, hardware/OS actions, and ContainerBody implementation."},
         {"package": "agent.tools", "layer": 2, "purpose": "Base tools, tool runner, tool registry, tool creation pipeline, and tool worker subprocess."},
         {"package": "agent.learning", "layer": 2, "purpose": "Persistent plan store, memory store, environment map, self notes, and exploration coverage."},
         {"package": "agent.helper_models", "layer": 2, "purpose": "Model prober, model decision router/picker, outcomes tracker, and delegation logic."},
         {"package": "agent.identity", "layer": 2, "purpose": "Identity store, first awakening, name context resolution, traits, and core patch proposals."},
         {"package": "agent.runtime", "layer": 3, "purpose": "Autonomous agent loop, cycle coordination, prompt assembly, and tool round execution."},
-        {"package": "agent.session", "layer": 4, "purpose": "Session management, inter-session handoff, independent conversations, and background reflections."},
+        {"package": "agent.session", "layer": 4, "purpose": "Headless WakeCoordinator, session management, inter-session handoff, independent conversations, and background reflections."},
         {"package": "agent.reporting", "layer": 4, "purpose": "Activity reporting and experiment summary generation."},
-        {"package": "agent.ui", "layer": 5, "purpose": "Wake coordinator, Textual TUI, cardiac monitor, voice interface, and startup version checks."}
+        {"package": "agent.ui", "layer": 5, "purpose": "Textual TUI front-end, cardiac monitor, voice interface, and terminal front-end."}
     ]
+
 
 def main():
     tools = get_tools()
