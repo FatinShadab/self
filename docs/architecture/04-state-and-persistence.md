@@ -60,8 +60,10 @@ All persistent agent state resides in `workspace/state/` (with event logs in `wo
 | `state/capability_requests.md`| Pending capability expansions | `[read] agent/infra/hardening.py:40` | `[read] agent/ui/wake.py:940` | **YES** (summary in greeting/prompt) | Markdown requests for mounts, ports, credentials | Overwritten / appended per request | None |
 | `state/key_requests.md` | Pending API key requests | `[read] agent/llm/providers/registry.py:185` | `[read] agent/ui/wake.py:940` | **YES** (summary in greeting) | Markdown requests for provider keys | Appended per provider | None |
 | `state/egress.jsonl` | Egress HTTP request audit log | `[read] agent/infra/hardening.py:25` | `[read] agent/reporting/report.py:90` | **NO** | JSONL: `{"at": str, "host": str, "path": str, "method": str}` | Appends per HTTP request | None |
-| `logs/actions.jsonl` | Central system & agent event log | `[read] agent/infra/event_log.py:95` | Multiple modules & reporting | **NO** (failure context extracts last 8 errors) | JSONL: `{"ts": str, "event": str, ...}` (101 event types) | Unbounded append-only log | None |
+| `logs/actions.jsonl` | Central system & agent event log | `[read] agent/infra/event_log.py:95` | Multiple modules & reporting | **NO** (failure context extracts last 8 errors) | JSONL: `{"ts": str, "event": str, ...}` (105 event types) | Unbounded append-only log | None |
 | `memory/lessons.jsonl` | Recorded tool creation lessons | `[read] agent/tools/tool_registry.py:417` | `[read] agent/runtime/loop.py:455` | **YES** (legacy lessons in prompt) | JSONL: `{"at": str, "tool": str, "lesson": str, "traceback": str}` | Appends on 3rd failed tool creation attempt | None |
+| `config/plugins.json` | Human-owned enabled plugins & SHA-256 hashes | Human operator via CLI / TUI `/plugins enable` `[read] agent/plugins/manager.py:220` | `[read] agent/plugins/manager.py:80` | **NO** (raw config not injected; embodiment & goal notes are) | `{"enabled": [str], "hashes": {str: str}}` | Modifiable only by human; mounted read-only into `/config` | None |
+| `plugins/<name>/state/` | Per-plugin private state storage | Plugin tools & lifecycle hooks | Plugin tools & lifecycle hooks | **NO** (plugin-specific) | Plugin-defined state files | Managed by plugin lifecycle | None |
 
 ---
 
@@ -77,3 +79,4 @@ These files are read and formatted directly into model prompt contexts during au
 7. `memory/lessons.jsonl`: Formatted into `## Legacy lessons` in the user message `[read] agent/runtime/loop.py:455`.
 8. `state/human_input.jsonl`: Unconsumed messages injected into `Human inputs to weigh since the prior cycle` `[read] agent/runtime/loop.py:494`.
 9. `logs/actions.jsonl`: Recent tool-creation failures parsed into `Recent tool-creation diagnostics` `[read] agent/runtime/loop.py:497`.
+10. Plugin Manifests (`plugin.json`): Embodiment text injected into delimited `## Plugin Embodiment: <name>` in the system prompt `[read] agent/runtime/loop.py:377`; starting goal seeds and notes injected into delimited `## Active Plugins` in the cycle prompt `[read] agent/runtime/loop.py:488`.

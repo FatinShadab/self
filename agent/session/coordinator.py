@@ -220,6 +220,8 @@ class WakeCoordinator:
             max_tokens=_env_int("SELF_REFLECTION_MAX_TOKENS", 384, 64, 1_024),
             stop_provider=lambda: self.stop_requested or (self.workspace / "STOP").exists(),
         )
+        from agent.plugins.manager import PluginManager
+        self.plugins = PluginManager(self.workspace, logger=self.logger)
         self.logger.add_listener(self._event_listener)
 
     def _update_telemetry(self, record: dict[str, Any]) -> None:
@@ -438,6 +440,54 @@ class WakeCoordinator:
                 if data.get("registered"):
                     result.append(str(data.get("name", meta.parent.name)))
         return sorted(result)
+
+    def handle_plugins_command(self, command: str) -> str:
+        """Handle human-only /plugins commands for listing, enabling, and disabling plugins."""
+        cmd = command.strip()
+        if cmd in {"/plugins", "/plugins list"}:
+            self.plugins.discover()
+            cfg = self.plugins.read_config().get("plugins", {})
+            if not self.plugins.discovered:
+                return "No plugins discovered in image /opt/agent/plugins or workspace/plugins/."
+            lines = ["**Discovered Plugins:**\n"]
+            for name, p in sorted(self.plugins.discovered.items()):
+                entry = cfg.get(name, {})
+                status = "ENABLED" if entry.get("enabled") else "DISABLED"
+                source = "shipped" if p.is_shipped else "workspace"
+                h = entry.get("hash", "")
+                h_str = f" [hash: {h[:12]}...]" if h else ""
+                lines.append(f"- **{name}** (v{p.manifest.version}, {p.manifest.kind}, {source}): [{status}]{h_str}")
+                lines.append(f"  {p.manifest.description}")
+                if p.manifest.tools:
+                    tool_names = [f"{name}.{t['name']}" for t in p.manifest.tools]
+                    lines.append(f"  Tools: {', '.join(tool_names)}")
+            return "\n".join(lines)
+
+        if cmd.startswith("/plugins enable "):
+            name = cmd.removeprefix("/plugins enable ").strip()
+            if not name:
+                return "Usage: /plugins enable <name>"
+            try:
+                res = self.plugins.enable_by_human(name)
+                return f"Plugin '{name}' enabled (hash: {res['hash'][:12]}...). Takes effect at the next cycle boundary."
+            except PermissionError:
+                return f"Cannot enable plugin '{name}': /config/plugins.json is mounted read-only (human host config). Please edit ./config/plugins.json on host."
+            except Exception as exc:
+                return f"Could not enable plugin '{name}': {exc}"
+
+        if cmd.startswith("/plugins disable "):
+            name = cmd.removeprefix("/plugins disable ").strip()
+            if not name:
+                return "Usage: /plugins disable <name>"
+            try:
+                self.plugins.disable_by_human(name)
+                return f"Plugin '{name}' disabled. Takes effect at the next cycle boundary."
+            except PermissionError:
+                return f"Cannot disable plugin '{name}': /config/plugins.json is mounted read-only. Please edit ./config/plugins.json on host."
+            except Exception as exc:
+                return f"Could not disable plugin '{name}': {exc}"
+
+        return "Unknown plugins command. Usage: /plugins list, /plugins enable <name>, /plugins disable <name>"
 
     def _orientation_changes(self) -> list[str]:
         sense_data = self.body.sense()
@@ -877,6 +927,7 @@ class WakeCoordinator:
         runner = ToolRunner(self.logger, self.workspace, body=self.body)
         runner.identity = self.identity
         runner.plan_store = self.plan_store
+        runner.plugins = self.plugins
         loop = AgentLoop(
             AgentConfig(
                 workspace=self.workspace,
@@ -892,6 +943,7 @@ class WakeCoordinator:
                 daily_ledger=self.daily_ledger,
                 session_id=self.status.session_id,
                 body=self.body,
+                plugins=self.plugins,
             ),
             self.logger, self._llm, runner,
         )

@@ -16,6 +16,8 @@ def main() -> int:
     parser.add_argument("--max-iterations", type=int, help="Maximum autonomous cycle iterations.")
     parser.add_argument("--token-budget", type=int, help="Deprecated; ledger-only budget is enforced.")
     parser.add_argument("--max-wall-clock-seconds", type=int, help="Maximum execution wall clock seconds.")
+    parser.add_argument("--command", "-c", help="Execute a slash command such as '/plugins list' and exit.")
+    parser.add_argument("command_arg", nargs="?", help="Optional command string e.g. '/plugins list'.")
     args = parser.parse_args()
 
     coordinator = WakeCoordinator(
@@ -24,6 +26,14 @@ def main() -> int:
         token_budget=args.token_budget,
         max_wall_clock_seconds=args.max_wall_clock_seconds,
     )
+
+    cmd = args.command or args.command_arg
+    if cmd:
+        if cmd.startswith("/plugins"):
+            print(coordinator.handle_plugins_command(cmd))
+            return 0
+        print(f"Unknown headless command: {cmd}")
+        return 1
 
     def stop_signal(*_: Any) -> None:
         coordinator.stop_requested = True

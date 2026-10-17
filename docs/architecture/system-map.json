@@ -38,6 +38,11 @@
       "purpose": "Identity store, first awakening, name context resolution, traits, and core patch proposals."
     },
     {
+      "package": "agent.plugins",
+      "layer": 2,
+      "purpose": "Plugin lifecycle, discovery, manifest validation, dynamic tool registration, and SHA-256 hash pinning."
+    },
+    {
       "package": "agent.runtime",
       "layer": 3,
       "purpose": "Autonomous agent loop, cycle coordination, prompt assembly, and tool round execution."
@@ -319,7 +324,7 @@
     {
       "name": "agent_step",
       "emitters": [
-        "agent/runtime/loop.py:331"
+        "agent/runtime/loop.py:337"
       ],
       "fields": [
         "message"
@@ -395,7 +400,7 @@
     {
       "name": "context_retrieval",
       "emitters": [
-        "agent/runtime/loop.py:179"
+        "agent/runtime/loop.py:180"
       ],
       "fields": [
         "files_scanned",
@@ -469,7 +474,7 @@
     {
       "name": "cycle_completed",
       "emitters": [
-        "agent/runtime/loop.py:660"
+        "agent/runtime/loop.py:688"
       ],
       "fields": [
         "actions",
@@ -481,7 +486,7 @@
     {
       "name": "daily_budget_human_request_created",
       "emitters": [
-        "agent/runtime/loop.py:301"
+        "agent/runtime/loop.py:307"
       ],
       "fields": [
         "path"
@@ -513,7 +518,7 @@
     {
       "name": "daily_token_limit_paused",
       "emitters": [
-        "agent/runtime/loop.py:307"
+        "agent/runtime/loop.py:313"
       ],
       "fields": [
         "session_id"
@@ -522,7 +527,7 @@
     {
       "name": "daily_token_limit_resumed",
       "emitters": [
-        "agent/runtime/loop.py:311"
+        "agent/runtime/loop.py:317"
       ],
       "fields": [
         "session_id"
@@ -629,7 +634,7 @@
     {
       "name": "identity_context_fallback",
       "emitters": [
-        "agent/runtime/loop.py:365"
+        "agent/runtime/loop.py:371"
       ],
       "fields": [
         "error_type"
@@ -897,6 +902,53 @@
       ]
     },
     {
+      "name": "plugin_disabled",
+      "emitters": [
+        "agent/plugins/manager.py:400"
+      ],
+      "fields": [
+        "plugin"
+      ]
+    },
+    {
+      "name": "plugin_enabled",
+      "emitters": [
+        "agent/plugins/manager.py:375"
+      ],
+      "fields": [
+        "hash",
+        "plugin",
+        "version"
+      ]
+    },
+    {
+      "name": "plugin_hash_mismatch",
+      "emitters": [
+        "agent/plugins/manager.py:450"
+      ],
+      "fields": [
+        "actual",
+        "expected",
+        "plugin"
+      ]
+    },
+    {
+      "name": "plugin_load_failed",
+      "emitters": [
+        "agent/plugins/manager.py:232",
+        "agent/plugins/manager.py:235",
+        "agent/plugins/manager.py:272",
+        "agent/plugins/manager.py:293",
+        "agent/plugins/manager.py:368",
+        "agent/plugins/manager.py:319",
+        "agent/plugins/manager.py:395"
+      ],
+      "fields": [
+        "error",
+        "plugin"
+      ]
+    },
+    {
       "name": "provider_backoff",
       "emitters": [
         "agent/llm/brain_router.py:155"
@@ -1090,7 +1142,7 @@
     {
       "name": "repeated_tool_action_blocked",
       "emitters": [
-        "agent/runtime/loop.py:618"
+        "agent/runtime/loop.py:643"
       ],
       "fields": [
         "tool"
@@ -1109,7 +1161,7 @@
     {
       "name": "run_completed",
       "emitters": [
-        "agent/runtime/loop.py:691"
+        "agent/runtime/loop.py:719"
       ],
       "fields": [
         "iterations",
@@ -1120,8 +1172,8 @@
     {
       "name": "run_failed",
       "emitters": [
-        "agent/runtime/loop.py:778",
-        "agent/runtime/loop.py:584"
+        "agent/runtime/loop.py:806",
+        "agent/runtime/loop.py:609"
       ],
       "fields": [
         "error",
@@ -1132,7 +1184,7 @@
     {
       "name": "run_started",
       "emitters": [
-        "agent/runtime/loop.py:430"
+        "agent/runtime/loop.py:437"
       ],
       "fields": [
         "curriculum",
@@ -1148,9 +1200,9 @@
     {
       "name": "run_stopped",
       "emitters": [
-        "agent/runtime/loop.py:261",
-        "agent/runtime/loop.py:774",
-        "agent/runtime/loop.py:465"
+        "agent/runtime/loop.py:267",
+        "agent/runtime/loop.py:802",
+        "agent/runtime/loop.py:472"
       ],
       "fields": [
         "reason"
@@ -1198,7 +1250,7 @@
     {
       "name": "session_reflection_completed",
       "emitters": [
-        "agent/session/coordinator.py:639"
+        "agent/session/coordinator.py:689"
       ],
       "fields": [
         "purpose",
@@ -1208,7 +1260,7 @@
     {
       "name": "session_reflection_fallback",
       "emitters": [
-        "agent/session/coordinator.py:642"
+        "agent/session/coordinator.py:692"
       ],
       "fields": [
         "error_type",
@@ -1229,7 +1281,7 @@
     {
       "name": "session_summary",
       "emitters": [
-        "agent/session/coordinator.py:935"
+        "agent/session/coordinator.py:987"
       ],
       "fields": [
         "message"
@@ -1238,14 +1290,14 @@
     {
       "name": "session_unexpected_exception",
       "emitters": [
-        "agent/session/coordinator.py:948"
+        "agent/session/coordinator.py:1000"
       ],
       "fields": []
     },
     {
       "name": "stale_budget_plan_recovered",
       "emitters": [
-        "agent/session/coordinator.py:726"
+        "agent/session/coordinator.py:776"
       ],
       "fields": [
         "available_daily_tokens"
@@ -1285,7 +1337,7 @@
       "name": "tool_call",
       "emitters": [
         "agent/tests/identity/test_identity.py:66",
-        "agent/tools/base_tools.py:394"
+        "agent/tools/base_tools.py:395"
       ],
       "fields": [
         "arguments",
@@ -1358,7 +1410,7 @@
       "name": "tool_result",
       "emitters": [
         "agent/tests/identity/test_identity.py:67",
-        "agent/tools/base_tools.py:466"
+        "agent/tools/base_tools.py:474"
       ],
       "fields": [
         "duration_ms",
@@ -1404,7 +1456,7 @@
     {
       "name": "zero_cycle_session_preserved",
       "emitters": [
-        "agent/session/coordinator.py:904"
+        "agent/session/coordinator.py:956"
       ],
       "fields": [
         "end_reason",
@@ -1622,6 +1674,12 @@
       "purpose": "Recorded tool failure lessons after 3 failed creation attempts",
       "writer": "agent/tools/tool_registry.py",
       "reader": "agent/runtime/loop.py"
+    },
+    {
+      "path": "config/plugins.json",
+      "purpose": "Human-owned configuration file recording plugin enablement status and SHA-256 hash pins",
+      "writer": "agent/plugins/manager.py",
+      "reader": "agent/plugins/manager.py"
     }
   ],
   "env_vars": [
@@ -1858,6 +1916,12 @@
       "default": "./workspace",
       "where_read": "docker-compose.yml:17",
       "meaning": "Host directory mounted to /home/entity inside container."
+    },
+    {
+      "name": "SELF_CONFIG_DIR",
+      "default": "./config",
+      "where_read": "docker-compose.yml:22",
+      "meaning": "Host configuration directory mounted read-only for human plugin control."
     },
     {
       "name": "EVAL_WORKSPACE_DIR",

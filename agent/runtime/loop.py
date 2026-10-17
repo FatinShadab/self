@@ -135,6 +135,7 @@ class AgentConfig:
     daily_ledger: DailyTokenLedger | None = None
     session_id: str = ""
     body: Any | None = None
+    plugins: Any | None = None
 
 
 
@@ -252,6 +253,11 @@ class AgentLoop:
         self.identity = tools.identity or IdentityStore(config.workspace, logger, core_root=tools.core_root)
         self.tools.identity = self.identity
         self.checkpoint = RunCheckpoint(config.workspace, logger)
+        self.plugins = getattr(config, "plugins", None)
+        if self.plugins is None:
+            from agent.plugins.manager import PluginManager
+            self.plugins = PluginManager(config.workspace, logger=logger)
+        self.tools.plugins = self.plugins
         self.stop_file = config.workspace / "STOP"
         self.human_request = config.workspace / "HUMAN_REQUEST.md"
 
@@ -384,7 +390,8 @@ class AgentLoop:
         system_prompt = (prompt_text if self.helper_mode else
                          "\n".join(line for line in prompt_text.splitlines()
                                    if not line.startswith(OFF_PROMPT_PREFIXES)))
-        return f"{system_prompt}{model_context}\n\n{self.logger.redactor.text(context)}"
+        plugin_embodiment = f"\n\n{self.plugins.get_embodiment_prompt().strip()}" if (self.plugins and self.plugins.get_embodiment_prompt()) else ""
+        return f"{system_prompt}{model_context}\n\n{self.logger.redactor.text(context)}{plugin_embodiment}"
 
 
     def _refresh_learning_runtime(self) -> None:
@@ -467,6 +474,20 @@ class AgentLoop:
                 break
 
             self.tools.current_cycle = cycle
+            if self.plugins is not None:
+                self.plugins.sync_at_cycle_boundary()
+                for p_name, active_p in self.plugins.active_plugins.items():
+                    for seed in active_p.manifest.starting_goal_seeds:
+                        existing_goals = [item.get("goal") for item in self.plan_store.items]
+                        if seed not in existing_goals:
+                            self.plan_store.update_plan(
+                                action="add",
+                                goal=seed,
+                                priority=2,
+                                reason=f"Plugin {p_name} starting seed",
+                                cycle=cycle,
+                                source=f"plugin:{p_name}",
+                            )
             top_items = self.plan_store.top_items(limit=3)
             primary_goal = top_items[0]["goal"] if top_items else (active_task or STANDING_GOAL)
             plan_query = self.plan_store.retrieval_query()
@@ -507,6 +528,8 @@ class AgentLoop:
             failure_context = self.registry.recent_failure_context()
             plan_summary = self.plan_store.prompt_summary()
             actions_summary = self._format_actions(last_actions)
+            plugin_notes = self.plugins.get_goal_notes_prompt().strip() if (self.plugins and self.plugins.get_goal_notes_prompt()) else ""
+            plugin_section = f"{plugin_notes}\n\n" if plugin_notes else ""
             messages: list[dict[str, Any]] = [
                 {
                     "role": "user",
@@ -521,6 +544,7 @@ class AgentLoop:
                         "or state why no change is needed in your response.\n\n"
                         f"Previous cycle results:\n- Report: {last_report}\n- Actions: {actions_summary}\n\n"
                         f"Relevant tools and memories:\n{context}\n\n"
+                        f"{plugin_section}"
                         f"Human inputs to weigh since the prior cycle:\n{human_context or 'None.'}\n\n"
                         "When human inputs are present, weigh each input and record an explicit decision "
                         "(accepted, modified, declined, deferred, or noted) with a reason citing evidence or your autonomous priorities.\n\n"
@@ -569,7 +593,8 @@ class AgentLoop:
                 base = [tool for tool in TOOL_DEFINITIONS
                         if (self.config.base_tool_names is None or tool["name"] in self.config.base_tool_names)
                         and (self.helper_mode or tool["name"] not in HELPER_TOOL_NAMES)]
-                definitions = base + [CREATE_TOOL_DEFINITION] + selected
+                plugin_tools = self.plugins.get_active_tool_definitions() if self.plugins else []
+                definitions = base + [CREATE_TOOL_DEFINITION] + selected + plugin_tools
                 try:
                     result = self.llm.call(system=self._system_prompt(), messages=messages,
                                            tools=definitions, max_tokens=self.max_tokens_per_call)
@@ -619,7 +644,10 @@ class AgentLoop:
                     else:
                         seen_tool_actions.add(action_key)
                         try:
-                            if name not in {tool["name"] for tool in definitions}:
+                            if self.plugins is not None and self.plugins.is_vanished_or_disabled_tool(name):
+                                p_name = self.plugins.get_plugin_for_tool(name)
+                                observation = {"ok": False, "error": f"tool no longer available: plugin {p_name} disabled"}
+                            elif name not in {tool["name"] for tool in definitions}:
                                 observation = {"ok": False, "error": "Tool not offered in this step; use task keywords to retrieve it."}
                             else:
                                 observation = self.tools.execute(name, arguments)

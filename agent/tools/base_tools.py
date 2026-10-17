@@ -263,7 +263,7 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
         "name": "request_capability",
         "description": "Request a human-approved expansion beyond the container: credentials, host mounts, ports, email, money, third-party accounts, or external service access. This writes a request and cannot perform the expansion.",
         "input_schema": {"type": "object", "properties": {
-            "kind": {"type": "string", "enum": ["credential", "host_mount", "port", "email", "money", "third_party_account", "external_service"]},
+            "kind": {"type": "string", "enum": ["credential", "host_mount", "port", "email", "money", "third_party_account", "external_service", "plugin"]},
             "summary": {"type": "string"}, "reason": {"type": "string"}, "provider": {"type": "string"},
             "env_names": {"type": "array", "items": {"type": "string"}}, "signup_url": {"type": "string"},
         }, "required": ["kind", "summary", "reason"]},
@@ -363,6 +363,7 @@ class ToolRunner:
         self.model_prober: Any = None
         self.model_decisions: Any = None
         self.plan_store: Any = None
+        self.plugins: Any = None
         self.current_cycle: int = 1
 
     @property
@@ -452,6 +453,13 @@ class ToolRunner:
                     result = self.propose_core_patch(**arguments)
                 elif name in {definition["name"] for definition in TOOL_DEFINITIONS}:
                     result = getattr(self, name)(**arguments)
+                elif self.plugins is not None and self.plugins.is_plugin_tool(name):
+                    result = self.plugins.execute_plugin_tool(name, arguments)
+                elif self.plugins is not None and self.plugins.is_vanished_or_disabled_tool(name):
+                    result = self.plugins.execute_plugin_tool(name, arguments)
+                elif "." in name:
+                    plugin_name = name.split(".", 1)[0]
+                    result = {"ok": False, "error": f"tool no longer available: plugin {plugin_name} disabled"}
                 elif self.registry is not None:
                     result = self.registry.execute(name, arguments)
                 else:
@@ -538,7 +546,15 @@ class ToolRunner:
             return bool(checker(path))
         try:
             candidate = path.resolve(strict=False)
-            return any(candidate.is_relative_to(root.resolve(strict=False)) for root in (self.core_root, self.agent_root))
+            if any(candidate.is_relative_to(root.resolve(strict=False)) for root in (self.core_root, self.agent_root)):
+                return True
+            for cfg in (Path("/config"), self.workspace / "config", self.workspace.parent / "config"):
+                try:
+                    if candidate.is_relative_to(cfg.resolve(strict=False)):
+                        return True
+                except (OSError, ValueError):
+                    pass
+            return False
         except OSError:
             return False
 

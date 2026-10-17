@@ -149,25 +149,24 @@ graph TD
   - `agent/session/coordinator.py`: Headless coordinator uses `self.body` for metrics, orientation changes, and initial startup tasks.
 
 ### Seam 2: Tool Registry & Tool Offerings
-- **Current Tight Coupling:** `TOOL_DEFINITIONS` is a hardcoded static list in `base_tools.py:23-270`. `AgentLoop` filters it via `HELPER_TOOL_NAMES`.
-- **Target Interface:** `ToolProvider` protocol allowing plugins to register tool suites (e.g. `antivirus_scan`, `quarantine_file`, `motor_step`, `read_lidar`).
-- **Code to Change:**
-  - `agent/tools/base_tools.py`: Change `TOOL_DEFINITIONS` from static list to dynamic registry with `register_tool_spec()`.
-  - `agent/runtime/loop.py:539-542`: Accept tool providers rather than importing `TOOL_DEFINITIONS` directly.
-- **Difficulty:** **LOW**. The custom tool pipeline (`ToolRegistry`) already supports dynamic tool addition; extending this to base tools is straightforward.
+- **Status:** **IMPLEMENTED (Prompt 11)** via `agent.plugins.PluginManager`.
+- **Implementation:**
+  - `agent/plugins/manager.py`: `PluginManager` dynamically discovers and loads plugin tools, enforcing strict `<plugin>.<tool>` namespacing and rejecting any collisions with core tools (`TOOL_DEFINITIONS`, `create_tool`).
+  - `agent/runtime/loop.py`: Dynamically merges plugin tool definitions into model schemas and offers them during inner tool rounds.
+  - `agent/tools/base_tools.py`: `ToolRunner` dynamically delegates namespaced tool execution to `plugin_manager.execute_tool()`.
 
 ### Seam 3: Prompt Assembly & Standing Goal
 - **Status:** **IMPLEMENTED (Prompt 10)** via `assemble_system_prompt(body)` and `assemble_conversation_system_prompt(body)`.
 - **Implementation:**
-  - `agent/runtime/loop.py`: Decomposed `SYSTEM_PROMPT` into core rules (`CORE_SYSTEM_PROMPT_HEAD`, `CORE_CAPABILITY_RULE`, `CORE_IDENTITY_RULES`) and dynamically appends `body.describe().embodiment`. `AgentLoop` accepts `body` parameter.
+  - `agent/runtime/loop.py`: Decomposed `SYSTEM_PROMPT` into core rules (`CORE_SYSTEM_PROMPT_HEAD`, `CORE_CAPABILITY_RULE`, `CORE_IDENTITY_RULES`) and dynamically appends `body.describe().embodiment`. `AgentLoop` accepts `body` parameter. Delimited plugin embodiment and goal seeds are appended while plugins are enabled.
   - `agent/session/conversation.py`: Parameterized conversation system prompt using `body.describe().conversation_environment`.
   - `agent/learning/learning.py`: Parameterized self notes preamble using `body.describe().notes_preamble`.
 
 ### Seam 4: Plan Seeding & Curriculum
-- **Status:** **IMPLEMENTED (Prompt 10)** via `body.initial_orientation_task()`.
+- **Status:** **IMPLEMENTED (Prompt 10 & 11)** via `body.initial_orientation_task()` and `plugin.json` starting seeds.
 - **Implementation:**
   - `agent/session/coordinator.py`: Startup priority delegates to `self.body.initial_orientation_task()` instead of hardcoded container package inventory.
-  - `agent/learning/plan.py`: Plan seeding uses body-provided initial orientation.
+  - `agent/learning/plan.py`: Plan seeding uses body-provided initial orientation and seeds from enabled plugins (`source="plugin:<plugin_name>"`).
 
 ### Seam 5: Identity & Persona Framing
 - **Status:** **IMPLEMENTED (Prompt 10)** via `IdentityStore.default_identity(body)`.
@@ -175,24 +174,23 @@ graph TD
   - `agent/identity/identity.py`: Default interests and self-inquiry questions are supplied by `body.describe().default_interests` and `body.describe().identity_harness_context`. Core autonomy, voice, and traits remain preserved.
 
 ### Seam 6: State Folders & Persistence Partitioning
-- **Current Tight Coupling:** `workspace/state/` contains an unpartitioned mix of cognitive files (`plan.json`, `identity.json`, `models.json`) and container-specific artifacts (`etc_recursive.json`, `service_dependency_map.json`).
-- **Target Interface:** Clean partitioning between core cognitive state (`core_state/`) and body/plugin state (`plugins/<plugin_name>/state/`).
-- **Code to Change:**
-  - `agent/learning/learning.py`: Move ad-hoc map files into plugin namespaces.
-- **Difficulty:** **MEDIUM**. Requires file path migrations and updating paths in tools.
+- **Status:** **IMPLEMENTED (Prompt 11)** for plugins.
+- **Implementation:**
+  - `agent/plugins/manager.py`: Each plugin maintains its isolated persistent state in `workspace/plugins/<name>/state/`.
+  - `compute_plugin_hash()`: Content hash checking explicitly ignores `state/`, `__pycache__`, and `*.pyc`, allowing plugins to read/write state freely without triggering hash mismatches.
 
 ---
 
 ## 4. Ranked Difficulty Summary of Seams
 
-| Rank | Seam | Difficulty | Primary Challenge & Rationale |
-| :---: | :--- | :---: | :--- |
-| **1** | **Body Interface (`Sense` / `Act` / `Permissions`)** | **HIGH** | `base_tools.py`, `process_runner.py`, and `wake.py` contain deep, pervasive assumptions about Linux bash, root execution, cgroups, `/proc`, and container filesystems. Abstracting these into an interface without breaking existing tool behavior or security requires substantial refactoring. |
-| **2** | **Prompt Assembly & System Prompt** | **MEDIUM** | Prompts are fragile. Splitting `SYSTEM_PROMPT` into core autonomy vs. body embodiment requires careful phrasing so the agent retains its first-person non-subservient voice and strict safety rules regardless of body. |
-| **3** | **State Partitioning & File Organization** | **MEDIUM** | Existing workspace state files have interdependencies across `learning.py`, `plan.py`, and `report.py`. Moving files into namespaced subdirectories requires careful path migrations. |
-| **4** | **Tool Registry & Dynamic Offerings** | **LOW** | `ToolRegistry` already dynamically loads and tests tools; wrapping base tools into provider interfaces is a natural extension of existing design. |
-| **5** | **Plan Seeding & Startup Tasks** | **LOW** | Removing the hardcoded Python package inventory startup priority and parameterizing `seed_task` is localized to `wake.py:1385` and `loop.py:394`. |
-| **6** | **Identity Framing & Default Interests** | **LOW** | Parameterizing `interests` in `default_identity()` is localized to `agent/identity/identity.py:86`. |
+| Rank | Seam | Difficulty | Primary Challenge & Rationale | Status |
+| :---: | :--- | :---: | :--- | :--- |
+| **1** | **Body Interface (`Sense` / `Act` / `Permissions`)** | **HIGH** | `base_tools.py`, `process_runner.py`, and `wake.py` contain deep, pervasive assumptions about Linux bash, root execution, cgroups, `/proc`, and container filesystems. Abstracting these into an interface without breaking existing tool behavior or security requires substantial refactoring. | **IMPLEMENTED (Prompt 10)** |
+| **2** | **Prompt Assembly & System Prompt** | **MEDIUM** | Prompts are fragile. Splitting `SYSTEM_PROMPT` into core autonomy vs. body embodiment requires careful phrasing so the agent retains its first-person non-subservient voice and strict safety rules regardless of body. | **IMPLEMENTED (Prompt 10 & 11)** |
+| **3** | **State Partitioning & File Organization** | **MEDIUM** | Existing workspace state files have interdependencies across `learning.py`, `plan.py`, and `report.py`. Moving files into namespaced subdirectories requires careful path migrations. | **IMPLEMENTED (Prompt 11)** |
+| **4** | **Tool Registry & Dynamic Offerings** | **LOW** | `ToolRegistry` already dynamically loads and tests tools; wrapping base tools into provider interfaces is a natural extension of existing design. | **IMPLEMENTED (Prompt 11)** |
+| **5** | **Plan Seeding & Startup Tasks** | **LOW** | Removing the hardcoded Python package inventory startup priority and parameterizing `seed_task` is localized to `wake.py:1385` and `loop.py:394`. | **IMPLEMENTED (Prompt 10 & 11)** |
+| **6** | **Identity Framing & Default Interests** | **LOW** | Parameterizing `interests` in `default_identity()` is localized to `agent/identity/identity.py:86`. | **IMPLEMENTED (Prompt 10)** |
 
 ---
 
@@ -200,15 +198,15 @@ graph TD
 
 If a body or specialization plugin (e.g. an antivirus scanner or IoT motor plugin) is unplugged while the agent is running:
 
-1. **Tool Invocation Failures (`ValueError`):**
+1. **Tool Invocation Graceful Interception (No Uncaught `ValueError`):**
    - The LLM's conversation history retains memory of the plugin's tools.
-   - If the LLM generates a `tool_use` block for a vanished tool, `ToolRunner.execute()` raises `ValueError("Tool not offered in this step")` `[read] agent/runtime/loop.py:593`.
-   - *Impact:* The cycle records a tool error. The agent receives the error observation in the next turn and must adapt.
+   - If the LLM generates a `tool_use` block for a vanished or disabled tool, `ToolRunner.execute()` catches it and returns a structured observation: `{"ok": False, "error": "tool no longer available: plugin X disabled"}` instead of raising `[read] agent/tools/base_tools.py:346, agent/runtime/loop.py:612`.
+   - *Impact:* The core runtime stays completely healthy. The agent observes the structured failure in the next turn and can adjust its plan.
 2. **Stalled Plan Goals:**
    - Active goals in `state/plan.json` may depend on plugin capabilities (e.g., `goal-4: "Scan filesystem for malware signatures"`).
    - *Impact:* Without the plugin tool, the goal cannot be achieved. The agent's plan review requirement `[read] agent/runtime/loop.py:488` will eventually mark the goal `"blocked"` or `"dropped"` citing the missing tool observation.
-3. **Keyword Retrieval Misses:**
-   - `ToolRegistry.retrieve()` will no longer return the plugin's tools. Keyword queries will fall back to base tools.
+3. **Dynamic Prompt Delimitation Removed:**
+   - The plugin's embodiment text in the system prompt and starting goal notes in the cycle prompt are completely removed on the next cycle boundary `[read] agent/runtime/loop.py:377, 488`.
 4. **State & Map Staleness:**
    - Map entries recorded by the plugin in `state/map.json` remain on disk. The agent may cite stale facts until spot-checks detect they no longer exist.
 5. **Clean Recovery:**

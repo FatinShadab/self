@@ -76,6 +76,10 @@ graph TD
 | `/home/entity/tools/` | **Managed Write** | Managed via `create_tool` pipeline `[read] agent/tools/tool_registry.py:225`. |
 | `/home/entity/self/` | **Read/Write** | Extension layer for prompts, heuristics, and themes `[read] agent/runtime/loop.py:64`. |
 | `/opt/agent/` and `/opt/agent/core/` | **READ-ONLY** | Image-owned; files chmod `0444`, dirs `0555` `[read] Dockerfile:45-46`. In Python, `write_file` raises `PermissionError` `[read] agent/tools/base_tools.py:540-543`. Core changes require `propose_core_patch`. |
+| `/opt/agent/plugins/` | **READ-ONLY** | Image-owned; read-only shipped plugins pinned by the image. |
+| `/config/` (`config/plugins.json`) | **READ-ONLY** | Mounted read-only (`read_only: true`); human-owned configuration recording enabled plugins and SHA-256 content hashes `[read] docker-compose.yml:21, agent/tools/base_tools.py:530`. |
+| `/home/entity/plugins/<name>/` | **Read/Write** | Human-installed workspace plugins `[read] agent/plugins/manager.py:45`. |
+| `/home/entity/plugins/<name>/state/` | **Read/Write** | Plugin-specific isolated state directory. Excluded from content hash checks `[read] agent/plugins/manager.py:90`. |
 | `state/identity.json` | **MANAGED** | Cannot be overwritten via `write_file` `[read] agent/tools/base_tools.py:544-547`. Updated only via `set_name` or session reflection. |
 | `state/about_human.md` | **MANAGED** | Cannot be overwritten via `write_file`. Lines deleted only via `/about me delete` `[read] agent/identity/identity.py:555`. |
 
@@ -90,6 +94,9 @@ graph TD
 4. **Output Caps:** File reads, shell commands, and HTTP responses capped at 20,000 characters (`SELF_MAX_OUTPUT_CHARS`) `[read] agent/tools/base_tools.py:20`.
 5. **Anti-Looping Repetition Check:** Exactly identical `(tool_name, arguments)` within the same run is blocked `[read] agent/runtime/loop.py:583-588`.
 6. **Hard Stop Precedence:** `STOP` file is checked at all cycle and tool boundaries `[read] agent/runtime/loop.py:230-235`.
+7. **Plugin SHA-256 Hash Pinning:** Full directory content hash (excluding `state/`, `__pycache__`, `*.pyc`) is pinned in `config/plugins.json` upon human enablement. Recomputed at every load and cycle boundary; any mismatch logs `plugin_hash_mismatch`, disables the plugin, and refuses load until human re-approves `[read] agent/plugins/manager.py:90-160`.
+8. **Dynamic Plugin Tool Namespacing & Core Tool Immutability:** Plugin tools are strictly namespaced `<plugin>.<tool>`. Collisions with core tools (`TOOL_DEFINITIONS`, `create_tool`) are rejected. Plugins cannot override core tools, core prompt rules, the permission layer, or stop handling `[read] agent/plugins/manager.py:280-300`.
+9. **Plugin Error Containment & Unplug Resilience:** Bad or crashing plugins log `plugin_load_failed` without taking down the core loop. Calling tools from vanished/disabled plugins returns structured observation `{"ok": False, "error": "tool no longer available: plugin X disabled"}` without raising `[read] agent/runtime/loop.py:612`.
 
 ### What is NOT Enforced (Security & Sandboxing Gaps)
 1. **Root Execution in Container (`USER root`):**

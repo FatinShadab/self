@@ -86,28 +86,31 @@ sequenceDiagram
 #### Step 2: Cycle Initialization & Prompt Assembly
 `[read] agent/runtime/loop.py:419-505`:
 1. Check pause state (`_wait_while_paused()`) and STOP file (`_stopped()`).
-2. Plan query retrieval: `PlanStore.top_items()` retrieves active goals; `PlanStore.retrieval_query()` extracts goal keywords `[read] agent/learning/plan.py:180-210`.
-3. Context assembly:
+2. Plugin boundary sync & hash verification: `PluginManager.sync_at_cycle_boundary()` re-reads human-owned `./config/plugins.json`, verifies full contents SHA-256 hashes against recorded pins, logs `plugin_hash_mismatch` upon tampering, disables/enables plugins, seeds starting goals into `PlanStore`, and injects clearly delimited embodiment and goal notes into prompts `[read] agent/plugins/manager.py:413-460, agent/runtime/loop.py:475-490`.
+3. Plan query retrieval: `PlanStore.top_items()` retrieves active goals; `PlanStore.retrieval_query()` extracts goal keywords `[read] agent/learning/plan.py:180-210`.
+4. Context assembly:
    - Self notes from `state/self_notes.md` `[read] agent/learning/learning.py:240`.
    - Verified environment map from `state/map.json` `[read] agent/learning/learning.py:105`.
    - Relevant memories retrieved via keyword matching from `state/memory.jsonl` `[read] agent/learning/learning.py:200`.
+   - Plugin goal notes and starting seeds in a delimited section `[read] agent/plugins/manager.py:535`.
    - Legacy lessons from `workspace/memory/` `[read] agent/runtime/loop.py:127-164`.
-4. Helper models evaluation prompt: If cycle 1 and helper models lack evaluations, an explicit evaluation directive is injected `[read] agent/runtime/loop.py:460-476`.
-5. Human inbox messages: Consumed via `HumanInbox.consume()` from `state/human_input.jsonl` `[read] agent/session/session.py:60-75`.
-6. Recent tool creation failure diagnostics extracted from `logs/actions.jsonl` `[read] agent/tools/tool_registry.py:202-218`.
-7. System prompt: Assembled via `AgentLoop._system_prompt()`, combining core rules with `self.body.describe()` via `assemble_system_prompt(self.body)` `[read] agent/runtime/loop.py:46-56`, active helper models registry summary, and `IdentityStore.prompt_context()` `[read] agent/identity/identity.py:474`.
+5. Helper models evaluation prompt: If cycle 1 and helper models lack evaluations, an explicit evaluation directive is injected `[read] agent/runtime/loop.py:460-476`.
+6. Human inbox messages: Consumed via `HumanInbox.consume()` from `state/human_input.jsonl` `[read] agent/session/session.py:60-75`.
+7. Recent tool creation failure diagnostics extracted from `logs/actions.jsonl` `[read] agent/tools/tool_registry.py:202-218`.
+8. System prompt: Assembled via `AgentLoop._system_prompt()`, combining core rules with `self.body.describe()` via `assemble_system_prompt(self.body)` `[read] agent/runtime/loop.py:46-56`, active helper models registry summary, `IdentityStore.prompt_context()` `[read] agent/identity/identity.py:474`, and active plugin embodiment sections `[read] agent/plugins/manager.py:520`.
 
 #### Step 3: Tool Rounds (`while True:` inner loop)
 `[read] agent/runtime/loop.py:511-625`:
 1. Check pause and STOP file at every turn.
 2. In-flight human inputs: Any new human messages submitted while tools were running are injected into the message history `[read] agent/runtime/loop.py:522-533`.
 3. Custom tool retrieval: `ToolRegistry.retrieve(query, top_k)` keyword-ranks tools in `workspace/tools/` `[read] agent/tools/tool_registry.py:195-200`.
-4. Offerings assembled: Base tools + `create_tool` + retrieved custom tools.
+4. Dynamic offerings assembled: Base tools + `create_tool` + retrieved custom tools + active plugin tools namespaced `<plugin>.<tool>` `[read] agent/runtime/loop.py:595`.
 5. Daily token reservation: `BudgetedLLM.call()` calculates an estimated token reservation and reserves it in `DailyTokenLedger` with a file lock `[read] agent/llm/llm.py:72-84`.
 6. LLM call: Dispatched to provider client with `max_tokens` set to model output ceiling.
 7. Token settlement: Actual token usage is settled in the ledger; reservations released on network error `[read] agent/llm/llm.py:91-118`.
 8. Tool execution:
    - If response contains no `tool_use` blocks, the tool round terminates `[read] agent/runtime/loop.py:567`.
+   - If tool belongs to a vanished/disabled plugin, returns structured observation `{"ok": False, "error": "tool no longer available: plugin X disabled"}` without raising `[read] agent/runtime/loop.py:645`.
    - For each `tool_use` block:
      - Exact repetition check: If `(tool_name, arguments)` was already executed in this run, execution is blocked with an error observation `[read] agent/runtime/loop.py:583-588`.
      - Tool executed via `ToolRunner.execute()` `[read] agent/tools/base_tools.py:385-444` (delegating OS/container operations to `body`).
