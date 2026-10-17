@@ -262,6 +262,7 @@ def get_state_files():
         {"path": "workspace/state/handoff_overflow.json", "purpose": "Archived excess text when handoff exceeds 6,000-character bound", "writer": "agent/session/session.py", "reader": "agent/session/session.py"},
         {"path": "workspace/state/run_checkpoint.json", "purpose": "Cycle-by-cycle crash recovery checkpoint (task, cycle, last_report)", "writer": "agent/infra/hardening.py", "reader": "agent/infra/hardening.py, agent/runtime/loop.py"},
         {"path": "workspace/state/plan.json", "purpose": "Persistent plan store: goals, priority, status, evidence, human decisions", "writer": "agent/learning/plan.py", "reader": "agent/learning/plan.py, agent/runtime/loop.py, agent/ui/wake.py"},
+        {"path": "workspace/state/plan_archive.jsonl", "purpose": "Archived completed and dropped plan goals with outcome, reason, evidence, and cycle", "writer": "agent/learning/plan.py", "reader": "agent/learning/plan.py"},
         {"path": "workspace/state/identity.json", "purpose": "Persistent identity: name, voice, traits, values, interests, style cues", "writer": "agent/identity/identity.py", "reader": "agent/identity/identity.py, agent/runtime/loop.py, agent/ui/wake.py"},
         {"path": "workspace/state/identity_log.md", "purpose": "Append-only audit log of identity updates and evidence citations", "writer": "agent/identity/identity.py", "reader": "agent/identity/identity.py"},
         {"path": "workspace/state/about_human.md", "purpose": "Persistent human profile: volunteered preferences and facts about human", "writer": "agent/identity/identity.py", "reader": "agent/identity/identity.py"},
@@ -303,7 +304,8 @@ def get_entry_points():
         {"name": "agent.ui.phase8_verify", "path": "agent/ui/phase8_verify.py", "type": "CLI", "description": "Verification script for Phase 8 identity and plan integration."},
         {"name": "agent.tools.tool_worker", "path": "agent/tools/tool_worker.py", "type": "Subprocess Worker", "description": "Subprocess runner for custom tools; reads JSON from stdin and emits JSON envelope."},
         {"name": "scripts/run-tests.ps1", "path": "scripts/run-tests.ps1", "type": "Host Script", "description": "Build CI image and run agent unit tests and isolated eval unit tests in Docker."},
-        {"name": "scripts/run-tests.sh", "path": "scripts/run-tests.sh", "type": "Host Script", "description": "Shell script equivalent of run-tests.ps1 for Linux/macOS hosts."}
+        {"name": "scripts/run-tests.sh", "path": "scripts/run-tests.sh", "type": "Host Script", "description": "Shell script equivalent of run-tests.ps1 for Linux/macOS hosts."},
+        {"name": "scripts/live-check.ps1", "path": "scripts/live-check.ps1", "type": "Host Script", "description": "Diagnostic health check verifying image, plan, models, errors, framing, and environment."}
     ]
 
 def get_packages():

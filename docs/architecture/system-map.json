@@ -113,6 +113,12 @@
       "path": "scripts/run-tests.sh",
       "type": "Host Script",
       "description": "Shell script equivalent of run-tests.ps1 for Linux/macOS hosts."
+    },
+    {
+      "name": "scripts/live-check.ps1",
+      "path": "scripts/live-check.ps1",
+      "type": "Host Script",
+      "description": "Diagnostic health check verifying image, plan, models, errors, framing, and environment."
     }
   ],
   "tools": [
@@ -302,7 +308,7 @@
     {
       "name": "agent_step",
       "emitters": [
-        "agent/runtime/loop.py:303"
+        "agent/runtime/loop.py:300"
       ],
       "fields": [
         "message"
@@ -344,7 +350,7 @@
     {
       "name": "command_finished",
       "emitters": [
-        "agent/tools/base_tools.py:457"
+        "agent/tools/base_tools.py:466"
       ],
       "fields": [
         "exit_code",
@@ -357,7 +363,7 @@
     {
       "name": "command_output",
       "emitters": [
-        "agent/tools/base_tools.py:453"
+        "agent/tools/base_tools.py:462"
       ],
       "fields": [
         "output",
@@ -367,7 +373,7 @@
     {
       "name": "command_started",
       "emitters": [
-        "agent/tools/base_tools.py:450"
+        "agent/tools/base_tools.py:459"
       ],
       "fields": [
         "command",
@@ -378,7 +384,7 @@
     {
       "name": "context_retrieval",
       "emitters": [
-        "agent/runtime/loop.py:156"
+        "agent/runtime/loop.py:153"
       ],
       "fields": [
         "files_scanned",
@@ -452,7 +458,7 @@
     {
       "name": "cycle_completed",
       "emitters": [
-        "agent/runtime/loop.py:630"
+        "agent/runtime/loop.py:627"
       ],
       "fields": [
         "actions",
@@ -464,7 +470,7 @@
     {
       "name": "daily_budget_human_request_created",
       "emitters": [
-        "agent/runtime/loop.py:273"
+        "agent/runtime/loop.py:270"
       ],
       "fields": [
         "path"
@@ -496,7 +502,7 @@
     {
       "name": "daily_token_limit_paused",
       "emitters": [
-        "agent/runtime/loop.py:279"
+        "agent/runtime/loop.py:276"
       ],
       "fields": [
         "session_id"
@@ -505,7 +511,7 @@
     {
       "name": "daily_token_limit_resumed",
       "emitters": [
-        "agent/runtime/loop.py:283"
+        "agent/runtime/loop.py:280"
       ],
       "fields": [
         "session_id"
@@ -568,7 +574,7 @@
     {
       "name": "human_input_decision",
       "emitters": [
-        "agent/learning/plan.py:474"
+        "agent/learning/plan.py:516"
       ],
       "fields": [
         "cycle",
@@ -612,7 +618,7 @@
     {
       "name": "identity_context_fallback",
       "emitters": [
-        "agent/runtime/loop.py:337"
+        "agent/runtime/loop.py:334"
       ],
       "fields": [
         "error_type"
@@ -830,7 +836,7 @@
         "agent/llm/providers/registry.py:118",
         "agent/tests/infra/test_hardening.py:42",
         "agent/tests/infra/test_hardening.py:43",
-        "agent/tools/base_tools.py:584"
+        "agent/tools/base_tools.py:594"
       ],
       "fields": [
         "host",
@@ -842,7 +848,7 @@
     {
       "name": "plan_hygiene_applied",
       "emitters": [
-        "agent/learning/plan.py:574"
+        "agent/learning/plan.py:648"
       ],
       "fields": [
         "cycle",
@@ -853,21 +859,22 @@
     {
       "name": "plan_unchanged",
       "emitters": [
-        "agent/learning/plan.py:402",
-        "agent/learning/plan.py:262"
+        "agent/learning/plan.py:443",
+        "agent/learning/plan.py:301"
       ],
       "fields": [
         "cycle",
         "diff",
         "evidence",
         "plan_version",
-        "reason"
+        "reason",
+        "source"
       ]
     },
     {
       "name": "plan_updated",
       "emitters": [
-        "agent/learning/plan.py:381"
+        "agent/learning/plan.py:422"
       ],
       "fields": [
         "cycle",
@@ -1071,7 +1078,7 @@
     {
       "name": "repeated_tool_action_blocked",
       "emitters": [
-        "agent/runtime/loop.py:588"
+        "agent/runtime/loop.py:585"
       ],
       "fields": [
         "tool"
@@ -1090,7 +1097,7 @@
     {
       "name": "run_completed",
       "emitters": [
-        "agent/runtime/loop.py:661"
+        "agent/runtime/loop.py:658"
       ],
       "fields": [
         "iterations",
@@ -1101,8 +1108,8 @@
     {
       "name": "run_failed",
       "emitters": [
-        "agent/runtime/loop.py:748",
-        "agent/runtime/loop.py:554"
+        "agent/runtime/loop.py:745",
+        "agent/runtime/loop.py:551"
       ],
       "fields": [
         "error",
@@ -1113,7 +1120,7 @@
     {
       "name": "run_started",
       "emitters": [
-        "agent/runtime/loop.py:400"
+        "agent/runtime/loop.py:397"
       ],
       "fields": [
         "curriculum",
@@ -1129,9 +1136,9 @@
     {
       "name": "run_stopped",
       "emitters": [
-        "agent/runtime/loop.py:233",
-        "agent/runtime/loop.py:744",
-        "agent/runtime/loop.py:435"
+        "agent/runtime/loop.py:230",
+        "agent/runtime/loop.py:741",
+        "agent/runtime/loop.py:432"
       ],
       "fields": [
         "reason"
@@ -1210,7 +1217,7 @@
     {
       "name": "session_summary",
       "emitters": [
-        "agent/ui/wake.py:1484"
+        "agent/ui/wake.py:1486"
       ],
       "fields": [
         "message"
@@ -1219,7 +1226,7 @@
     {
       "name": "session_unexpected_exception",
       "emitters": [
-        "agent/ui/wake.py:1499"
+        "agent/ui/wake.py:1501"
       ],
       "fields": []
     },
@@ -1266,7 +1273,7 @@
       "name": "tool_call",
       "emitters": [
         "agent/tests/identity/test_identity.py:66",
-        "agent/tools/base_tools.py:363"
+        "agent/tools/base_tools.py:372"
       ],
       "fields": [
         "arguments",
@@ -1339,7 +1346,7 @@
       "name": "tool_result",
       "emitters": [
         "agent/tests/identity/test_identity.py:67",
-        "agent/tools/base_tools.py:435"
+        "agent/tools/base_tools.py:444"
       ],
       "fields": [
         "duration_ms",
@@ -1385,7 +1392,7 @@
     {
       "name": "zero_cycle_session_preserved",
       "emitters": [
-        "agent/ui/wake.py:1451"
+        "agent/ui/wake.py:1453"
       ],
       "fields": [
         "end_reason",
@@ -1435,6 +1442,12 @@
       "purpose": "Persistent plan store: goals, priority, status, evidence, human decisions",
       "writer": "agent/learning/plan.py",
       "reader": "agent/learning/plan.py, agent/runtime/loop.py, agent/ui/wake.py"
+    },
+    {
+      "path": "workspace/state/plan_archive.jsonl",
+      "purpose": "Archived completed and dropped plan goals with outcome, reason, evidence, and cycle",
+      "writer": "agent/learning/plan.py",
+      "reader": "agent/learning/plan.py"
     },
     {
       "path": "workspace/state/identity.json",

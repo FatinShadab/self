@@ -31,7 +31,7 @@
   - Sources: `"agent"` or `"human"` `[read] agent/tools/base_tools.py:209`.
 - **Plan Review Requirement:** Every autonomous cycle requires the agent to either update its plan citing evidence (`update_plan(action=..., reason=...)`) or record why the plan remains valid (`PlanStore.record_unchanged()`) `[read] agent/runtime/loop.py:488-491, 637-646`.
 - **Hygiene Rules (`PlanStore.hygiene`):**
-  - Completed items (`"done"`) and discarded items (`"dropped"`) are archived and purged from `plan.json` at cycle end `[read] agent/learning/plan.py:550-575`.
+  - Completed items (`"done"`) and discarded items (`"dropped"`) are archived to `state/plan_archive.jsonl` (with `goal`, `outcome`, `reason`, `evidence`, `cycle`, `timestamp`) and purged from `plan.json` at cycle end `[read] agent/learning/plan.py:590-620`.
   - Stale daily budget blocker items are automatically cleared when the daily ledger resets `[read] agent/ui/wake.py:1226-1268`.
 - **Human Input Decisions:** Recorded in `plan.json["human_input_decisions"]` (capped at last 50 entries) `[read] agent/learning/plan.py:470-475`.
 

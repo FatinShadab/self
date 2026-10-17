@@ -70,7 +70,7 @@ This catalog documents all **101** unique event types statically found across th
 | `narration` | `[read] agent/infra/event_log.py:107` | `message` | A plain-language narration message emitted by the agent. |
 | `network_request` | `[read] agent/helper_models/model_probe.py:129`<br>`[read] agent/helper_models/model_probe.py:124`<br>`[read] agent/llm/brain_router.py:175`<br>*(+6 more)* | `host`, `method`, `path`, `purpose` | An HTTP request was initiated with host and path logged (query stripped). |
 | `plan_hygiene_applied` | `[read] agent/learning/plan.py:574` | `cycle`, `diff`, `plan_version` | Completed and dropped goals were cleaned from state/plan.json. |
-| `plan_unchanged` | `[read] agent/learning/plan.py:402`<br>`[read] agent/learning/plan.py:262` | `cycle`, `diff`, `evidence`, `plan_version`, `reason` | The agent affirmed that the existing plan remains valid for the current cycle. |
+| `plan_unchanged` | `[read] agent/learning/plan.py:444`<br>`[read] agent/learning/plan.py:300` | `cycle`, `diff`, `evidence`, `plan_version`, `reason`, `source` | The agent (source='agent') or harness fallback (source='harness_auto') affirmed that the existing plan remains valid. |
 | `plan_updated` | `[read] agent/learning/plan.py:381` | `cycle`, `diff`, `evidence`, `plan_version`, `reason` | The agent modified state/plan.json citing evidence and reasons. |
 | `provider_backoff` | `[read] agent/llm/brain_router.py:155` | `detail`, `provider`, `seconds` | The brain router applied exponential backoff after a provider rate limit. |
 | `provider_benchmark_completed` | `[read] agent/tools/benchmark.py:37` | `cases_per_provider`, `providers` | A local benchmark run across configured providers completed. |
