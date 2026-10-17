@@ -10,11 +10,12 @@ from typing import Any
 from agent.infra.event_log import EventLogger
 from agent.learning.plan import (
     PlanStore,
+    SEED_STANDING_GOAL,
     consolidate_plan_items,
     visible_plan_items,
 )
 from agent.llm.llm import LLMResult
-from agent.runtime.loop import AgentConfig, AgentLoop
+from agent.runtime.loop import AgentConfig, AgentLoop, STANDING_GOAL, SYSTEM_PROMPT
 from agent.tools.base_tools import ToolRunner
 from agent.ui.wake import WakeCoordinator
 
@@ -225,6 +226,7 @@ class PlanTests(unittest.TestCase):
             self.assertEqual(event["diff"], "")
             self.assertTrue(bool(event["reason"]))
             self.assertIn("no change needed", event["reason"].lower())
+            self.assertEqual(event.get("source"), "harness_auto")
 
     def test_zero_cycle_sessions_preserve_the_plan(self) -> None:
         """Requirement 7.4: Zero-cycle sessions preserve handoff and plan without shutdown reflection."""
@@ -401,6 +403,101 @@ class PlanTests(unittest.TestCase):
             item_ids = [it.get("id") for it in store.items]
             has_consolidated = any("consolidated" in str(id_) for id_ in item_ids)
             self.assertTrue(has_consolidated)
+
+    def test_standing_goal_removed_from_prompt_and_seeded_in_plan(self) -> None:
+        """Requirement A: SYSTEM_PROMPT lacks 'Standing goal:' and states goals live in plan; plan is seeded."""
+        # 1. Check SYSTEM_PROMPT wording
+        self.assertNotIn("Standing goal:", SYSTEM_PROMPT)
+        self.assertIn("Your goals live in your plan.", SYSTEM_PROMPT)
+
+        # 2. First boot writes standing-goal text as seed item in plan.json
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            logger = EventLogger(root / "logs" / "actions.jsonl")
+            store = PlanStore(root, logger)
+            store.initialize()  # first boot: plan.json does not exist
+            self.assertTrue((root / "state" / "plan.json").exists())
+            self.assertEqual(len(store.items), 1)
+            self.assertEqual(store.items[0]["id"], "goal-1")
+            self.assertEqual(store.items[0]["goal"], SEED_STANDING_GOAL)
+            self.assertIn("Explore your environment", store.items[0]["goal"])
+
+            # 3. Subsequent boot does not overwrite existing plan
+            store.update_plan(action="edit", id="goal-1", goal="Customized goal", reason="Updated by agent")
+            store2 = PlanStore(root, logger)
+            store2.initialize()
+            self.assertEqual(store2.items[0]["goal"], "Customized goal")
+
+    def test_plan_archive_purged_goals_and_read_plan_history(self) -> None:
+        """Requirement B: Done/dropped goals are archived to plan_archive.jsonl and read_plan returns history."""
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            logger = EventLogger(root / "logs" / "actions.jsonl")
+            runner = ToolRunner(logger, root)
+            store = PlanStore(root, logger)
+            runner.plan_store = store
+            store.initialize()
+
+            # Add two goals, mark one done and one dropped
+            store.update_plan(action="add", goal="Goal to complete", reason="testing done", cycle=1)
+            store.update_plan(action="add", goal="Goal to drop", reason="testing drop", cycle=1)
+            store.update_plan(action="mark_done", id="goal-2", reason="Finished work", evidence="file verified", cycle=2)
+            store.update_plan(action="drop", id="goal-3", reason="No longer needed", evidence="irrelevant", cycle=2)
+
+            # Hygiene should purge them to state/plan_archive.jsonl
+            actions = store.hygiene(cycle=2)
+            self.assertTrue(any("Archived and purged" in a for a in actions))
+            archive_file = root / "state" / "plan_archive.jsonl"
+            self.assertTrue(archive_file.exists())
+
+            # Read archived records and verify schema
+            archive_lines = [json.loads(l) for l in archive_file.read_text(encoding="utf-8").splitlines() if l.strip()]
+            self.assertEqual(len(archive_lines), 2)
+            for rec in archive_lines:
+                for req_key in ("goal", "outcome", "reason", "evidence", "cycle", "timestamp"):
+                    self.assertIn(req_key, rec)
+            self.assertEqual(archive_lines[0]["goal"], "Goal to complete")
+            self.assertEqual(archive_lines[0]["outcome"], "done")
+            self.assertEqual(archive_lines[1]["goal"], "Goal to drop")
+            self.assertEqual(archive_lines[1]["outcome"], "dropped")
+
+            # Check prompt_summary shows recently archived goals
+            summary = store.prompt_summary()
+            self.assertIn("Recently archived goals:", summary)
+            self.assertIn("Goal to complete", summary)
+            self.assertIn("Goal to drop", summary)
+
+            # Check read_plan default does not return history
+            res_default = runner.execute("read_plan", {})
+            self.assertNotIn("history", res_default)
+
+            # Check read_plan with include_history=True returns history
+            res_history = runner.execute("read_plan", {"include_history": True})
+            self.assertIn("history", res_history)
+            self.assertEqual(len(res_history["history"]), 2)
+            self.assertEqual(res_history["history"][0]["goal"], "Goal to complete")
+
+    def test_honest_review_accounting_and_sources(self) -> None:
+        """Requirement C: plan_unchanged source distinction ('agent' vs 'harness_auto')."""
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            logger = EventLogger(root / "logs" / "actions.jsonl")
+            store = PlanStore(root, logger)
+            store.initialize()
+
+            # Agent calls unchanged
+            store.update_plan(action="unchanged", reason="Agent confirmed plan is valid", cycle=2)
+
+            # Harness records unchanged
+            store.record_unchanged(cycle=3, reason="Harness fallback review")
+
+            events = [json.loads(l) for l in (root / "logs" / "actions.jsonl").read_text(encoding="utf-8").splitlines() if l.strip()]
+            unchanged = [e for e in events if e.get("event") == "plan_unchanged"]
+            self.assertEqual(len(unchanged), 2)
+            self.assertEqual(unchanged[0]["source"], "agent")
+            self.assertEqual(unchanged[0]["cycle"], 2)
+            self.assertEqual(unchanged[1]["source"], "harness_auto")
+            self.assertEqual(unchanged[1]["cycle"], 3)
 
 
 if __name__ == "__main__":

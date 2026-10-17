@@ -21,6 +21,12 @@ ACTIVE_PLAN_STATUSES = frozenset({
 
 WORD = re.compile(r"[a-zA-Z0-9_.-]{2,}")
 
+SEED_STANDING_GOAL = (
+    "Explore your environment. Build and keep an accurate map of what it contains "
+    "and what you can do in it. When you hit a capability gap, write a tool to fill "
+    "it. Report your discoveries in plain language each cycle."
+)
+
 
 def now_utc() -> str:
     """Return the current UTC timestamp."""
@@ -118,11 +124,41 @@ class PlanStore:
         self.logger = logger
         self.state_dir = self.workspace / "state"
         self.plan_path = self.state_dir / "plan.json"
+        self.archive_path = self.state_dir / "plan_archive.jsonl"
         self.max_items = max(4, max_items)
         self.plan_version = 1
         self.items: list[dict[str, Any]] = []
         self.human_input_decisions: list[dict[str, Any]] = []
         self._next_id = 1
+
+    def _append_archive(self, records: list[dict[str, Any]]) -> None:
+        """Append archived goals to state/plan_archive.jsonl."""
+        if not records:
+            return
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        with self.archive_path.open("a", encoding="utf-8") as f:
+            for rec in records:
+                safe_rec = self.logger.redactor.value(rec)
+                f.write(json.dumps(safe_rec, ensure_ascii=False) + "\n")
+
+    def get_archived_items(self, limit: int | None = None) -> list[dict[str, Any]]:
+        """Return historical completed/dropped plan goals from plan_archive.jsonl."""
+        if not self.archive_path.exists():
+            return []
+        items: list[dict[str, Any]] = []
+        try:
+            for line in self.archive_path.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if line:
+                    try:
+                        items.append(json.loads(line))
+                    except json.JSONDecodeError:
+                        continue
+        except OSError:
+            return []
+        if limit is not None and limit > 0:
+            return items[-limit:]
+        return items
 
     def initialize(self, seed_task: str = "", default_step: str = "") -> None:
         """Load durable plan, or seed an initial plan goal if empty."""
@@ -131,7 +167,7 @@ class PlanStore:
         if loaded:
             return
 
-        seed_content = seed_task.strip() or default_step.strip() or "Inspect current state and verify one environment fact."
+        seed_content = seed_task.strip() or default_step.strip() or SEED_STANDING_GOAL
         initial_goal = {
             "id": "goal-1",
             "goal": seed_content,
@@ -198,10 +234,10 @@ class PlanStore:
         temp_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
         os.replace(temp_path, self.plan_path)
 
-    def read_plan(self) -> dict[str, Any]:
+    def read_plan(self, include_history: bool = False, **extra: Any) -> dict[str, Any]:
         """Tool implementation for reading current plan state."""
         active = self.top_items(limit=100)
-        return {
+        res = {
             "ok": True,
             "plan_version": self.plan_version,
             "total_goals": len(self.items),
@@ -210,6 +246,9 @@ class PlanStore:
             "items": list(self.items),
             "human_input_decisions": list(self.human_input_decisions),
         }
+        if include_history or extra.get("history", False):
+            res["history"] = self.get_archived_items()
+        return res
 
     def _find_item(self, target: Any) -> tuple[int, dict[str, Any]] | tuple[None, None]:
         if target is None:
@@ -266,6 +305,7 @@ class PlanStore:
                 diff="",
                 reason=clean_reason,
                 evidence=evidence_ref,
+                source="agent",
             )
             return {
                 "ok": True,
@@ -273,6 +313,7 @@ class PlanStore:
                 "plan_version": self.plan_version,
                 "diff": "Plan unchanged",
                 "reason": clean_reason,
+                "source": "agent",
                 "plan": list(self.items),
             }
 
@@ -395,7 +436,7 @@ class PlanStore:
             "plan": list(self.items),
         }
 
-    def record_unchanged(self, cycle: int, reason: str, evidence: str = "") -> None:
+    def record_unchanged(self, cycle: int, reason: str, evidence: str = "", source: str = "harness_auto") -> None:
         """Log a plan_unchanged review event when no edits occurred in a cycle."""
         clean_reason = str(reason).strip() or "Plan remains valid; continuing execution of active goals."
         evidence_ref = str(evidence).strip() or "Cycle observation"
@@ -406,6 +447,7 @@ class PlanStore:
             diff="",
             reason=clean_reason,
             evidence=evidence_ref,
+            source=source,
         )
 
     def record_human_input_decision(
@@ -538,6 +580,15 @@ class PlanStore:
                     entry += f"\n   Evidence: {evidence}"
                 lines.append(entry)
 
+        archived = self.get_archived_items(limit=3)
+        if archived:
+            lines.append("\nRecently archived goals:")
+            for arc in archived:
+                outcome = arc.get("outcome", "done")
+                goal = arc.get("goal", "")
+                cycle_num = arc.get("cycle", 1)
+                lines.append(f"- [{outcome}] (cycle {cycle_num}) {goal}")
+
         if self.human_input_decisions:
             lines.append("\nRecent human input decisions:")
             for dec in self.human_input_decisions[-4:]:
@@ -546,9 +597,32 @@ class PlanStore:
         return "\n".join(lines)
 
     def hygiene(self, cycle: int, max_stale_cycles: int = 5) -> list[str]:
-        """Mark or drop stale items with no progress and cap size by consolidation."""
+        """Purge completed/dropped items to archive, mark stale items, and cap size."""
         actions: list[str] = []
         changed = False
+
+        # 1. Purge completed and dropped goals to plan_archive.jsonl
+        purged_records: list[dict[str, Any]] = []
+        retained_items: list[dict[str, Any]] = []
+        for item in self.items:
+            status = str(item.get("status", "todo")).strip().lower()
+            if status in COMPLETED_PLAN_STATUSES:
+                purged_records.append({
+                    "goal": str(item.get("goal") or item.get("step", "")).strip(),
+                    "outcome": status,
+                    "reason": str(item.get("why") or item.get("reason") or "Completed or dropped during exploration").strip(),
+                    "evidence": str(item.get("evidence", "")).strip(),
+                    "cycle": cycle,
+                    "timestamp": now_utc(),
+                })
+            else:
+                retained_items.append(item)
+
+        if purged_records:
+            self._append_archive(purged_records)
+            self.items = retained_items
+            actions.append(f"Archived and purged {len(purged_records)} completed/dropped goal(s) to plan_archive.jsonl")
+            changed = True
 
         for item in self.items:
             status = str(item.get("status", "todo")).strip().lower()

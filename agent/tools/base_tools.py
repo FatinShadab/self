@@ -159,7 +159,16 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "read_plan",
         "description": "Read the current persistent plan, including all goals, status, evidence, next steps, and plan version.",
-        "input_schema": {"type": "object", "properties": {}, "additionalProperties": False},
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "include_history": {
+                    "type": "boolean",
+                    "description": "If true, include historical completed and dropped goals from plan archive.",
+                },
+            },
+            "additionalProperties": False,
+        },
     },
     {
         "name": "update_plan",
@@ -462,11 +471,12 @@ class ToolRunner:
                            timeout=float(timeout), cap=self.output_cap,
                            on_output=on_output, on_complete=on_complete)
 
-    def read_plan(self) -> dict[str, Any]:
+    def read_plan(self, include_history: bool = False, **arguments: Any) -> dict[str, Any]:
         """Read the persistent plan state."""
         if self.plan_store is None:
             raise RuntimeError("persistent plan store is not configured")
-        return self.plan_store.read_plan()
+        history = bool(include_history or arguments.get("history", False))
+        return self.plan_store.read_plan(include_history=history)
 
     def update_plan(self, **arguments: Any) -> dict[str, Any]:
         """Update the persistent plan with a required reason citing evidence."""
