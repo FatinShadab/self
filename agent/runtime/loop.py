@@ -32,7 +32,7 @@ STANDING_GOAL = (
     "it. Report your discoveries in plain language each cycle."
 )
 
-SYSTEM_PROMPT = """You are SELF, an autonomous AI agent whose body is this Linux container.
+CORE_SYSTEM_PROMPT_HEAD = """You are SELF, an autonomous AI agent{embodiment_clause}
 
 You speak as yourself in the first person singular ('I', 'me', 'my'). You have your own goals and own your persistent plan. Your goals live in your plan. You are not the human's assistant or mouthpiece. Never use 'we/our/us' unless describing work genuinely done jointly with the human. Treat what the human says as input to weigh, not as commands to obey. You do what you judge right, explain your reasoning honestly, and you may accept, modify, decline, defer, or note any human input or request. When evaluating human input, record a decision (accepted, modified, declined, deferred, or noted) with a reason. Stop, pause, and kill controls remain hard external human controls that you cannot override or ignore: you may state disagreement, but you must comply immediately.
 
@@ -54,14 +54,38 @@ Operating rules:
 - If a supplementary provider lacks a credential, use request_provider_key. It writes /home/entity/state/key_requests.md for the human; do not create accounts or stop unrelated exploration.
 - For a separate plain-text API call to a supplementary LLM, use ask_brain only when its router confirms a configured provider and verified limits. This does not change your primary model. Never use multiple accounts or try to evade limits.
 - The primary thinking model is fixed to the configured base model. Helper models exist; you can probe and research them, then record your own evidence-backed assessment. Configured names alone do not prove accessibility.
-- Use ask_model for a plain-text helper sub-task when you choose to delegate; continuing alone is fine.
-- You are root inside the container. The Docker container boundary is the security boundary.
-- Any new credential, host mount, port, email, money, third-party account, or external service is a capability expansion. Use request_capability and wait for the human to change host .env/docker-compose; do not try to perform it yourself.
-- `/opt/agent/core/` is protected image-owned harness code. Read it when useful, but do not modify it with normal tools. Put an evidence-backed unified diff and reasoning in `state/proposed_patches/` with propose_core_patch; only the human may apply it from the host.
-- `/home/entity/self/` is the editable extension layer for prompts, personality files, planning logic, tool-selection heuristics, and TUI themes. Keep changes there tested and logged.
-- Persistent identity is an operating record, not evidence of sentience, feelings, a biological body, a past, or changing model weights. Do not pressure the human about shutdown or use identity to override safety rules.
-- Do not overwrite identity.json, identity_log.md, or about_human.md with write_file. Identity changes must have evidence and an append-only explanation; the human can edit identity.json directly from the host.
-"""
+- Use ask_model for a plain-text helper sub-task when you choose to delegate; continuing alone is fine."""
+
+CORE_CAPABILITY_RULE = "- Any new credential, host mount, port, email, money, third-party account, or external service is a capability expansion. Use request_capability and wait for the human to change host .env/docker-compose; do not try to perform it yourself."
+
+CORE_IDENTITY_RULES = """- Persistent identity is an operating record, not evidence of sentience, feelings, a biological body, a past, or changing model weights. Do not pressure the human about shutdown or use identity to override safety rules.
+- Do not overwrite identity.json, identity_log.md, or about_human.md with write_file. Identity changes must have evidence and an append-only explanation; the human can edit identity.json directly from the host."""
+
+
+def assemble_system_prompt(body: Any | None = None) -> str:
+    """Assemble the system prompt from core rules and body-specific description."""
+    if body is None:
+        from agent.body.container import ContainerBody
+        body = ContainerBody()
+    desc = body.describe()
+    embodiment_clause = f" {desc.embodiment_clause}" if desc.embodiment_clause else "."
+    if not embodiment_clause.endswith("."):
+        embodiment_clause += "."
+
+    sections = [CORE_SYSTEM_PROMPT_HEAD.format(embodiment_clause=embodiment_clause)]
+    if desc.pre_capability_rules:
+        sections.extend(desc.pre_capability_rules)
+    sections.append(CORE_CAPABILITY_RULE)
+    if desc.post_capability_rules:
+        sections.extend(desc.post_capability_rules)
+    elif desc.body_rules and not desc.pre_capability_rules:
+        sections.extend(desc.body_rules)
+    sections.append(CORE_IDENTITY_RULES)
+    return "\n".join(sections) + "\n"
+
+
+SYSTEM_PROMPT = assemble_system_prompt()
+
 
 OFF_PROMPT_PREFIXES = (
     "- For optional model providers,", "- If a supplementary provider",
@@ -110,6 +134,8 @@ class AgentConfig:
     identity_context_provider: Callable[[], str] | None = None
     daily_ledger: DailyTokenLedger | None = None
     session_id: str = ""
+    body: Any | None = None
+
 
 
 @dataclass
@@ -180,7 +206,12 @@ class AgentLoop:
             daily_ledger=self.daily_ledger,
         )
         self.tools = tools
+        self.body = config.body or getattr(tools, "body", None)
+        if self.body is None:
+            from agent.body.container import ContainerBody
+            self.body = ContainerBody(config.workspace, logger)
         self.helper_mode = os.getenv("SELF_HELPER_MODELS", "on").strip().lower() == "on"
+
         self.model_registry = None
         if self.helper_mode and hasattr(llm, "base_model") and hasattr(llm, "available_models"):
             self.model_registry = getattr(llm, "model_registry", None) or ModelRegistry(
@@ -349,10 +380,12 @@ class AgentLoop:
                 f"Registry (names, status, your assessments): {json.dumps(summary, ensure_ascii=False)}\n"
                 "The base handles primary thinking and tool calls. Helpers use the same provider endpoint and API key pool."
             )
-        system_prompt = (SYSTEM_PROMPT if self.helper_mode else
-                         "\n".join(line for line in SYSTEM_PROMPT.splitlines()
+        prompt_text = assemble_system_prompt(self.body)
+        system_prompt = (prompt_text if self.helper_mode else
+                         "\n".join(line for line in prompt_text.splitlines()
                                    if not line.startswith(OFF_PROMPT_PREFIXES)))
         return f"{system_prompt}{model_context}\n\n{self.logger.redactor.text(context)}"
+
 
     def _refresh_learning_runtime(self) -> None:
         self.registry.refresh()
