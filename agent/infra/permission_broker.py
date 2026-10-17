@@ -49,16 +49,28 @@ class PermissionLevel(enum.IntEnum):
         return cls.L0
 
 
-@dataclass(frozen=True)
+@dataclass
 class ActionRequest:
     """Action request submitted to the permission broker."""
-    action: str
+    action: str = ""
     source: str = "core"
     level: PermissionLevel = PermissionLevel.L0
     params: dict[str, Any] = field(default_factory=dict)
     dry_run: bool = False
     reversible: bool = False
     undo_hint: str = ""
+    action_id: str = ""
+    actor: str = ""
+    action_type: str = ""
+    target: str = ""
+
+    def __post_init__(self) -> None:
+        if self.actor and (self.source == "core" or not self.source):
+            self.source = self.actor
+        if self.action_type and not self.action:
+            self.action = self.action_type
+        if self.target and "target" not in self.params:
+            self.params["target"] = self.target
 
 
 @dataclass
@@ -105,6 +117,18 @@ class PermissionPolicy:
         if isinstance(grants_data, dict):
             for src, lvl in grants_data.items():
                 self.grants[str(src)] = PermissionLevel.from_value(lvl)
+        elif isinstance(grants_data, list):
+            for entry in grants_data:
+                if isinstance(entry, dict):
+                    actor = entry.get("actor", "")
+                    max_lvl = PermissionLevel.from_value(entry.get("max_level", entry.get("level", 0)))
+                    if actor and actor != "*":
+                        self.grants[str(actor)] = max_lvl
+                        for act_t in entry.get("action_types", []):
+                            self.action_grants[f"{actor}:{act_t}"] = max_lvl
+                    else:
+                        for act_t in entry.get("action_types", []):
+                            self.action_grants[str(act_t)] = max_lvl
 
         action_grants_data = data.get("action_grants", {})
         if isinstance(action_grants_data, dict):
@@ -123,13 +147,17 @@ class PermissionPolicy:
 
     def max_allowed_level(self, source: str, action: str) -> PermissionLevel:
         """Resolve highest allowed level for a given source and action."""
-        # Action grant takes precedence if explicitly specified
+        # 1. Scoped action grant (actor:action) takes highest precedence
+        scoped = f"{source}:{action}"
+        if scoped in self.action_grants:
+            return self.action_grants[scoped]
+        # 2. Global action grant
         if action in self.action_grants:
             return self.action_grants[action]
-        # Source grant (e.g. 'core', 'body', 'plugins.hello')
+        # 3. Source grant (e.g. 'core', 'body:container')
         if source in self.grants:
             return self.grants[source]
-        # Prefix match for plugin namespaces (e.g. 'plugins.*')
+        # 4. Prefix match for plugin namespaces (e.g. 'plugins.*')
         if "." in source:
             prefix = source.split(".", 1)[0]
             if prefix in self.grants:
@@ -148,21 +176,29 @@ class PermissionBroker:
         self,
         workspace: Path | str | None = None,
         config_dir: Path | str | None = None,
+        policy_path: Path | str | None = None,
         logger: EventLogger | None = None,
         policy: PermissionPolicy | None = None,
         panic_threshold: int = 5,
+        max_consecutive_denials: int | None = None,
         on_panic: Callable[[str], None] | None = None,
         audit_trail: Any | None = None,
+        dry_run: bool = False,
     ) -> None:
         self.workspace = Path(workspace).resolve() if workspace else None
         self.logger = logger
-        self.panic_threshold = max(1, panic_threshold)
+        self.panic_threshold = max(1, max_consecutive_denials if max_consecutive_denials is not None else panic_threshold)
         self.on_panic = on_panic
         self.audit_trail = audit_trail
+        self.dry_run = dry_run
 
-        # Config directory resolution
-        if config_dir is not None:
+        # Config / policy file resolution
+        if policy_path is not None:
+            self.policy_file = Path(policy_path).resolve()
+            self.config_dir = self.policy_file.parent
+        elif config_dir is not None:
             self.config_dir = Path(config_dir).resolve()
+            self.policy_file = self.config_dir / "permissions.json"
         else:
             env_cfg = os.environ.get("SELF_CONFIG_DIR")
             if env_cfg:
@@ -175,8 +211,8 @@ class PermissionBroker:
                 self.config_dir = (self.workspace / "config").resolve()
             else:
                 self.config_dir = Path("config").resolve()
+            self.policy_file = self.config_dir / "permissions.json"
 
-        self.policy_file = self.config_dir / "permissions.json"
         self.policy = policy or PermissionPolicy(self.policy_file)
 
         # Rate limiting state: action_class -> list of float timestamps
@@ -200,7 +236,7 @@ class PermissionBroker:
 
     def request_undo(self, action: str, **kwargs: Any) -> dict[str, Any]:
         """Execute an undo hook for a previously executed action."""
-        hook = self._undo_hooks.get(action)
+        hook = self._undo_hooks.pop(action, None)
         if hook is None:
             return {"ok": False, "error": f"No undo hook registered for action '{action}'."}
         try:
@@ -212,6 +248,10 @@ class PermissionBroker:
             if self.logger:
                 self.logger.log("action_undo_failed", action=action, error=str(exc))
             return {"ok": False, "error": f"Undo failed for '{action}': {exc}"}
+
+    def execute_undo(self, action: str, **kwargs: Any) -> bool:
+        """Alias for request_undo returning boolean success."""
+        return bool(self.request_undo(action, **kwargs).get("ok", False))
 
     def reset_panic(self) -> None:
         """Reset panic state after human recovery or restart."""
@@ -230,9 +270,20 @@ class PermissionBroker:
             action=request.action,
             source=request.source,
             level=request.level.name,
-            dry_run=request.dry_run,
+            dry_run=request.dry_run or self.dry_run,
             reversible=request.reversible,
         )
+
+        # Check dry run mode
+        if self.dry_run or request.dry_run:
+            verdict = ActionVerdict(
+                allowed=True,
+                reason=f"Dry run simulation: action '{request.action}' (level {request.level.name}) allowed without execution.",
+                request=request,
+                dry_run=True,
+            )
+            self._log_event("action_allowed", action=request.action, source=request.source, dry_run=True, reason=verdict.reason)
+            return verdict
 
         # 2. Check if broker is in panic
         if self._in_panic:
@@ -301,12 +352,14 @@ class PermissionBroker:
     def record_execution(
         self,
         request: ActionRequest,
-        success: bool,
+        success: bool | None = None,
         reversible: bool = False,
         error: str | None = None,
+        ok: bool | None = None,
     ) -> None:
         """Record the actual execution outcome of an authorized action."""
-        if not success:
+        eff_success = ok if ok is not None else (success if success is not None else True)
+        if not eff_success:
             self._consecutive_failures += 1
         else:
             self._consecutive_failures = 0

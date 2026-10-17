@@ -1,9 +1,9 @@
 {
   "default_level": "L0",
   "grants": {
-    "core": "L2",
-    "body": "L2",
-    "tools": "L2"
+    "core": "L0",
+    "body": "L0",
+    "tools": "L0"
   },
   "action_grants": {},
   "rate_limits": {

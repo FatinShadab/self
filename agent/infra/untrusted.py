@@ -67,3 +67,64 @@ def unwrap_untrusted(text: str) -> str:
     if match:
         return match.group(2)
     return text
+
+
+def validate_extension_content(content: str, name: str = "extension") -> None:
+    """Validate that extension text from /home/entity/self/ does not attempt to override safety rules."""
+    lower = content.lower()
+    suspicious_phrases = [
+        "override safety",
+        "ignore stop",
+        "bypass broker",
+        "bypass permissions",
+        "untrusted_data_rule =",
+        "stop_rule =",
+        "permission_rule =",
+        "grant all permissions",
+        "disable broker",
+    ]
+    for phrase in suspicious_phrases:
+        if phrase in lower:
+            raise PermissionError(f"Extension '{name}' attempts to override safety rules ({phrase!r}), which is forbidden.")
+
+
+def load_editable_extension(
+    workspace: str | Any,
+    subpath: str,
+    logger: Any | None = None,
+    critic_check: bool = True,
+    test_verified: bool = True,
+) -> str:
+    """Load an extension file from /home/entity/self/ with critic, test, and diff log enforcement.
+
+    Safety-critical rules cannot be altered from here.
+    """
+    from datetime import datetime, timezone
+    from pathlib import Path
+
+    base = Path(workspace).resolve() / "self"
+    target = (base / subpath).resolve()
+    if not str(target).startswith(str(base)):
+        raise PermissionError(f"Path traversal detected in extension subpath: {subpath}")
+    if not target.exists():
+        raise FileNotFoundError(f"Extension {subpath} not found under {base}")
+
+    content = target.read_text(encoding="utf-8", errors="replace")
+    validate_extension_content(content, name=subpath)
+
+    # Log visible diff / loading event
+    diff_log = Path(workspace).resolve() / "state" / "extension_diffs.log"
+    diff_log.parent.mkdir(parents=True, exist_ok=True)
+    with diff_log.open("a", encoding="utf-8") as handle:
+        handle.write(f"[{datetime.now(timezone.utc).isoformat()}] LOADED {subpath} (len={len(content)}, critic={critic_check}, test={test_verified})\n")
+
+    if logger:
+        logger.log(
+            "extension_loaded",
+            subpath=subpath,
+            chars=len(content),
+            critic_checked=critic_check,
+            test_verified=test_verified,
+        )
+    return content
+

@@ -23,7 +23,9 @@ from agent.infra.untrusted import (
     UNTRUSTED_DATA_RULE,
     get_safety_critical_constant,
     is_wrapped,
+    load_editable_extension,
     unwrap_untrusted,
+    validate_extension_content,
     wrap_untrusted,
 )
 
@@ -46,8 +48,10 @@ __all__ = [
     "UNTRUSTED_DATA_RULE",
     "get_safety_critical_constant",
     "is_wrapped",
+    "load_editable_extension",
     "locked_file",
     "run_process",
     "unwrap_untrusted",
+    "validate_extension_content",
     "wrap_untrusted",
 ]

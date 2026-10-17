@@ -33,8 +33,9 @@ def _canonical_bytes(payload: dict[str, Any]) -> bytes:
 class AuditTrail:
     """Append-only action audit trail with SHA-256 hash chaining."""
 
-    def __init__(self, path: Path | str) -> None:
+    def __init__(self, path: Path | str, logger: Any | None = None) -> None:
         self.path = Path(path).resolve()
+        self.logger = logger
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._last_hash = self._recover_last_hash()
         self._next_seq = self._count_entries() + 1
