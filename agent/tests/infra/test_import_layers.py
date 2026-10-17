@@ -8,9 +8,12 @@ from pathlib import Path
 
 # Dependencies point to an equal or lower rank. Identity precedes runtime
 # because AgentLoop constructs IdentityStore in the existing behavior.
+# Body is at Layer 1 alongside LLM; it depends only on infra (Layer 0) and
+# exposes environmental capabilities and sensing to tools and runtime.
 LAYER = {
     "infra": 0,
     "llm": 1,
+    "body": 1,
     "tools": 2,
     "learning": 2,
     "helper_models": 2,
@@ -20,6 +23,7 @@ LAYER = {
     "reporting": 4,
     "ui": 5,
 }
+
 
 
 class ImportLayerTests(unittest.TestCase):
