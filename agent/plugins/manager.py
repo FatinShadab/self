@@ -91,9 +91,11 @@ class PluginManager:
         config_dir: Path | str | None = None,
         shipped_dir: Path | str | None = None,
         logger: EventLogger | None = None,
+        broker: Any | None = None,
     ) -> None:
         self.workspace = Path(workspace).resolve()
         self.logger = logger or EventLogger(self.workspace)
+        self.broker = broker
 
         # Config directory (human-owned, mounted read-only into container)
         if config_dir is not None:
@@ -509,6 +511,37 @@ class PluginManager:
         if self.is_vanished_or_disabled_tool(name):
             plugin_name = self.get_plugin_for_tool(name)
             return {"ok": False, "error": f"tool no longer available: plugin {plugin_name} disabled"}
+
+        if self.broker is not None:
+            from agent.infra.permission_broker import ActionRequest, PermissionLevel
+            plugin_name = self.get_plugin_for_tool(name)
+            plugin = self.active_plugins.get(plugin_name)
+            level = PermissionLevel.L2
+            reversible = False
+            if plugin:
+                for act in plugin.manifest.actions:
+                    if act.name == name or f"{plugin_name}.{act.name}" == name:
+                        level = PermissionLevel.from_value(act.required_permission_level)
+                        reversible = act.reversible
+                        break
+                for sens in plugin.manifest.sensors:
+                    if sens.name == name or f"{plugin_name}.{sens.name}" == name:
+                        level = PermissionLevel.from_value(sens.required_permission_level)
+                        reversible = sens.reversible
+                        break
+            dry_run = bool(arguments.get("dry_run", False))
+            verdict = self.broker.authorize(ActionRequest(
+                action=name,
+                source=f"plugins.{plugin_name}",
+                level=level,
+                params=arguments,
+                dry_run=dry_run,
+                reversible=reversible,
+            ))
+            if not verdict.allowed:
+                return {"ok": False, "error": verdict.reason, "permission_denied": True}
+            if verdict.dry_run:
+                return {"ok": True, "dry_run": True, "message": f"Plugin tool '{name}' authorized in dry-run mode."}
 
         for plugin in self.active_plugins.values():
             if name in plugin.tools:

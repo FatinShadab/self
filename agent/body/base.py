@@ -47,6 +47,8 @@ class Capability:
 class Body(ABC):
     """Abstract interface defining the agent's physical/environmental embodiment."""
 
+    broker: Any | None = None
+
     @abstractmethod
     def describe(self) -> BodyDescription:
         """Return narrative describing the embodiment, default interests, and initial orientation task."""

@@ -172,6 +172,7 @@ class ContainerBody(Body):
         agent_root: Path | str = "/opt/agent",
         output_cap: int = 20_000,
         identity: Any = None,
+        broker: Any | None = None,
     ) -> None:
         self.workspace = Path(workspace)
         self.logger = logger or EventLogger(self.workspace / "logs" / "actions.jsonl")
@@ -179,6 +180,7 @@ class ContainerBody(Body):
         self.agent_root = Path(agent_root)
         self.output_cap = max(100, int(output_cap))
         self.identity = identity
+        self.broker = broker
         self.metrics = ContainerMetrics()
 
     def describe(self) -> BodyDescription:
@@ -386,6 +388,13 @@ class ContainerBody(Body):
 
     def act(self, action: str, **kwargs: Any) -> dict[str, Any]:
         """Dispatch actions defined by ContainerBody."""
+        if self.broker is not None:
+            from agent.infra.permission_broker import ActionRequest, PermissionLevel
+            level = PermissionLevel.L0 if action in {"read_file", "read", "list_dir", "list", "probe_local_ollama", "http_get", "fetch"} else PermissionLevel.L2
+            req = ActionRequest(action=action, source="body", level=level, params=kwargs)
+            verdict = self.broker.authorize(req)
+            if not verdict.allowed:
+                return {"ok": False, "error": verdict.reason, "permission_denied": True}
         if action in {"run_shell", "execute"}:
             return self.run_shell(**kwargs)
         elif action in {"read_file", "read"}:
