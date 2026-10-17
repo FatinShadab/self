@@ -1,0 +1,54 @@
+{
+  "name": "hello",
+  "version": "0.1.0",
+  "core_api": ">=0.1.0,<1.0.0",
+  "kind": "skill",
+  "description": "Sample hello plugin demonstrating dynamic tools, sensors, and actions.",
+  "tools": [
+    {
+      "name": "greet",
+      "description": "Return a friendly greeting from the hello plugin.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "greeting": {
+            "type": "string",
+            "description": "Greeting message prefix",
+            "default": "Hello"
+          }
+        }
+      }
+    }
+  ],
+  "sensors": [
+    {
+      "name": "heartbeat_sensor",
+      "description": "Observe hello plugin heartbeat telemetry.",
+      "risk_class": "reads",
+      "reversible": true,
+      "required_permission_level": "read_only"
+    }
+  ],
+  "actions": [
+    {
+      "name": "ping",
+      "description": "Send a lightweight ping to the hello plugin.",
+      "risk_class": "executes",
+      "reversible": true,
+      "required_permission_level": "read_only"
+    }
+  ],
+  "starting_goal_seeds": [
+    "Verify hello plugin capabilities and record observation."
+  ],
+  "embodiment": "I have the hello capability loaded, allowing friendly greeting actions.",
+  "identity_notes": [
+    "I speak with a polite greeting when hello tools are invoked."
+  ],
+  "state_dir": "state",
+  "declared_needs": {
+    "env_vars": [],
+    "mounts": []
+  },
+  "tests_entry_point": "tests/test_hello.py"
+}

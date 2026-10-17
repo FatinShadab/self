@@ -18,6 +18,7 @@ LAYER = {
     "learning": 2,
     "helper_models": 2,
     "identity": 2,
+    "plugins": 2,
     "runtime": 3,
     "session": 4,
     "reporting": 4,

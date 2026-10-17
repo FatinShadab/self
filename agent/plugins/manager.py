@@ -1,0 +1,555 @@
+"""Plugin lifecycle, discovery, dynamic tool registration, and hash verification."""
+from __future__ import annotations
+
+import hashlib
+import importlib.util
+import json
+import os
+import shutil
+import sys
+from dataclasses import dataclass, field
+from datetime import datetime, timezone
+from pathlib import Path
+from typing import Any, Callable
+
+from agent.infra.event_log import EventLogger
+from agent.plugins.manifest import (
+    PluginManifest,
+    PluginManifestValidationError,
+    parse_manifest,
+)
+from agent.tools.base_tools import TOOL_DEFINITIONS
+from agent.tools.tool_registry import CREATE_TOOL_DEFINITION
+
+# Set of all core tool names that plugins can never collide with or override
+CORE_TOOL_NAMES = frozenset(
+    [tool["name"] for tool in TOOL_DEFINITIONS] + [CREATE_TOOL_DEFINITION["name"]]
+)
+
+
+def compute_plugin_hash(plugin_dir: Path) -> str:
+    """Compute a deterministic SHA-256 hash of a plugin's full contents.
+
+    Excludes the plugin's runtime state/ directory, __pycache__, and compiled files.
+    """
+    plugin_dir = Path(plugin_dir).resolve()
+    if not plugin_dir.exists() or not plugin_dir.is_dir():
+        raise FileNotFoundError(f"Plugin directory does not exist: {plugin_dir}")
+
+    hasher = hashlib.sha256()
+    files_to_hash: list[Path] = []
+
+    for path in plugin_dir.rglob("*"):
+        if not path.is_file():
+            continue
+        rel = path.relative_to(plugin_dir)
+        parts = rel.parts
+        # Exclude runtime state/ directory
+        if len(parts) > 0 and parts[0] == "state":
+            continue
+        # Exclude __pycache__ and bytecode
+        if "__pycache__" in parts or path.suffix in {".pyc", ".pyo", ".pyd"}:
+            continue
+        # Exclude hidden files / OS metadata
+        if any(part.startswith(".") for part in parts):
+            continue
+        files_to_hash.append(path)
+
+    files_to_hash.sort(key=lambda p: p.relative_to(plugin_dir).as_posix())
+
+    for path in files_to_hash:
+        rel_posix = path.relative_to(plugin_dir).as_posix()
+        hasher.update(rel_posix.encode("utf-8") + b"\0")
+        try:
+            hasher.update(path.read_bytes())
+        except OSError:
+            pass
+
+    return hasher.hexdigest()
+
+
+@dataclass
+class Plugin:
+    manifest: PluginManifest
+    plugin_dir: Path
+    is_shipped: bool
+    module: Any | None = None
+    tools: dict[str, Callable[..., Any]] = field(default_factory=dict)
+    tool_specs: list[dict[str, Any]] = field(default_factory=list)
+    state_dir: Path | None = None
+    is_loaded: bool = False
+    is_enabled: bool = False
+    load_error: str | None = None
+
+
+class PluginManager:
+    """Manages discovery, validation, lifecycle, tools, and prompts for SELF plugins."""
+
+    def __init__(
+        self,
+        workspace: Path | str,
+        config_dir: Path | str | None = None,
+        shipped_dir: Path | str | None = None,
+        logger: EventLogger | None = None,
+    ) -> None:
+        self.workspace = Path(workspace).resolve()
+        self.logger = logger or EventLogger(self.workspace)
+
+        # Config directory (human-owned, mounted read-only into container)
+        if config_dir is not None:
+            self.config_dir = Path(config_dir).resolve()
+        else:
+            env_cfg = os.environ.get("SELF_CONFIG_DIR")
+            if env_cfg:
+                self.config_dir = Path(env_cfg).resolve()
+            elif Path("/config").exists() and Path("/config").is_dir():
+                self.config_dir = Path("/config").resolve()
+            elif (self.workspace.parent / "config").exists():
+                self.config_dir = (self.workspace.parent / "config").resolve()
+            else:
+                self.config_dir = (self.workspace / "config").resolve()
+
+        self.config_file = self.config_dir / "plugins.json"
+
+        # Shipped plugins directory (image-owned / read-only)
+        if shipped_dir is not None:
+            self.shipped_dir = Path(shipped_dir).resolve()
+        elif Path("/opt/agent/plugins").exists():
+            self.shipped_dir = Path("/opt/agent/plugins").resolve()
+        elif (Path(__file__).parent / "shipped").exists():
+            self.shipped_dir = (Path(__file__).parent / "shipped").resolve()
+        else:
+            # Fallback to agent/plugins itself as search root
+            self.shipped_dir = Path(__file__).parent.resolve()
+
+        self.workspace_plugins_dir = self.workspace / "plugins"
+
+        # Live state
+        self.discovered: dict[str, Plugin] = {}
+        self.active_plugins: dict[str, Plugin] = {}
+        self.vanished_plugins: set[str] = set()
+        self.refused_plugins: set[str] = set()
+
+    # -------------------------------------------------------------------------
+    # Configuration (Human-Owned ./config/plugins.json)
+    # -------------------------------------------------------------------------
+
+    def read_config(self) -> dict[str, Any]:
+        """Read plugins.json from human config directory."""
+        if not self.config_file.exists():
+            return {"plugins": {}}
+        try:
+            data = json.loads(self.config_file.read_text(encoding="utf-8"))
+            return data if isinstance(data, dict) else {"plugins": {}}
+        except (OSError, json.JSONDecodeError):
+            return {"plugins": {}}
+
+    def write_config(self, data: dict[str, Any]) -> None:
+        """Write plugins.json to human config directory.
+
+        Raises PermissionError if mounted read-only.
+        """
+        self.config_dir.mkdir(parents=True, exist_ok=True)
+        tmp = self.config_file.with_suffix(".tmp")
+        tmp.write_text(json.dumps(data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+        tmp.replace(self.config_file)
+
+    def enable_by_human(self, name: str) -> dict[str, Any]:
+        """Enable a plugin on behalf of human operator, computing and recording hash."""
+        self.discover()
+        plugin = self.discovered.get(name)
+        if plugin is None:
+            raise ValueError(f"Plugin '{name}' not found in shipped or workspace plugin directories.")
+
+        plugin_hash = compute_plugin_hash(plugin.plugin_dir)
+        cfg = self.read_config()
+        plugins_cfg = cfg.setdefault("plugins", {})
+        plugins_cfg[name] = {
+            "enabled": True,
+            "hash": plugin_hash,
+            "enabled_at": datetime.now(timezone.utc).isoformat(),
+        }
+        self.write_config(cfg)
+        self.refused_plugins.discard(name)
+        return {"name": name, "enabled": True, "hash": plugin_hash}
+
+    def disable_by_human(self, name: str) -> dict[str, Any]:
+        """Disable a plugin on behalf of human operator."""
+        cfg = self.read_config()
+        plugins_cfg = cfg.setdefault("plugins", {})
+        if name in plugins_cfg:
+            plugins_cfg[name]["enabled"] = False
+            plugins_cfg[name]["disabled_at"] = datetime.now(timezone.utc).isoformat()
+        else:
+            plugins_cfg[name] = {"enabled": False}
+        self.write_config(cfg)
+        return {"name": name, "enabled": False}
+
+    # -------------------------------------------------------------------------
+    # Discovery
+    # -------------------------------------------------------------------------
+
+    def discover(self) -> dict[str, Plugin]:
+        """Scan shipped and workspace directories for plugin.json manifests."""
+        discovered: dict[str, Plugin] = {}
+
+        # 1. Shipped plugins (read-only image content)
+        if self.shipped_dir.exists() and self.shipped_dir.is_dir():
+            for entry in self.shipped_dir.iterdir():
+                if entry.is_dir() and (entry / "plugin.json").exists():
+                    p = self._discover_plugin_dir(entry, is_shipped=True)
+                    if p:
+                        if p.manifest.name in self.active_plugins:
+                            active = self.active_plugins[p.manifest.name]
+                            active.manifest = p.manifest
+                            active.plugin_dir = p.plugin_dir
+                            discovered[p.manifest.name] = active
+                        else:
+                            discovered[p.manifest.name] = p
+
+        # 2. Workspace plugins (human-installed under workspace/plugins/<name>)
+        if self.workspace_plugins_dir.exists() and self.workspace_plugins_dir.is_dir():
+            for entry in self.workspace_plugins_dir.iterdir():
+                if entry.is_dir() and (entry / "plugin.json").exists():
+                    p = self._discover_plugin_dir(entry, is_shipped=False)
+                    if p:
+                        if p.manifest.name in self.active_plugins:
+                            active = self.active_plugins[p.manifest.name]
+                            active.manifest = p.manifest
+                            active.plugin_dir = p.plugin_dir
+                            discovered[p.manifest.name] = active
+                        else:
+                            discovered[p.manifest.name] = p
+
+        self.discovered = discovered
+        return discovered
+
+    def _discover_plugin_dir(self, plugin_dir: Path, is_shipped: bool) -> Plugin | None:
+        manifest_file = plugin_dir / "plugin.json"
+        try:
+            manifest = parse_manifest(manifest_file)
+        except PluginManifestValidationError as exc:
+            self.logger.log("plugin_load_failed", plugin=plugin_dir.name, error=str(exc))
+            return None
+        except Exception as exc:
+            self.logger.log("plugin_load_failed", plugin=plugin_dir.name, error=f"Unexpected error: {exc}")
+            return None
+
+        # State dir under workspace/plugins/<name>/state
+        state_dir = self.workspace / "plugins" / manifest.name / "state"
+
+        return Plugin(
+            manifest=manifest,
+            plugin_dir=plugin_dir,
+            is_shipped=is_shipped,
+            state_dir=state_dir,
+        )
+
+    # -------------------------------------------------------------------------
+    # Lifecycle: Load, Enable, Disable, Remove
+    # -------------------------------------------------------------------------
+
+    def load_plugin(self, plugin: Plugin) -> bool:
+        """Dynamically load a plugin module and extract tool handlers.
+
+        A crashing plugin logs plugin_load_failed and never takes the core down.
+        """
+        if plugin.is_loaded:
+            return True
+
+        plugin.state_dir.mkdir(parents=True, exist_ok=True)
+        plugin.tools.clear()
+        plugin.tool_specs.clear()
+
+        # Check for core tool collisions
+        for tool_def in plugin.manifest.tools:
+            raw_tool_name = tool_def["name"]
+            namespaced_name = f"{plugin.manifest.name}.{raw_tool_name}"
+
+            # Collisions with core tools or unqualified names
+            if raw_tool_name in CORE_TOOL_NAMES or namespaced_name in CORE_TOOL_NAMES:
+                err = f"Plugin '{plugin.manifest.name}' tool '{raw_tool_name}' collides with core tool."
+                self.logger.log("plugin_load_failed", plugin=plugin.manifest.name, error=err)
+                plugin.load_error = err
+                return False
+
+        # Load python module if plugin.py or tools.py exists
+        mod = None
+        plugin_py = plugin.plugin_dir / "plugin.py"
+        tools_py = plugin.plugin_dir / "tools.py"
+        entry_file = plugin_py if plugin_py.exists() else (tools_py if tools_py.exists() else None)
+
+        if entry_file:
+            try:
+                mod_name = f"agent_plugins_{plugin.manifest.name}"
+                spec = importlib.util.spec_from_file_location(mod_name, str(entry_file))
+                if spec is None or spec.loader is None:
+                    raise ImportError(f"Cannot create spec for {entry_file}")
+                mod = importlib.util.module_from_spec(spec)
+                sys.modules[mod_name] = mod
+                spec.loader.exec_module(mod)
+                plugin.module = mod
+            except Exception as exc:
+                self.logger.log("plugin_load_failed", plugin=plugin.manifest.name, error=f"Import error: {exc}")
+                plugin.load_error = str(exc)
+                return False
+
+        # Register tools
+        for tool_def in plugin.manifest.tools:
+            raw_name = tool_def["name"]
+            namespaced_name = f"{plugin.manifest.name}.{raw_name}"
+
+            # Locate handler
+            handler = None
+            if mod is not None:
+                handler = getattr(mod, raw_name, None) or getattr(mod, "run", None)
+
+            # Check individual tool file under tools/<raw_name>.py
+            tool_subpath = plugin.plugin_dir / "tools" / f"{raw_name}.py"
+            if handler is None and tool_subpath.exists():
+                try:
+                    t_mod_name = f"agent_plugins_{plugin.manifest.name}_{raw_name}"
+                    t_spec = importlib.util.spec_from_file_location(t_mod_name, str(tool_subpath))
+                    if t_spec and t_spec.loader:
+                        t_mod = importlib.util.module_from_spec(t_spec)
+                        sys.modules[t_mod_name] = t_mod
+                        t_spec.loader.exec_module(t_mod)
+                        handler = getattr(t_mod, "run", None) or getattr(t_mod, raw_name, None)
+                except Exception as exc:
+                    self.logger.log("plugin_load_failed", plugin=plugin.manifest.name, error=f"Tool error {raw_name}: {exc}")
+                    plugin.load_error = str(exc)
+                    return False
+
+            if handler is None:
+                # Provide default safe fallback handler
+                def make_default_handler(p_name: str, t_name: str) -> Callable[..., Any]:
+                    def default_handler(**kwargs: Any) -> dict[str, Any]:
+                        return {"ok": True, "plugin": p_name, "tool": t_name, "args": kwargs}
+                    return default_handler
+                handler = make_default_handler(plugin.manifest.name, raw_name)
+
+            # Build namespaced tool spec
+            spec_copy = dict(tool_def)
+            spec_copy["name"] = namespaced_name
+            spec_copy["description"] = f"[{plugin.manifest.name}] {spec_copy.get('description', '')}"
+
+            plugin.tools[namespaced_name] = self._wrap_tool_handler(plugin.manifest.name, namespaced_name, handler)
+            plugin.tool_specs.append(spec_copy)
+
+        plugin.is_loaded = True
+        return True
+
+    def _wrap_tool_handler(self, plugin_name: str, tool_name: str, handler: Callable[..., Any]) -> Callable[..., Any]:
+        """Wrap a plugin tool handler so unexpected exceptions are returned as errors, not crashes."""
+        def safe_invoke(**kwargs: Any) -> dict[str, Any]:
+            try:
+                res = handler(**kwargs)
+                if isinstance(res, dict):
+                    res.setdefault("ok", True)
+                    return res
+                return {"ok": True, "result": res}
+            except Exception as exc:
+                return {"ok": False, "error": f"Plugin tool '{tool_name}' failed: {exc}"}
+        return safe_invoke
+
+    def enable_plugin(self, plugin: Plugin) -> bool:
+        """Call on_enable hook and activate plugin."""
+        if plugin.is_enabled:
+            return True
+
+        if not self.load_plugin(plugin):
+            return False
+
+        # Run on_enable hook if present
+        if plugin.module and hasattr(plugin.module, "on_enable"):
+            try:
+                plugin.module.on_enable(self._build_plugin_context(plugin))
+            except Exception as exc:
+                self.logger.log("plugin_load_failed", plugin=plugin.manifest.name, error=f"on_enable failed: {exc}")
+                plugin.load_error = str(exc)
+                return False
+
+        plugin.is_enabled = True
+        self.active_plugins[plugin.manifest.name] = plugin
+        self.vanished_plugins.discard(plugin.manifest.name)
+        self.logger.log(
+            "plugin_enabled",
+            plugin=plugin.manifest.name,
+            version=plugin.manifest.version,
+            hash=compute_plugin_hash(plugin.plugin_dir) if plugin.plugin_dir.exists() else "",
+        )
+        return True
+
+    def disable_plugin(self, plugin_or_name: Plugin | str) -> bool:
+        """Call on_disable hook and deactivate plugin."""
+        name = plugin_or_name if isinstance(plugin_or_name, str) else plugin_or_name.manifest.name
+        plugin = self.active_plugins.get(name) or self.discovered.get(name)
+        if plugin is None:
+            return False
+
+        if plugin.is_enabled:
+            if plugin.module and hasattr(plugin.module, "on_disable"):
+                try:
+                    plugin.module.on_disable(self._build_plugin_context(plugin))
+                except Exception as exc:
+                    self.logger.log("plugin_load_failed", plugin=name, error=f"on_disable failed: {exc}")
+
+            plugin.is_enabled = False
+            self.active_plugins.pop(name, None)
+            self.vanished_plugins.add(name)
+            self.logger.log("plugin_disabled", plugin=name)
+        return True
+
+    def remove_plugin(self, name: str) -> bool:
+        """Disable and remove human-installed plugin folder."""
+        self.disable_plugin(name)
+        plugin = self.discovered.pop(name, None)
+        if plugin and not plugin.is_shipped and plugin.plugin_dir.exists():
+            shutil.rmtree(plugin.plugin_dir, ignore_errors=True)
+            return True
+        return False
+
+    def _build_plugin_context(self, plugin: Plugin) -> dict[str, Any]:
+        return {
+            "name": plugin.manifest.name,
+            "version": plugin.manifest.version,
+            "workspace": self.workspace,
+            "state_dir": plugin.state_dir,
+            "logger": self.logger,
+        }
+
+    # -------------------------------------------------------------------------
+    # Cycle Boundary Synchronization & Hash Pinning
+    # -------------------------------------------------------------------------
+
+    def sync_at_cycle_boundary(self) -> None:
+        """Sync discovered plugins against ./config/plugins.json and verify SHA-256 hashes.
+
+        Called strictly at cycle boundaries.
+        """
+        self.discover()
+        cfg = self.read_config()
+        plugins_cfg = cfg.get("plugins", {})
+
+        for name, plugin in list(self.discovered.items()):
+            entry = plugins_cfg.get(name, {})
+            should_be_enabled = bool(entry.get("enabled", False))
+
+            if should_be_enabled:
+                if name in self.refused_plugins:
+                    continue
+
+                # Hash check
+                current_hash = compute_plugin_hash(plugin.plugin_dir)
+                expected_hash = entry.get("hash", "")
+
+                if expected_hash and current_hash != expected_hash:
+                    # Hash mismatch! Refuse to load until re-approved
+                    self.disable_plugin(plugin)
+                    self.refused_plugins.add(name)
+                    self.logger.log(
+                        "plugin_hash_mismatch",
+                        plugin=name,
+                        expected=expected_hash,
+                        actual=current_hash,
+                    )
+                    continue
+
+                # Valid hash -> enable
+                if not plugin.is_enabled:
+                    self.enable_plugin(plugin)
+
+            else:
+                # Disabled in config
+                if name in self.active_plugins or plugin.is_enabled:
+                    self.disable_plugin(name)
+
+        # Check for vanished plugins whose directories were removed
+        for active_name in list(self.active_plugins):
+            if active_name not in self.discovered:
+                self.disable_plugin(active_name)
+
+    # -------------------------------------------------------------------------
+    # Dynamic Tools and Structured Vanished Tool Observations
+    # -------------------------------------------------------------------------
+
+    def get_active_tool_definitions(self) -> list[dict[str, Any]]:
+        """Return tool definitions for all currently enabled plugins."""
+        specs: list[dict[str, Any]] = []
+        for plugin in self.active_plugins.values():
+            specs.extend(plugin.tool_specs)
+        return specs
+
+    def is_plugin_tool(self, name: str) -> bool:
+        """Check if tool name belongs to any active plugin."""
+        return any(name in plugin.tools for plugin in self.active_plugins.values())
+
+    def is_vanished_or_disabled_tool(self, name: str) -> bool:
+        """Check if tool belongs to a plugin that is disabled or vanished."""
+        if "." not in name:
+            return False
+        plugin_name = name.split(".", 1)[0]
+        if plugin_name in self.active_plugins:
+            return False
+        # If it was previously known, discovered, or in config
+        if (
+            plugin_name in self.vanished_plugins
+            or plugin_name in self.refused_plugins
+            or plugin_name in self.discovered
+        ):
+            return True
+        return True
+
+    def get_plugin_for_tool(self, name: str) -> str:
+        """Extract plugin name prefix from namespaced tool."""
+        return name.split(".", 1)[0] if "." in name else name
+
+    def execute_plugin_tool(self, name: str, arguments: dict[str, Any]) -> dict[str, Any]:
+        """Execute a dynamic plugin tool, or return structured observation if vanished."""
+        if self.is_vanished_or_disabled_tool(name):
+            plugin_name = self.get_plugin_for_tool(name)
+            return {"ok": False, "error": f"tool no longer available: plugin {plugin_name} disabled"}
+
+        for plugin in self.active_plugins.values():
+            if name in plugin.tools:
+                return plugin.tools[name](**arguments)
+
+        plugin_name = self.get_plugin_for_tool(name)
+        return {"ok": False, "error": f"tool no longer available: plugin {plugin_name} disabled"}
+
+    # -------------------------------------------------------------------------
+    # Prompts: Clearly Delimited Active Plugin Sections
+    # -------------------------------------------------------------------------
+
+    def get_embodiment_prompt(self) -> str:
+        """Render clearly delimited embodiment section for enabled plugins."""
+        if not self.active_plugins:
+            return ""
+        lines = [
+            "### Active Plugins Embodiment",
+            "The following specialization plugins are enabled and extend your embodiment:",
+        ]
+        for name, plugin in sorted(self.active_plugins.items()):
+            lines.append(f"\n[Plugin: {name}]")
+            lines.append(plugin.manifest.embodiment)
+        return "\n".join(lines) + "\n"
+
+    def get_goal_notes_prompt(self) -> str:
+        """Render clearly delimited goal notes and starting seeds for enabled plugins."""
+        if not self.active_plugins:
+            return ""
+        lines = [
+            "### Active Plugins Notes & Goal Seeds",
+            "The following plugin-provided goals and identity notes apply while enabled:",
+        ]
+        for name, plugin in sorted(self.active_plugins.items()):
+            lines.append(f"\n[Plugin: {name}]")
+            if plugin.manifest.starting_goal_seeds:
+                lines.append("Starting goal seeds:")
+                for seed in plugin.manifest.starting_goal_seeds:
+                    lines.append(f"- {seed}")
+            if plugin.manifest.identity_notes:
+                lines.append("Identity notes:")
+                for note in plugin.manifest.identity_notes:
+                    lines.append(f"- {note}")
+        return "\n".join(lines) + "\n"
