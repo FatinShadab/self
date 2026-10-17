@@ -29,6 +29,8 @@ WORKDIR /home/entity
 COPY agent/requirements.txt /opt/agent/requirements.txt
 RUN python -m pip install --no-cache-dir -r /opt/agent/requirements.txt
 
+ARG CACHEBUST=1
+RUN echo "build cache bust $CACHEBUST"
 COPY agent/ /opt/agent/
 
 # Keep the full package tree image-owned and read-only.  The legacy core
