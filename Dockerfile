@@ -22,6 +22,11 @@ RUN apt-get update \
         python3-pip \
     && rm -rf /var/lib/apt/lists/*
 
+# Create unprivileged entity user (uid 1000) for the hardened profile
+RUN useradd -m -u 1000 -s /bin/bash entity \
+    && mkdir -p /home/entity \
+    && chown -R entity:entity /home/entity
+
 WORKDIR /home/entity
 
 # The agent harness is image content. Runtime state belongs in ./workspace,
