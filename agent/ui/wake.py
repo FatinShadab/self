@@ -1286,23 +1286,23 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                     self._command_response(f"I could not remove STOP: {type(exc).__name__}.", "error")
                     return
                 coordinator.stop_requested = False
-                coordinator.paused.clear()
+                coordinator.resume()
                 self._command_response("I removed the previous stop request and am waking now.", "request")
                 self._start_agent()
                 return
             if text == "/pause":
                 self._write_command(text)
-                coordinator.paused.set(); self._command_response("Paused. I will stop at the next safe boundary."); return
+                coordinator.pause(); self._command_response("Paused. I will stop at the next safe boundary."); return
             if text == "/resume":
                 self._write_command(text)
-                coordinator.paused.clear(); self._command_response("Resuming."); return
+                coordinator.resume(); self._command_response("Resuming."); return
             if text == "/stop":
                 self._write_command(text)
                 # Drop agent messages queued before the stop command. The
                 # currently rendered bubble is also interrupted by the
                 # stop-aware typing loop above.
                 self._pending_chat.clear()
-                coordinator.stop_requested = True; (coordinator.workspace / "STOP").touch(); self._command_response("Stop requested; finishing the current safe action.", "request"); return
+                coordinator.request_stop("ui_stop"); self._command_response("Stop requested; finishing the current safe action.", "request"); return
             if text in {"/targets", "/plan"}:
                 self._write_command(text)
                 rendered = coordinator.render_starting_plan()

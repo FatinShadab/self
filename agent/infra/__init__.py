@@ -14,7 +14,7 @@ from agent.infra.permission_broker import (
     RateLimitConfig,
 )
 from agent.infra.process_runner import run_process
-from agent.infra.provider_calls import ProviderCallCap
+from agent.infra.provider_calls import reserve_provider_call
 from agent.infra.stop_watcher import StopWatcher
 from agent.infra.untrusted import (
     PERMISSION_RULE,
@@ -38,7 +38,6 @@ __all__ = [
     "PermissionBroker",
     "PermissionLevel",
     "PermissionPolicy",
-    "ProviderCallCap",
     "RateLimitConfig",
     "RunCheckpoint",
     "SAFETY_CRITICAL_CONSTANTS",

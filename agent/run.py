@@ -36,11 +36,7 @@ def main() -> int:
         return 1
 
     def stop_signal(*_: Any) -> None:
-        coordinator.stop_requested = True
-        try:
-            (coordinator.workspace / "STOP").touch()
-        except OSError:
-            pass
+        coordinator.request_stop("signal")
 
     signal.signal(signal.SIGTERM, stop_signal)
     signal.signal(signal.SIGINT, stop_signal)

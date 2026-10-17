@@ -21,6 +21,9 @@ from agent.identity.identity import IdentityStore
 from agent.infra.event_log import EventLogger
 from agent.infra.file_lock import locked_file
 from agent.infra.hardening import DailyTokenLedger
+from agent.infra.permission_broker import PermissionBroker
+from agent.infra.audit_trail import AuditTrail
+from agent.infra.stop_watcher import StopWatcher
 from agent.learning.exploration_coverage import CoverageSummary, build_coverage
 from agent.learning.learning import LearningStore
 from agent.learning.plan import PlanStore
@@ -222,6 +225,28 @@ class WakeCoordinator:
         )
         from agent.plugins.manager import PluginManager
         self.plugins = PluginManager(self.workspace, logger=self.logger)
+
+        policy_path = Path("/config/permissions.json")
+        if not policy_path.exists():
+            policy_path = self.workspace / "config" / "permissions.json"
+        if not policy_path.exists():
+            policy_path = Path("config/permissions.json")
+
+        self.audit_trail = AuditTrail(self.workspace / "state" / "audit_trail.jsonl", logger=self.logger)
+        self.broker = PermissionBroker(
+            policy_path=policy_path if policy_path.exists() else None,
+            logger=self.logger,
+            audit_trail=self.audit_trail,
+        )
+        self.body.broker = self.broker
+        self.plugins.broker = self.broker
+        self.stop_watcher = StopWatcher(
+            workspace=self.workspace,
+            body=self.body,
+            broker=self.broker,
+            logger=self.logger,
+            install_signals=True,
+        )
         self.logger.add_listener(self._event_listener)
 
     def _update_telemetry(self, record: dict[str, Any]) -> None:
@@ -545,6 +570,8 @@ class WakeCoordinator:
             message = "I am paused because STOP was requested earlier. Remove workspace/STOP or use /restart, then I can wake again."
             self.logger.narrate(message)
             return message
+        if hasattr(self, "stop_watcher") and self.stop_watcher is not None:
+            self.stop_watcher.start()
         self._session_info = self.sessions.start()
         self.status.session_id = self._session_info["session_id"]
         self.reflections.begin_session(self.status.session_id)
@@ -815,6 +842,38 @@ class WakeCoordinator:
                     pass
         self.logger.narrate(f"Human: {text}")
 
+    def request_stop(self, reason: str = "requested") -> None:
+        """Trigger an immediate hard stop via StopWatcher."""
+        self.stop_requested = True
+        if hasattr(self, "stop_watcher") and self.stop_watcher is not None:
+            self.stop_watcher.request_stop(reason=reason)
+        else:
+            try:
+                (self.workspace / "STOP").touch()
+            except OSError:
+                pass
+
+    def pause(self) -> None:
+        """Pause autonomous cycles."""
+        self.paused.set()
+        if hasattr(self, "stop_watcher") and self.stop_watcher is not None:
+            self.stop_watcher.pause()
+
+    def resume(self) -> None:
+        """Resume autonomous cycles."""
+        self.paused.clear()
+        if hasattr(self, "stop_watcher") and self.stop_watcher is not None:
+            self.stop_watcher.resume()
+
+    def close(self) -> None:
+        """Cleanly shut down background watchers and executors."""
+        if hasattr(self, "stop_watcher") and self.stop_watcher is not None:
+            self.stop_watcher.shutdown()
+        if hasattr(self, "conversations") and self.conversations is not None:
+            self.conversations.close()
+        if hasattr(self, "reflections") and self.reflections is not None:
+            self.reflections.close()
+
     def recent_decisions(self) -> str:
         """Return formatted recent human input decisions."""
         self.plan_store.load()
@@ -924,7 +983,7 @@ class WakeCoordinator:
         )
 
         resume_checkpoint_task = not stale_startup_task
-        runner = ToolRunner(self.logger, self.workspace, body=self.body)
+        runner = ToolRunner(self.logger, self.workspace, body=self.body, broker=self.broker)
         runner.identity = self.identity
         runner.plan_store = self.plan_store
         runner.plugins = self.plugins
@@ -944,6 +1003,9 @@ class WakeCoordinator:
                 session_id=self.status.session_id,
                 body=self.body,
                 plugins=self.plugins,
+                broker=self.broker,
+                audit_trail=self.audit_trail,
+                stop_watcher=self.stop_watcher,
             ),
             self.logger, self._llm, runner,
         )
@@ -951,14 +1013,14 @@ class WakeCoordinator:
         try:
             summary = loop.run()
             if summary.iterations == 0:
-                end_reason = "stop_file" if summary.reason == "stop_file" else "clean_shutdown" if self.stop_requested or summary.reason == "max_iterations" else "budget_exhausted" if summary.reason in {"token_budget", "wall_clock_budget"} else "provider_error" if summary.reason == "provider_error" else "clean_shutdown"
+                end_reason = "broker_panic" if summary.reason == "broker_panic" else "stop_file" if summary.reason in {"stop_file", "stop_watcher"} else "clean_shutdown" if self.stop_requested or summary.reason == "max_iterations" else "budget_exhausted" if summary.reason in {"token_budget", "wall_clock_budget"} else "provider_error" if summary.reason == "provider_error" else "clean_shutdown"
                 self.sessions.finish(self.status.session_id, self.handoff, 0, summary.tokens_used, end_reason)
                 self.logger.log("zero_cycle_session_preserved", session_id=self.status.session_id, end_reason=end_reason)
                 self._session_info = {}
                 return summary
 
             session_attempt = startup_context or STANDING_GOAL
-            if self.stop_requested or summary.reason == "stop_file":
+            if self.stop_requested or summary.reason in {"stop_file", "stop_watcher", "broker_panic"}:
                 reflection = {
                     "attempted": session_attempt,
                     "achieved": self.handoff.get("summary", "The session stopped at a safe boundary."),
@@ -992,7 +1054,7 @@ class WakeCoordinator:
             )
             handoff = self._make_handoff(session_report, summary.reason)
             handoff["failures_and_lessons"] = list(handoff["failures_and_lessons"]) + list(reflection.get("failures_and_lessons", []))
-            end_reason = "clean_shutdown" if self.stop_requested or summary.reason == "max_iterations" else "stop_file" if summary.reason == "stop_file" else "budget_exhausted" if summary.reason in {"token_budget", "wall_clock_budget"} else "provider_error" if summary.reason == "provider_error" else "clean_shutdown"
+            end_reason = "broker_panic" if summary.reason == "broker_panic" else "stop_file" if summary.reason in {"stop_file", "stop_watcher"} else "clean_shutdown" if self.stop_requested or summary.reason == "max_iterations" else "budget_exhausted" if summary.reason in {"token_budget", "wall_clock_budget"} else "provider_error" if summary.reason == "provider_error" else "clean_shutdown"
             self.sessions.finish(self.status.session_id, handoff, summary.iterations, summary.tokens_used, end_reason)
             self._session_info = {}
             return summary
@@ -1003,21 +1065,24 @@ class WakeCoordinator:
 
 def run_headless(coordinator: WakeCoordinator) -> int:
     """Run a wake session without the terminal UI."""
-    while True:
-        try:
-            result = coordinator.run()
-        except Exception as exc:
-            coordinator.logger.narrate(f"Wake coordinator failed: {type(exc).__name__}; retrying automatically.")
-            time.sleep(3.0)
-            continue
-        if (coordinator.workspace / "STOP").exists():
-            break
-        if (coordinator.workspace / "HUMAN_REQUEST.md").exists():
-            coordinator.logger.narrate("Waiting for the human request to be resolved; the next session will start automatically afterward.")
-            while (coordinator.workspace / "HUMAN_REQUEST.md").exists() and not (coordinator.workspace / "STOP").exists():
-                time.sleep(2.0)
-            continue
-        delay = 3.0 if result is not None and getattr(result, "reason", "") == "provider_error" else 0.8
-        coordinator.logger.narrate("Session ended; starting the next session automatically.")
-        time.sleep(delay)
+    try:
+        while True:
+            try:
+                result = coordinator.run()
+            except Exception as exc:
+                coordinator.logger.narrate(f"Wake coordinator failed: {type(exc).__name__}; retrying automatically.")
+                time.sleep(3.0)
+                continue
+            if (coordinator.workspace / "STOP").exists() or coordinator.stop_requested or (hasattr(coordinator, "broker") and getattr(coordinator.broker, "in_panic", False)):
+                break
+            if (coordinator.workspace / "HUMAN_REQUEST.md").exists():
+                coordinator.logger.narrate("Waiting for the human request to be resolved; the next session will start automatically afterward.")
+                while (coordinator.workspace / "HUMAN_REQUEST.md").exists() and not (coordinator.workspace / "STOP").exists() and not coordinator.stop_requested:
+                    time.sleep(2.0)
+                continue
+            delay = 3.0 if result is not None and getattr(result, "reason", "") == "provider_error" else 0.8
+            coordinator.logger.narrate("Session ended; starting the next session automatically.")
+            time.sleep(delay)
+    finally:
+        coordinator.close()
     return 0
