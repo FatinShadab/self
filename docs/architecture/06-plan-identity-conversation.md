@@ -28,7 +28,7 @@
   ```
   - Valid statuses: `"todo"`, `"in_progress"`, `"done"`, `"dropped"`, `"blocked"`, `"stale"` `[read] agent/tools/base_tools.py:190`.
   - Priorities: `1` (high), `2` (medium), `3` (low) `[read] agent/tools/base_tools.py:187`.
-  - Sources: `"agent"` or `"human"` `[read] agent/tools/base_tools.py:209`.
+  - Sources: `"agent"`, `"human"`, or `"plugin:<plugin_name>"` (for starting goal seeds declared in `plugin.json`) `[read] agent/tools/base_tools.py:209, agent/runtime/loop.py:442`.
 - **Plan Review Requirement:** Every autonomous cycle requires the agent to either update its plan citing evidence (`update_plan(action=..., reason=...)`) or record why the plan remains valid (`PlanStore.record_unchanged()`) `[read] agent/runtime/loop.py:488-491, 637-646`.
 - **Hygiene Rules (`PlanStore.hygiene`):**
   - Completed items (`"done"`) and discarded items (`"dropped"`) are archived to `state/plan_archive.jsonl` (with `goal`, `outcome`, `reason`, `evidence`, `cycle`, `timestamp`) and purged from `plan.json` at cycle end `[read] agent/learning/plan.py:590-620`.
@@ -145,6 +145,7 @@ flowchart LR
 | `/budget` | `coordinator.daily_ledger._read()` `[read] line 2400` | Displays daily token budget, used tokens, and remaining allowance. |
 | `/decisions` | `coordinator.recent_decisions()` `[read] line 2403` | Lists the last 10 human input decisions with their reasons. |
 | `/goal <text>` | `coordinator.receive_human_input(..., kind="goal")` `[read] line 2407` | Queues a human goal to consider for the next cycle; starts agent if stopped. |
+| `/plugins <subcmd>` | `coordinator.handle_plugins_command(args)` `[read] line 2410` | Lists plugins (`/plugins list`) or enables/disables them (`/plugins enable <name>`, `/plugins disable <name>`). |
 
 ---
 
@@ -158,6 +159,7 @@ flowchart LR
 5. **Capability Expansions:** Agent cannot create external credentials, open ports, mount host directories, or access third-party services on its own; it can only write requests via `request_capability` `[read] agent/tools/base_tools.py:253-260`.
 6. **Managed Identity State:** Agent cannot overwrite `identity.json` or `about_human.md` generically via `write_file` `[read] agent/tools/base_tools.py:544-547`.
 7. **Human Data Deletion:** Agent cannot delete lines from `about_human.md` without explicit human TUI command `/about me delete` `[read] agent/identity/identity.py:555-575`.
+8. **Plugin Enablement & Core Integrity:** The agent cannot enable or disable plugins directly; enablement lives in human-owned `./config/plugins.json` mounted read-only into `/config/plugins.json`. If the agent desires a plugin, it calls `request_capability(kind="plugin", ...)`. Plugins can never override core tools, the permission layer, core prompt rules, or stop handling `[read] agent/plugins/manager.py:220, agent/tools/base_tools.py:253`.
 
 ### What the Agent CAN Override (Autonomous Domain)
 1. **Persistent Plan Goals:** Agent owns `plan.json`. It can add, edit, drop, reorder, or mark goals complete at will `[read] agent/learning/plan.py:320-385`.

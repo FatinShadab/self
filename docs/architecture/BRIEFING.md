@@ -72,7 +72,7 @@ The primary entry point is `python -m agent.wake` `[read] Dockerfile:52`, which 
 
 ## 3. The 15 Facts a Planner Most Needs to Know
 
-1. **Strict 6-Layer Downward Import Graph:** The 10 packages obey a strict acyclic layering (`infra:0`, `llm:1`, `tools/learning/helper_models/identity:2`, `runtime:3`, `session/reporting:4`, `ui:5`). Package `agent.tools` never imports `agent.runtime` `[read] agent/tests/infra/test_import_layers.py:11-22`.
+1. **Strict 6-Layer Downward Import Graph:** The 12 packages obey a strict acyclic layering (`infra:0`, `llm:1`, `tools/learning/helper_models/identity/body/plugins:2`, `runtime:3`, `session/reporting:4`, `ui:5`). Package `agent.tools` never imports `agent.runtime` `[read] agent/tests/infra/test_import_layers.py:11-22`.
 2. **Cycle vs. Iteration Semantics:** A "cycle" is an outer exploration loop turn. A "tool round" is an inner request/response turn with the model within a cycle. An "iteration" is the counter of fully completed cycles `[read] agent/runtime/loop.py:419, 511, 628`.
 3. **No Tool Round Ceiling:** There is intentionally no per-cycle tool round ceiling; the model continues executing tools until it returns a pure text report or hits a hard run bound (STOP file, wall-clock, token budget) `[read] agent/runtime/loop.py:509`.
 4. **Daily Token Ledger is the Only Enforced Budget:** All per-run token budget options are deprecated and ignored (`self.token_budget = None`). Spending is bounded strictly by `DailyTokenLedger` tracking tokens in `state/daily_token_budget.json` against `SELF_MAX_TOKENS_PER_DAY` (default 200,000), resetting at UTC midnight `[read] agent/llm/llm.py:58-60, agent/infra/hardening.py:55`.
@@ -115,7 +115,9 @@ The primary entry point is `python -m agent.wake` `[read] Dockerfile:52`, which 
 | `state/model_outcomes.jsonl` | Model call metrics & outcomes | **NO** | JSONL: Metric values, latency, errors |
 | `state/daily_token_budget.json`| Enforced daily token ledger | **NO** (telemetry displays remaining) | Resets at UTC midnight |
 | `state/wake_snapshot.json` | Baseline workspace & uptime | **NO** (changes in greeting) | Detects workspace/tool changes on boot |
-| `logs/actions.jsonl` | Central system event log (101 events)| **NO** (failure context extracts 8 errors) | Unbounded append-only log |
+| `logs/actions.jsonl` | Central system event log (105 events)| **NO** (failure context extracts 8 errors) | Unbounded append-only log |
+| `config/plugins.json` | Enabled plugins & SHA-256 hashes | **NO** (embodiment & goal notes injected) | Human-owned; mounted read-only into `/config` |
+| `plugins/<name>/state/` | Per-plugin private state storage | **NO** | Plugin-managed isolated runtime state |
 
 ---
 
@@ -153,24 +155,18 @@ The primary entry point is `python -m agent.wake` `[read] Dockerfile:52`, which 
 
 To decouple the core agent from the Linux container and enable specialized bodies (Antivirus, IoT Robot):
 
-1. **Body Interface (`Sense` / `Act` / `Permissions`) — Difficulty: HIGH**
-   - *Current Code:* `base_tools.py:446-464`, `process_runner.py:1-85`, and `wake.py:585-655` directly invoke `/bin/bash`, inspect `/proc/meminfo`, `/proc/net/dev`, `/proc/uptime`, and read `/sys/fs/cgroup/*`.
-   - *Refactoring Needed:* Introduce an abstract `BodyInterface` with `sense_telemetry()`, `execute_action()`, `read_data()`, `write_data()`, and `validate_permissions()`. Implement `ContainerBody` as the default.
-2. **Prompt Assembly & System Prompt — Difficulty: MEDIUM**
-   - *Current Code:* `SYSTEM_PROMPT` `[read] loop.py:35-67` and `conversation.py:76-89` hardcode *"whose body is this Linux container"* and Linux root operating rules.
-   - *Refactoring Needed:* Decompose prompt assembly into Core Autonomy Rules (identity, plan, non-subservience, honesty) and Body Embodiment Prompts injected by the active body plugin.
-3. **State Partitioning & Namespace Organization — Difficulty: MEDIUM**
-   - *Current Code:* `workspace/state/` mixes core cognitive files (`plan.json`, `identity.json`, `models.json`) with container-specific artifacts (`etc_recursive.json`, `service_dependency_map.json`).
-   - *Refactoring Needed:* Partition state into `core_state/` vs `plugins/<name>/state/`.
-4. **Tool Registry & Dynamic Offerings — Difficulty: LOW**
-   - *Current Code:* Base tools are hardcoded in `base_tools.py:TOOL_DEFINITIONS`.
-   - *Refactoring Needed:* Allow bodies to register domain-specific tool suites dynamically.
-5. **Plan Seeding & Startup Tasks — Difficulty: LOW**
-   - *Current Code:* `wake.py:1389` hardcodes startup priority: *"Immediately inventory installed Python packages in this container"*.
-   - *Refactoring Needed:* Parameterize initial seed task via `body.initial_orientation_task()`.
-6. **Identity Framing & Default Interests — Difficulty: LOW**
-   - *Current Code:* `identity.py:86-90` hardcodes default interests to container mapping.
-   - *Refactoring Needed:* Allow plugins to configure default interests on initial boot.
+1. **Body Interface (`Sense` / `Act` / `Permissions`) — Difficulty: HIGH [IMPLEMENTED in Prompt 10]**
+   - *Implementation:* `agent/body/base.py` and `agent/body/container.py` provide abstract `Body` and default `ContainerBody`.
+2. **Prompt Assembly & System Prompt — Difficulty: MEDIUM [IMPLEMENTED in Prompt 10 & 11]**
+   - *Implementation:* `loop.py` decomposes prompts into core rules, dynamic body embodiment (`body.describe().embodiment`), and delimited plugin embodiment and seeds.
+3. **State Partitioning & Namespace Organization — Difficulty: MEDIUM [IMPLEMENTED in Prompt 11]**
+   - *Implementation:* Plugin state is isolated in `workspace/plugins/<name>/state/`, excluded from hash verification.
+4. **Tool Registry & Dynamic Offerings — Difficulty: LOW [IMPLEMENTED in Prompt 11]**
+   - *Implementation:* `PluginManager` dynamically registers namespaced tools `<plugin>.<tool>`, validates schemas, rejects core collisions, and dispatches calls.
+5. **Plan Seeding & Startup Tasks — Difficulty: LOW [IMPLEMENTED in Prompt 10 & 11]**
+   - *Implementation:* Initial seed task parameterized via `body.initial_orientation_task()` and plugin starting goal seeds.
+6. **Identity Framing & Default Interests — Difficulty: LOW [IMPLEMENTED in Prompt 10]**
+   - *Implementation:* `default_identity(body)` configures interests and inquiry context from the active body.
 
 ---
 

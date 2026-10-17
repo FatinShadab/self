@@ -250,6 +250,7 @@ def get_env_vars():
         {"name": "SELF_TUI_TYPING_DELAY", "default": "0.01", "where_read": "agent/ui/wake.py:1631", "meaning": "Typing delay in seconds for terminal UI typewriter animation."},
         {"name": "SELF_VOICE_ENABLED", "default": "false", "where_read": "agent/ui/voice.py:19", "meaning": "Enable or disable speech synthesis / voice output."},
         {"name": "SELF_WORKSPACE_DIR", "default": "./workspace", "where_read": "docker-compose.yml:17", "meaning": "Host directory mounted to /home/entity inside container."},
+        {"name": "SELF_CONFIG_DIR", "default": "./config", "where_read": "docker-compose.yml:22", "meaning": "Host configuration directory mounted read-only for human plugin control."},
         {"name": "EVAL_WORKSPACE_DIR", "default": "./workspace", "where_read": "docker-compose.yml:34", "meaning": "Host directory mounted as read-only workspace for eval container."}
     ]
 
@@ -289,7 +290,8 @@ def get_state_files():
         {"path": "workspace/state/key_requests.md", "purpose": "Human-facing requests for supplementary provider API keys", "writer": "agent/llm/providers/registry.py", "reader": "agent/ui/wake.py"},
         {"path": "workspace/state/egress.jsonl", "purpose": "Audit log of external HTTP requests made by tools", "writer": "agent/infra/hardening.py", "reader": "agent/reporting/report.py"},
         {"path": "workspace/logs/actions.jsonl", "purpose": "Primary append-only event log containing all system and agent events", "writer": "agent/infra/event_log.py", "reader": "agent/infra/event_log.py, agent/reporting/report.py, agent/ui/wake.py"},
-        {"path": "workspace/memory/lessons.jsonl", "purpose": "Recorded tool failure lessons after 3 failed creation attempts", "writer": "agent/tools/tool_registry.py", "reader": "agent/runtime/loop.py"}
+        {"path": "workspace/memory/lessons.jsonl", "purpose": "Recorded tool failure lessons after 3 failed creation attempts", "writer": "agent/tools/tool_registry.py", "reader": "agent/runtime/loop.py"},
+        {"path": "config/plugins.json", "purpose": "Human-owned configuration file recording plugin enablement status and SHA-256 hash pins", "writer": "agent/plugins/manager.py", "reader": "agent/plugins/manager.py"}
     ]
 
 def get_entry_points():
@@ -317,6 +319,7 @@ def get_packages():
         {"package": "agent.learning", "layer": 2, "purpose": "Persistent plan store, memory store, environment map, self notes, and exploration coverage."},
         {"package": "agent.helper_models", "layer": 2, "purpose": "Model prober, model decision router/picker, outcomes tracker, and delegation logic."},
         {"package": "agent.identity", "layer": 2, "purpose": "Identity store, first awakening, name context resolution, traits, and core patch proposals."},
+        {"package": "agent.plugins", "layer": 2, "purpose": "Plugin lifecycle, discovery, manifest validation, dynamic tool registration, and SHA-256 hash pinning."},
         {"package": "agent.runtime", "layer": 3, "purpose": "Autonomous agent loop, cycle coordination, prompt assembly, and tool round execution."},
         {"package": "agent.session", "layer": 4, "purpose": "Headless WakeCoordinator, session management, inter-session handoff, independent conversations, and background reflections."},
         {"package": "agent.reporting", "layer": 4, "purpose": "Activity reporting and experiment summary generation."},

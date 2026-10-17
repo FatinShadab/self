@@ -175,3 +175,13 @@ workspace/tools/parse_mounts/
 | **Container Sandbox**| Docker container boundary | Linux cgroups enforce `mem_limit: 4g`, `cpus: 2`, `pids_limit: 512` `[read] docker-compose.yml:8-10`. Bridge networking prevents access to host network stack. |
 | **Filesystem Boundary**| `/opt/agent` is read-only | Chmod `0555` dirs and `0444` files in container image `[read] Dockerfile:45-46`. |
 | **Unenforced Shell Gaps**| **Shell commands run as root** | `run_shell` executes as root; file permission checks in `write_file` (like `_is_core_path`) are Python-level and do NOT block root commands like `chmod +w /opt/agent` or package removal via `apt-get` `[inferred: root in container retains standard Linux DAC override]`. |
+
+---
+
+## 5. Dynamic Plugin Tools & Unplug Resilience
+
+`[read] agent/plugins/manager.py:270-360, agent/tools/base_tools.py:453-465, agent/runtime/loop.py:643-652`:
+1. **Dynamic Tool Offerings:** Enabled plugins register tools namespaced as `<plugin>.<tool>` (e.g. `hello.greet`). These tools are appended to cycle model tool offerings alongside base tools and retrieved custom tools.
+2. **Core Collision Protection:** Plugin tools cannot collide with core built-in tools (`TOOL_DEFINITIONS`) or `create_tool`. Any collision causes plugin loading to fail with `plugin_load_failed` without taking down the core engine.
+3. **Unplug Resilience & Vanished Tools:** When a plugin is disabled or removed, its tools are immediately deregistered at the cycle boundary. If the LLM generates a tool call for a vanished plugin tool, the engine intercepts the call and returns a structured observation (`{"ok": False, "error": "tool no longer available: plugin X disabled"}`) instead of raising an exception.
+

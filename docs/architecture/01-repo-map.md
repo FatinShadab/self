@@ -12,7 +12,9 @@
 self/
 ├── .dockerignore                     # Excludes .env, .git, workspace, eval from image build [read] .dockerignore:1-7
 ├── .env.example                      # Template for host environment variables and model keys [read] .env.example:1-26
-├── docker-compose.yml                # Compose configuration defining 'self' and 'eval' services [read] docker-compose.yml:1-51
+├── config/                           # Human-owned plugin configuration mounted read-only to /config [read] config/plugins.json:1-5
+│   └── plugins.json                  # Recorded plugin enablement status and SHA-256 hash pins [read] config/plugins.json:1-5
+├── docker-compose.yml                # Compose configuration defining 'self' and 'eval' services [read] docker-compose.yml:1-56
 ├── Dockerfile                        # Multi-stage image build for the agent runtime [read] Dockerfile:1-53
 ├── kill.sh                           # Host script to safely stop running containers [read] kill.sh:1-17
 ├── README.md                         # Project documentation and phase milestone overview [read] README.md:1-400
@@ -71,6 +73,12 @@ self/
 │   │       ├── adapters.py           # Provider HTTP request adapters (Ollama, Anthropic, Cerebras) [read] agent/llm/providers/adapters.py:1-190
 │   │       ├── base.py               # ProviderRequest, ProviderResponse dataclasses [read] agent/llm/providers/base.py:1-34
 │   │       └── registry.py           # Registry of free-tier provider limits and docs [read] agent/llm/providers/registry.py:1-210
+│   │
+│   ├── plugins/                      # Plugin lifecycle, dynamic tool registration, hash pinning (Layer 2)
+│   │   ├── __init__.py               # Exports PluginManager, PluginManifest, compute_plugin_hash [read] agent/plugins/__init__.py:1-25
+│   │   ├── hello/                    # Shipped sample hello plugin fixture [read] agent/plugins/hello/plugin.json:1-35
+│   │   ├── manager.py                # PluginManager: discovery, lifecycle, sync, hash checks [read] agent/plugins/manager.py:1-400
+│   │   └── manifest.py               # PluginManifest schema validation and version checks [read] agent/plugins/manifest.py:1-200
 │   │
 │   ├── reporting/                    # Activity reporting and statistics aggregation (Layer 4)
 │   │   ├── __init__.py               # Exports generate_report [read] agent/reporting/__init__.py:1-5
@@ -135,6 +143,7 @@ self/
 └── workspace/                        # Runtime persistent volume mounted to /home/entity [read] docker-compose.yml:17-18
     ├── logs/                         # actions.jsonl event log [read]
     ├── memory/                       # lessons.jsonl [read]
+    ├── plugins/                      # Human-installed plugins (<name>/plugin.json, tools/, state/) [read]
     ├── self/                         # Writable extension layer (prompts, heuristics, themes) [read]
     ├── state/                        # Durable state files (plan.json, identity.json, models.json, etc.) [read]
     └── tools/                        # Registered agent-created tools with history/ and attempts/ [read]
