@@ -5,7 +5,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.egress_proxy import Allowlist
+from agent.infra.egress_allowlist import Allowlist
 
 
 class TestHardenedProfile(unittest.TestCase):

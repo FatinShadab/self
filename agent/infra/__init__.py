@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 from agent.infra.audit_trail import AuditTrail
+from agent.infra.egress_allowlist import Allowlist
 from agent.infra.event_log import EventLogger
 from agent.infra.file_lock import locked_file
 from agent.infra.hardening import CapabilityRequests, DailyTokenLedger, RunCheckpoint
@@ -32,6 +33,7 @@ from agent.infra.untrusted import (
 __all__ = [
     "ActionRequest",
     "ActionVerdict",
+    "Allowlist",
     "AuditTrail",
     "CapabilityRequests",
     "DailyTokenLedger",
