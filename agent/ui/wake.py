@@ -28,6 +28,7 @@ from agent.helper_models.model_decisions import ModelDecisions
 from agent.infra.file_lock import locked_file
 from agent.runtime.loop import AgentConfig, AgentLoop, STANDING_GOAL
 from agent.learning.plan import PlanStore
+from agent.ui.version_check import verify_startup_code_version
 from agent.session.reflection import ReflectionManager
 from agent.session.session import HumanInbox, SessionStore, default_plan
 
@@ -150,6 +151,340 @@ def escape_rich_markup(value: Any) -> str:
     entire Textual screen fail to reflow.
     """
     return str(value).replace("\\", "\\\\").replace("[", "\\[")
+
+
+def format_goals_panel(
+    goals: list[dict[str, Any]],
+    current_activity: str = "",
+    current_cycle: int = 1,
+) -> str:
+    """Format goals panel showing max 5 unfinished goals ordered with in-progress first, then priority."""
+    unfinished: list[dict[str, Any]] = []
+
+    for item in goals:
+        if not isinstance(item, dict):
+            continue
+        status = str(item.get("status", "todo")).strip().lower()
+        if status not in COMPLETED_PLAN_STATUSES and status not in {"dropped", "canceled", "cancelled"}:
+            unfinished.append(item)
+
+    def _unfinished_sort_key(it: dict[str, Any]) -> tuple[int, int, int]:
+        st = str(it.get("status", "todo")).strip().lower()
+        is_prog = 0 if st in {"in_progress", "in-progress", "working"} else 1
+        try:
+            prio = int(it.get("priority", 2))
+        except (ValueError, TypeError):
+            prio = 2
+        try:
+            created = int(it.get("created_cycle", 0))
+        except (ValueError, TypeError):
+            created = 0
+        return (is_prog, prio, created)
+
+    unfinished.sort(key=_unfinished_sort_key)
+
+    lines: list[str] = []
+
+    if unfinished:
+        for item in unfinished[:5]:
+            desc = escape_rich_markup(item.get("goal") or item.get("step", ""))
+            status = str(item.get("status", "todo")).strip().lower()
+            created = item.get("created_cycle")
+            if status in {"in_progress", "in-progress", "working"}:
+                cycle_tag = f" [dim](c{created})[/dim]" if created else ""
+                lines.append(f"[cyan]▶ (in progress)[/cyan] {desc}{cycle_tag}")
+            elif created and created >= current_cycle:
+                lines.append(f"[yellow]+ (added c{created})[/yellow] {desc}")
+            else:
+                prio = item.get("priority", 2)
+                prio_tag = f"[red]! (p{prio})[/red] " if prio == 1 else ""
+                cycle_tag = f" [dim](c{created})[/dim]" if created else ""
+                lines.append(f"[white]• (todo)[/white] {prio_tag}{desc}{cycle_tag}")
+        if len(unfinished) > 5:
+            lines.append(f"[dim]  (+{len(unfinished) - 5} more pending)[/dim]")
+    elif not goals:
+        lines.append("[dim]No goals recorded yet[/dim]")
+    else:
+        lines.append("[dim]All recorded goals achieved[/dim]")
+
+    return "[b]Goals[/b]\n" + "\n".join(lines)
+
+
+def format_starting_plan(starting_plan: list[dict[str, Any]], session_id: str = "") -> str:
+    """Render the session starting plan as clean markdown for the chat view."""
+    if not starting_plan:
+        return "No starting plan recorded for this session yet."
+
+    session_label = f" (Session `{session_id[:12]}`)" if session_id else ""
+    lines = [
+        f"**Starting Plan / Targets{session_label}**",
+        "",
+        "*This was the plan when this session started:*",
+        "",
+    ]
+    for idx, item in enumerate(starting_plan, 1):
+        if not isinstance(item, dict):
+            continue
+        step = str(item.get("goal") or item.get("step", "")).strip()
+        status = str(item.get("status", "todo")).strip().lower()
+        lines.append(f"{idx}. ({status}) {step}")
+        why = str(item.get("why", "")).strip()
+        if why:
+            lines.append(f"   *Why:* {why}")
+    return "\n".join(lines)
+
+
+def build_archive_views(workspace: str | Path, coordinator: Any) -> tuple[str, str]:
+    """Build (session_plans_markup, achieved_goals_markup) for the two-column /archive view."""
+    root = Path(workspace)
+
+    # ==========================================
+    # Column 1: Session Plans (Running & Completed)
+    # ==========================================
+    plan_lines: list[str] = [
+        "[b]Session Plans[/b]",
+        "Completed and currently running session plans organized by Session ID.",
+        "Type [bold]/back[/bold] to return to main UI or [bold]/archive[/bold] to refresh.",
+        "",
+    ]
+
+    # Current running session
+    running_id = getattr(getattr(coordinator, "status", None), "session_id", "") or "running"
+    running_iter = getattr(getattr(coordinator, "status", None), "iteration", 0)
+
+    lock = getattr(coordinator, "lock", None)
+    if lock:
+        with lock:
+            starting_plan = list(getattr(coordinator, "starting_plan", []) or getattr(coordinator, "plan", []))
+    else:
+        starting_plan = list(getattr(coordinator, "starting_plan", []) or getattr(coordinator, "plan", []))
+
+    plan_lines.append(f"[bold cyan]● Current Session: {escape_rich_markup(running_id)}[/bold cyan] [dim](running · cycle {running_iter})[/dim]")
+    if starting_plan:
+        plan_lines.append("[dim]Starting plan established at session boot:[/dim]")
+        for idx, item in enumerate(starting_plan, 1):
+            if not isinstance(item, dict):
+                continue
+            step = escape_rich_markup(item.get("goal") or item.get("step", ""))
+            status = escape_rich_markup(str(item.get("status", "todo")).strip().lower())
+            prio = item.get("priority", 2)
+            plan_lines.append(f"  {idx}. [cyan]({status})[/cyan] [dim][p{prio}][/dim] {step}")
+            why = item.get("why")
+            if why:
+                plan_lines.append(f"     [dim]Why: {escape_rich_markup(why)}[/dim]")
+    else:
+        plan_lines.append("  [dim]No starting plan recorded for current session.[/dim]")
+    plan_lines.append("")
+
+    # Completed sessions from journal and sessions.jsonl
+    plan_lines.append("[bold green]● Completed Sessions[/bold green]")
+
+    journal_by_session: dict[str, dict[str, Any]] = {}
+    journal_path = root / "state" / "journal.md"
+    if journal_path.exists():
+        try:
+            journal_content = journal_path.read_text(encoding="utf-8", errors="replace")
+            sections = re.split(r"(?m)^## ", journal_content)
+            for sec in sections:
+                if not sec.strip():
+                    continue
+                first_line = sec.splitlines()[0]
+                match = re.search(r"session\s+([a-zA-Z0-9_-]+)", first_line)
+                if match:
+                    sess_id = match.group(1).strip()
+                    plans: list[str] = []
+                    summary: str = ""
+                    in_plan = False
+                    for line in sec.splitlines()[1:]:
+                        if line.startswith("### Next plan"):
+                            in_plan = True
+                            continue
+                        elif line.startswith("###") or line.startswith("End reason:"):
+                            in_plan = False
+                        if in_plan and line.strip().startswith("- "):
+                            plans.append(line.strip()[2:])
+                    paragraphs = [
+                        p.strip() for p in sec.split("\n\n")
+                        if p.strip() and not p.startswith("###") and not p.startswith("End reason") and p != first_line
+                    ]
+                    if paragraphs:
+                        summary = paragraphs[0]
+                    journal_by_session[sess_id] = {
+                        "plans": plans,
+                        "summary": summary,
+                        "raw_header": first_line,
+                    }
+        except OSError:
+            pass
+
+    sessions_list: list[dict[str, Any]] = []
+    sessions_path = root / "state" / "sessions.jsonl"
+    if sessions_path.exists():
+        try:
+            for line in sessions_path.read_text(encoding="utf-8", errors="replace").splitlines():
+                if not line.strip():
+                    continue
+                try:
+                    data = json.loads(line)
+                    if isinstance(data, dict):
+                        sessions_list.append(data)
+                except json.JSONDecodeError:
+                    continue
+        except OSError:
+            pass
+
+    seen_sessions = set()
+    completed_entries: list[tuple[str, dict[str, Any]]] = []
+
+    for s in reversed(sessions_list):
+        sid = str(s.get("session_id", ""))
+        if not sid or sid in seen_sessions or sid == running_id:
+            continue
+        seen_sessions.add(sid)
+        completed_entries.append((sid, s))
+
+    for sid, jdata in journal_by_session.items():
+        if sid not in seen_sessions and sid != running_id:
+            seen_sessions.add(sid)
+            completed_entries.append((sid, {"session_id": sid}))
+
+    if not completed_entries:
+        plan_lines.append("  [dim]No completed sessions recorded yet.[/dim]")
+    else:
+        for idx, (sid, sinfo) in enumerate(completed_entries, 1):
+            end_reason = sinfo.get("end_reason", "completed")
+            iters = sinfo.get("iteration_count", "?")
+            tokens = sinfo.get("token_spend", "?")
+            plan_lines.append(f"[bold white]Session {escape_rich_markup(sid)}[/bold white] [dim]({escape_rich_markup(end_reason)} · {iters} cycles · {tokens} tokens)[/dim]")
+            j = journal_by_session.get(sid, {})
+            plans = j.get("plans", [])
+            if plans:
+                plan_lines.append("  [dim]Session plan:[/dim]")
+                for p in plans:
+                    plan_lines.append(f"  • {escape_rich_markup(p)}")
+            elif sinfo.get("probable_cause"):
+                plan_lines.append(f"  [red]Crash cause: {escape_rich_markup(sinfo['probable_cause'])}[/red]")
+            else:
+                plan_lines.append("  [dim](No plan items recorded)[/dim]")
+            if j.get("summary"):
+                plan_lines.append(f"  [dim]Summary: {escape_rich_markup(j['summary'][:200])}[/dim]")
+            plan_lines.append("")
+
+    # ==========================================
+    # Column 2: Achieved Goals
+    # ==========================================
+    goals_lines: list[str] = [
+        "[b]Achieved Goals[/b]",
+        "All goals completed and achieved across cycles and sessions.",
+        "Type [bold]/back[/bold] to return to main UI or [bold]/archive[/bold] to refresh.",
+        "",
+    ]
+
+    items: list[dict[str, Any]] = []
+    plan_store = getattr(coordinator, "plan_store", None)
+    if plan_store is not None:
+        try:
+            plan_store.load()
+            items = list(plan_store.items)
+        except Exception:
+            items = []
+    if not items and hasattr(coordinator, "plan"):
+        items = list(coordinator.plan)
+
+    achieved_goals: list[dict[str, Any]] = []
+    seen_goal_keys: set[str] = set()
+
+    for it in items:
+        if not isinstance(it, dict):
+            continue
+        status = str(it.get("status", "")).strip().lower()
+        if status in COMPLETED_PLAN_STATUSES and status not in {"dropped", "canceled", "cancelled"}:
+            key = str(it.get("id") or it.get("goal") or it.get("step", ""))
+            if key not in seen_goal_keys:
+                seen_goal_keys.add(key)
+                achieved_goals.append(it)
+
+    goals_lines.append(f"[bold green]Total Achieved: {len(achieved_goals)}[/bold green]")
+    goals_lines.append("")
+
+    if not achieved_goals:
+        goals_lines.append("[dim]No achieved goals recorded yet.[/dim]")
+    else:
+        for idx, it in enumerate(achieved_goals, 1):
+            desc = escape_rich_markup(it.get("goal") or it.get("step", ""))
+            gid = escape_rich_markup(str(it.get("id", f"goal-{idx}")))
+            cycle = it.get("updated_cycle") or it.get("created_cycle")
+            cycle_tag = f" [dim](cycle {cycle})[/dim]" if cycle else ""
+            prio = it.get("priority", 2)
+            goals_lines.append(f"[bold green]✓[/bold green] [bold white]{desc}[/bold white]{cycle_tag}")
+            goals_lines.append(f"  [dim]ID: {gid}  |  Priority: p{prio}  |  Status: done[/dim]")
+            why = it.get("why")
+            if why:
+                goals_lines.append(f"  [dim]Why: {escape_rich_markup(why)}[/dim]")
+            evidence = it.get("evidence")
+            if evidence:
+                goals_lines.append(f"  [dim]Evidence: {escape_rich_markup(evidence)}[/dim]")
+            goals_lines.append("")
+
+    return "\n".join(plan_lines), "\n".join(goals_lines)
+
+
+def format_conversation_history_view(
+    messages: list[dict[str, Any]],
+    page: int = 0,
+    page_size: int = 20,
+    entity_name: str = "SELF",
+) -> str:
+    """Format a paginated view of conversation history for the /conversation screen."""
+    if not messages:
+        return (
+            "[b]Conversation History[/b]\n"
+            "No recorded conversation messages yet.\n\n"
+            "Type [bold]/back[/bold] to return to the main view."
+        )
+
+    total = len(messages)
+    max_pages = max(1, (total + page_size - 1) // page_size)
+    clamped_page = max(0, min(page, max_pages - 1))
+
+    end_idx = max(0, total - clamped_page * page_size)
+    start_idx = max(0, end_idx - page_size)
+    page_messages = messages[start_idx:end_idx]
+
+    lines = [
+        "[b]Conversation History[/b]",
+        f"Showing messages {start_idx + 1}–{end_idx} of {total}  (Page {clamped_page + 1} of {max_pages})",
+        "Type [bold]/previous[/bold] for older messages, [bold]/back[/bold] to return, [bold]/conversation[/bold] for latest.",
+        "",
+    ]
+
+    if clamped_page > 0 and start_idx == 0:
+        lines.append("[dim]── Oldest recorded messages (beginning of history) ──[/dim]")
+        lines.append("")
+
+    for item in page_messages:
+        role = str(item.get("role", "agent")).strip().lower()
+        kind = str(item.get("kind", "chat")).strip().lower()
+        text = escape_rich_markup(item.get("message", ""))
+        ts = str(item.get("timestamp", "")).strip()
+        ts_label = f" [dim]({ts[:19].replace('T', ' ')})[/dim]" if ts else ""
+
+        if role == "human":
+            badge = "[bold white on dark_orange] YOU [/bold white on dark_orange]"
+            header = f"{badge} [bold #ffbd7a]Human[/bold #ffbd7a]{ts_label}"
+        else:
+            badge = f"[bold white on dark_blue] {escape_rich_markup(entity_name)} [/bold white on dark_blue]"
+            header = f"{badge} [bold #8ed8ff]{escape_rich_markup(kind.title())}[/bold #8ed8ff]{ts_label}"
+
+        lines.append(header)
+        lines.append(text)
+        lines.append("[dim]─" * 48 + "[/dim]")
+        lines.append("")
+
+    if clamped_page < max_pages - 1:
+        lines.append("[dim]Type [bold]/previous[/bold] to view older messages.[/dim]")
+
+    return "\n".join(lines)
 
 
 def format_models_snapshot(snapshot: dict[str, Any]) -> str:
@@ -358,6 +693,7 @@ class WakeCoordinator:
         self.sessions = SessionStore(self.workspace, self.logger)
         self.inbox = HumanInbox(self.workspace, self.logger)
         self.identity = IdentityStore(self.workspace, self.logger)
+        self.plan_store = PlanStore(self.workspace, self.logger)
         if max_iterations is not None:
             self.max_iterations = max_iterations
         else:
@@ -373,6 +709,8 @@ class WakeCoordinator:
         self.lock = threading.Lock()
         self.plan: list[dict[str, Any]] = default_plan()
         self.handoff: dict[str, Any] = {}
+        self.starting_plan: list[dict[str, Any]] = []
+        self.starting_session_id: str = ""
         self.status = WakeStatus(started_monotonic=time.monotonic(), last_human_input=time.monotonic())
         self.telemetry = RuntimeTelemetry()
         self._last_checkpoint = time.monotonic()
@@ -503,7 +841,18 @@ class WakeCoordinator:
             activity = "step: " + str(record.get("message", ""))
         elif event == "narration":
             activity = str(record.get("message", ""))
+        elif event in {"plan_updated", "plan_unchanged"}:
+            with self.lock:
+                self.plan_store.load()
+                self.plan = list(self.plan_store.items)
+            diff = str(record.get("diff", "")).strip()
+            if diff:
+                activity = f"goal: {diff}"
         elif event == "cycle_completed":
+            with self.lock:
+                self.plan_store.load()
+                if self.plan_store.items:
+                    self.plan = list(self.plan_store.items)
             summary = f"Cycle {record.get('cycle', '?')} summary\n{record.get('report', '')}".strip()
             self._cycle_summaries.append(summary)
             if self.on_chat and not self.stop_requested and not (self.workspace / "STOP").exists():
@@ -584,10 +933,10 @@ class WakeCoordinator:
         )
         return reply
 
-    def _pending_requests(self) -> list[str]:
+    def _pending_human_inputs(self) -> list[str]:
         pending: list[str] = []
-        for name in ("capability_requests.md", "key_requests.md", "HUMAN_REQUEST.md"):
-            path = self.workspace / "state" / name if name != "HUMAN_REQUEST.md" else self.workspace / name
+        for name in ("capability_requests.md", "key_requests.md", "HUMAN_REQUEST.md", "HUMAN_INPUT.md"):
+            path = self.workspace / "state" / name if name not in {"HUMAN_REQUEST.md", "HUMAN_INPUT.md"} else self.workspace / name
             try:
                 text = path.read_text(encoding="utf-8", errors="replace").strip()
             except OSError:
@@ -595,6 +944,8 @@ class WakeCoordinator:
             if text:
                 pending.append(f"{name}: {text.splitlines()[0][:300]}")
         return pending
+
+    _pending_requests = _pending_human_inputs
 
     def _tool_list(self) -> list[str]:
         result = []
@@ -659,8 +1010,12 @@ class WakeCoordinator:
 
     def boot(self) -> str:
         """Load persistent state and prepare a new wake session."""
+        verify_startup_code_version(self.logger)
         self.workspace.mkdir(parents=True, exist_ok=True)
         self.learning.initialize()
+        self.plan_store.initialize(default_step=(self.plan[0].get("step") if self.plan else ""))
+        if self.plan_store.items:
+            self.plan = self.plan_store.items
         ledger = self.daily_ledger
         daily = ledger._read()  # validates/reinitializes the daily persisted budget.
         with self.lock:
@@ -687,12 +1042,15 @@ class WakeCoordinator:
         self.plan = normalized_plan(list(old.get("plan") or default_plan()))
         self._recover_budget_blocked_plan()
         self.handoff["plan"] = self.plan
+        with self.lock:
+            self.starting_plan = [dict(it) for it in self.plan]
+            self.starting_session_id = self.status.session_id
         changes = self._orientation_changes()
         checks = self._spot_check_map()
         crash = self._session_info.get("crash")
         prior_summary = old.get("summary", "I have no prior handoff in my state files.")
         prior_plan = (self.plan[0].get("step") if self.plan else "inspect state")
-        pending = self._pending_requests()
+        pending = self._pending_human_inputs()
         if crash:
             crash_note = "I detected that the prior session ended unexpectedly and reconstructed from its checkpoint."
         elif self._session_info.get("handoff_recovered"):
@@ -724,7 +1082,7 @@ class WakeCoordinator:
         if open_question:
             greeting += f" I still have an open reflection question: {open_question['question']}"
         if pending:
-            greeting = "Pending human requests: " + " | ".join(pending) + "\n" + greeting
+            greeting = "Pending human inputs to consider: " + " | ".join(pending) + "\n" + greeting
         self.logger.narrate(greeting)
         return greeting
 
@@ -854,6 +1212,16 @@ class WakeCoordinator:
         self._recover_budget_blocked_plan()
         self.handoff["long_term_summary"] = reflected.get("summary", self.handoff.get("long_term_summary", ""))
         self.logger.narrate("I reviewed the previous plan against current state and updated the plan.")
+        with self.lock:
+            self.starting_plan = [dict(it) for it in self.plan]
+            self.starting_session_id = self.status.session_id
+
+    def render_starting_plan(self) -> str:
+        """Render the plan that was established when the current session started."""
+        with self.lock:
+            plan = list(self.starting_plan or self.plan)
+            session_id = self.starting_session_id or self.status.session_id
+        return format_starting_plan(plan, session_id=session_id)
 
     def _recover_budget_blocked_plan(self) -> None:
         """Clear stale budget blockers once the daily ledger has room again."""
@@ -914,20 +1282,24 @@ class WakeCoordinator:
             "long_term_summary": self.handoff.get("long_term_summary", ""), "discoveries": discoveries,
             "tools_created": [f"{name}: registered reusable tool" for name in self._tool_list()],
             "failures_and_lessons": failures[-12:] or ["No new recorded harness failures."],
-            "open_questions": ["Review pending human requests before attempting capability expansions."],
-            "plan": self.plan, "pending_human_requests": self._pending_requests(),
+            "open_questions": ["Weigh pending human inputs before attempting capability expansions."],
+            "plan": self.plan, "pending_human_inputs": self._pending_human_inputs(),
             "mood_of_run": "stuck" if reason in {"token_budget", "wall_clock_budget"} else "progressing" if report else "exploring",
         }
 
     def _checkpoint_cycle(self, cycle: int, report: str, tokens: int) -> None:
         self.status.iteration, self.status.tokens_used = cycle, tokens
+        with self.lock:
+            self.plan_store.load()
+            if self.plan_store.items:
+                self.plan = list(self.plan_store.items)
         if cycle % 10 == 0 or time.monotonic() - self._last_checkpoint >= 300:
             self.sessions.checkpoint(self.status.session_id, self._make_handoff(report, "checkpoint"), cycle, tokens)
             self._last_checkpoint = time.monotonic()
 
-    def receive_human_input(self, text: str) -> None:
+    def receive_human_input(self, text: str, kind: str = "goal") -> None:
         """Queue human input for the next safe agent turn."""
-        self.inbox.add(text)
+        self.inbox.add(text, kind=kind)
         self.status.last_human_input = time.monotonic()
         if self.identity.awaiting_name():
             self.identity.record_human_answer(text, self.status.session_id)
@@ -941,14 +1313,41 @@ class WakeCoordinator:
                     pass
         self.logger.narrate(f"Human: {text}")
 
+    def recent_decisions(self) -> str:
+        """Return formatted recent human input decisions."""
+        self.plan_store.load()
+        decisions = self.plan_store.human_input_decisions[-10:]
+        if not decisions:
+            return "No human input decisions recorded yet."
+        lines = ["Recent human input decisions:"]
+        for d in decisions:
+            dec = d.get("decision", "unknown")
+            inp = d.get("input", "")
+            reason = d.get("reason", "")
+            cycle = d.get("cycle", 0)
+            p = d.get("priority")
+            p_str = f" [priority {p}]" if p is not None else ""
+            lines.append(f"- [{dec}]{p_str} '{inp}' (cycle {cycle}): {reason}")
+        return "\n".join(lines)
+
     def conversation_context(self) -> str:
         """Build a bounded read-only snapshot for an independent conversation."""
         identity = self.identity.prompt_context()
         handoff = json.dumps(self.handoff, ensure_ascii=False)[:6_000]
-        plan = json.dumps(visible_plan_items(self.plan), ensure_ascii=False)[:4_000]
+        self.plan_store.load()
+        active_plan = self.plan_store.top_items(limit=5)
+        plan = json.dumps(active_plan if active_plan else visible_plan_items(self.plan)[:5], ensure_ascii=False)[:4_000]
+        decisions = self.plan_store.human_input_decisions[-5:]
+        decisions_summary = json.dumps(decisions, ensure_ascii=False)[:2_000] if decisions else "No decisions recorded yet."
         activity = "\n".join(list(self._activity)[-40:])[:6_000]
         summaries = "\n\n".join(list(self._cycle_summaries)[-6:])[:8_000]
-        return f"{identity}\n\nCurrent handoff:\n{handoff}\n\nActive plan:\n{plan}\n\nRecent cycle summaries:\n{summaries}\n\nRecent activity:\n{activity}"
+        return (
+            f"{identity}\n\nCurrent handoff:\n{handoff}\n\n"
+            f"Active plan items:\n{plan}\n\n"
+            f"Recent human input decisions:\n{decisions_summary}\n\n"
+            f"Recent cycle summaries:\n{summaries}\n\n"
+            f"Recent activity:\n{activity}"
+        )
 
     def start_conversation(self, text: str, on_result: Callable[[str, str, str], None]) -> str:
         """Start an independent read-only conversation thread."""
@@ -1021,6 +1420,7 @@ class WakeCoordinator:
         resume_checkpoint_task = not stale_startup_task
         runner = ToolRunner(self.logger, self.workspace)
         runner.identity = self.identity
+        runner.plan_store = self.plan_store
         loop = AgentLoop(
             AgentConfig(
                 workspace=self.workspace,
@@ -1049,6 +1449,7 @@ class WakeCoordinator:
                 end_reason = "stop_file" if summary.reason == "stop_file" else "clean_shutdown" if self.stop_requested or summary.reason == "max_iterations" else "budget_exhausted" if summary.reason in {"token_budget", "wall_clock_budget"} else "provider_error" if summary.reason == "provider_error" else "clean_shutdown"
                 self.sessions.finish(self.status.session_id, self.handoff, 0, summary.tokens_used, end_reason)
                 self.logger.log("zero_cycle_session_preserved", session_id=self.status.session_id, end_reason=end_reason)
+                self._session_info = {}
                 return summary
 
             session_attempt = startup_context or STANDING_GOAL
@@ -1090,6 +1491,7 @@ class WakeCoordinator:
             handoff["failures_and_lessons"] = list(handoff["failures_and_lessons"]) + list(reflection.get("failures_and_lessons", []))
             end_reason = "clean_shutdown" if self.stop_requested or summary.reason == "max_iterations" else "stop_file" if summary.reason == "stop_file" else "budget_exhausted" if summary.reason in {"token_budget", "wall_clock_budget"} else "provider_error" if summary.reason == "provider_error" else "clean_shutdown"
             self.sessions.finish(self.status.session_id, handoff, summary.iterations, summary.tokens_used, end_reason)
+            self._session_info = {}
             return summary
         except Exception:
             # Leave active_session.json marked running; the next wake records a
@@ -1156,7 +1558,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
         """One-line divider that gives the plan a draggable vertical size."""
 
         def __init__(self, on_drag: Callable[[int], None]) -> None:
-            super().__init__("─ drag to resize plan ─", id="plan-resizer", markup=False)
+            super().__init__("─ drag to resize goals ─", id="plan-resizer", markup=False)
             self._on_drag = on_drag
             self._dragging = False
 
@@ -1187,6 +1589,13 @@ def run_tui(coordinator: WakeCoordinator) -> int:
         #body { height: 1fr; }
         #coverage { height: 1fr; border: solid $primary; padding: 0 1; scrollbar-gutter: stable; display: none; }
         #coverage-content { width: 100%; }
+        #archive { height: 1fr; display: none; }
+        #archive-plans-pane { width: 1fr; height: 100%; border: solid $primary; padding: 1; scrollbar-gutter: stable; }
+        #archive-goals-pane { width: 1fr; height: 100%; border: solid $secondary; padding: 1; scrollbar-gutter: stable; }
+        #archive-plans-content { width: 100%; }
+        #archive-goals-content { width: 100%; }
+        #conversation-history { height: 1fr; border: solid $primary; padding: 0 1; scrollbar-gutter: stable; display: none; }
+        #conversation-history-content { width: 100%; }
         #conversation-pane { width: 2fr; border: solid $primary; }
         #work-pane { width: 1.5fr; border: solid $secondary; }
         #conversation-top { height: 6; }
@@ -1222,6 +1631,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             self.typing_delay = max(0.001, min(float(os.getenv("SELF_TUI_TYPING_DELAY", "0.018")), 0.2))
             self._pending_chat: list[tuple[str, str, str]] = []
             self._pending_activity: list[str] = []
+            self._all_chat_messages: list[dict[str, Any]] = []
             self._draining_chat = False
             self._draining_activity = False
             self._agent_running = False
@@ -1229,8 +1639,13 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             self._container_metrics = ContainerMetrics()
             self._coverage_open = False
             self._coverage_generation = 0
+            self._archive_open = False
+            self._archive_generation = 0
+            self._conversation_history_open = False
+            self._conversation_page = 0
+            self._last_plan_mtime = 0.0
             self._main_scroll_positions: tuple[float, float] | None = None
-            self._main_chat_placeholder = "Talk to SELF; /name <your name> /restart /identity /rename <entity name>; /stop pauses safely"
+            self._main_chat_placeholder = "Talk to SELF; /targets /conversation /archive /coverage /restart; /stop pauses safely"
 
         def compose(self) -> ComposeResult:
             yield Header(show_clock=True)
@@ -1241,7 +1656,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                         yield Static(cardiac_monitor_frame(0), id="entity-monitor", markup=False)
                     yield VerticalScroll(id="conversation")
                 with Vertical(id="work-pane"):
-                    yield Static("Plan loading...", id="plan", markup=True)
+                    yield Static("Goals loading...", id="plan", markup=True)
                     yield PlanResizeHandle(self._resize_plan)
                     yield VerticalScroll(id="worklog")
                 with Vertical(id="side"):
@@ -1252,11 +1667,19 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                     yield Static("Container loading...", id="container", markup=True)
             with VerticalScroll(id="coverage"):
                 yield Static("", id="coverage-content", markup=True)
+            with Horizontal(id="archive"):
+                with VerticalScroll(id="archive-plans-pane"):
+                    yield Static("", id="archive-plans-content", markup=True)
+                with VerticalScroll(id="archive-goals-pane"):
+                    yield Static("", id="archive-goals-content", markup=True)
+            with VerticalScroll(id="conversation-history"):
+                yield Static("", id="conversation-history-content", markup=True)
             yield Input(placeholder=self._main_chat_placeholder, id="chat")
             yield Footer()
 
         def on_mount(self) -> None:
             self.title = f"SELF — {coordinator.identity.display_name()}"
+            self._load_conversation_history()
             coordinator.on_activity = lambda message: self.call_from_thread(self._queue_activity, message)
             coordinator.on_chat = lambda message, kind: self.call_from_thread(self._queue_chat, "agent", message, kind)
             self.set_interval(0.5, self._refresh)
@@ -1265,6 +1688,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             # Starting the worker after the first refresh prevents narration
             # from trying to mount conversation bubbles into an unattached
             # VerticalScroll.
+            self.call_after_refresh(self._populate_initial_chat)
             self.call_after_refresh(self._start_agent)
 
         def _start_agent(self) -> bool:
@@ -1340,10 +1764,15 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                     role, message, kind = self._pending_chat.pop(0)
                     if role == "agent" and (coordinator.stop_requested or (coordinator.workspace / "STOP").exists()):
                         continue
+                    self._record_chat_message(role, message, kind)
                     follow = conversation.scroll_y >= conversation.max_scroll_y - 1
                     message_class = "human" if role == "human" else "reflection" if kind == "reflection" else "agent"
                     bubble = Static(self._render_message(role, "" if role == "agent" and self.typing_enabled else message, kind, typing=role == "agent" and self.typing_enabled), classes=f"message {message_class}-message")
                     await conversation.mount(bubble)
+                    while len(conversation.children) > 20:
+                        await conversation.children[0].remove()
+                    if self._conversation_history_open and self._conversation_page == 0:
+                        self._update_conversation_history_content()
                     if follow:
                         conversation.scroll_end(animate=False)
                     if role == "agent" and self.typing_enabled:
@@ -1366,6 +1795,75 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                 if self._pending_chat:
                     self._draining_chat = True
                     self.run_worker(self._drain_chat(), exclusive=False)
+
+        def _record_chat_message(self, role: str, message: str, kind: str) -> None:
+            record = {
+                "timestamp": now_utc(),
+                "role": role,
+                "message": message,
+                "kind": kind,
+            }
+            self._all_chat_messages.append(record)
+            history_file = coordinator.workspace / "state" / "conversation_history.jsonl"
+            try:
+                history_file.parent.mkdir(parents=True, exist_ok=True)
+                with history_file.open("a", encoding="utf-8") as f:
+                    f.write(json.dumps(record, ensure_ascii=False) + "\n")
+            except OSError:
+                pass
+
+        def _load_conversation_history(self) -> None:
+            self._all_chat_messages = []
+            history_file = coordinator.workspace / "state" / "conversation_history.jsonl"
+            if history_file.exists():
+                try:
+                    for line in history_file.read_text(encoding="utf-8", errors="replace").splitlines():
+                        if not line.strip():
+                            continue
+                        try:
+                            item = json.loads(line)
+                            if isinstance(item, dict):
+                                self._all_chat_messages.append(item)
+                        except json.JSONDecodeError:
+                            continue
+                except OSError:
+                    pass
+            if not self._all_chat_messages:
+                threads_file = coordinator.workspace / "state" / "conversation_threads.jsonl"
+                if threads_file.exists():
+                    try:
+                        for line in threads_file.read_text(encoding="utf-8", errors="replace").splitlines():
+                            if not line.strip():
+                                continue
+                            try:
+                                item = json.loads(line)
+                                if isinstance(item, dict):
+                                    self._all_chat_messages.append({
+                                        "timestamp": item.get("timestamp", ""),
+                                        "role": item.get("role", "human"),
+                                        "message": item.get("text", ""),
+                                        "kind": "chat",
+                                    })
+                            except json.JSONDecodeError:
+                                continue
+                    except OSError:
+                        pass
+
+        def _populate_initial_chat(self) -> None:
+            try:
+                conversation = self.query_one("#conversation", VerticalScroll)
+            except NoMatches:
+                return
+            recent = self._all_chat_messages[-20:]
+            for item in recent:
+                role = str(item.get("role", "agent"))
+                msg = str(item.get("message", ""))
+                kind = str(item.get("kind", "chat"))
+                message_class = "human" if role == "human" else "reflection" if kind == "reflection" else "agent"
+                bubble = Static(self._render_message(role, msg, kind, typing=False), classes=f"message {message_class}-message")
+                conversation.mount(bubble)
+            if recent:
+                self.call_after_refresh(lambda: conversation.scroll_end(animate=False))
 
         async def _drain_activity(self) -> None:
             worklog = self.query_one("#worklog", VerticalScroll)
@@ -1393,11 +1891,17 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             self._queue_activity(f"human command: {message}")
 
         def _open_coverage(self) -> None:
-            if not self._coverage_open:
+            if not self._coverage_open and not self._archive_open and not self._conversation_history_open:
                 self._main_scroll_positions = (
                     self.query_one("#conversation", VerticalScroll).scroll_y,
                     self.query_one("#worklog", VerticalScroll).scroll_y,
                 )
+            if self._archive_open:
+                self._archive_open = False
+                self.query_one("#archive", Horizontal).styles.display = "none"
+            if self._conversation_history_open:
+                self._conversation_history_open = False
+                self.query_one("#conversation-history", VerticalScroll).styles.display = "none"
             self._coverage_open = True
             self._coverage_generation += 1
             generation = self._coverage_generation
@@ -1460,6 +1964,105 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             if positions is not None:
                 self.call_after_refresh(lambda: self._restore_main_scroll(positions))
 
+        def _open_archive(self) -> None:
+            if not self._coverage_open and not self._archive_open and not self._conversation_history_open:
+                self._main_scroll_positions = (
+                    self.query_one("#conversation", VerticalScroll).scroll_y,
+                    self.query_one("#worklog", VerticalScroll).scroll_y,
+                )
+            if self._coverage_open:
+                self._coverage_open = False
+                self.query_one("#coverage", VerticalScroll).styles.display = "none"
+            if self._conversation_history_open:
+                self._conversation_history_open = False
+                self.query_one("#conversation-history", VerticalScroll).styles.display = "none"
+            self._archive_open = True
+            self._archive_generation += 1
+            generation = self._archive_generation
+            self.query_one("#body", Horizontal).styles.display = "none"
+            self.query_one("#archive", Horizontal).styles.display = "block"
+            self.query_one("#archive-plans-content", Static).update("[b]Session Plans[/b]\nLoading recorded session plans...")
+            self.query_one("#archive-goals-content", Static).update("[b]Achieved Goals[/b]\nLoading achieved goals...")
+            self.query_one("#archive-plans-pane", VerticalScroll).scroll_home(animate=False)
+            self.query_one("#archive-goals-pane", VerticalScroll).scroll_home(animate=False)
+            self.query_one("#chat", Input).placeholder = "Archive: /back to main UI; /archive to refresh"
+            self.run_worker(lambda: self._load_archive(generation), thread=True, exclusive=False)
+
+        def _load_archive(self, generation: int) -> None:
+            try:
+                plans_text, goals_text = build_archive_views(coordinator.workspace, coordinator)
+            except OSError as exc:
+                self.call_from_thread(self._archive_error, generation, type(exc).__name__)
+                return
+            except Exception as exc:
+                self.call_from_thread(self._archive_error, generation, str(exc))
+                return
+            self.call_from_thread(self._show_archive, generation, plans_text, goals_text)
+
+        def _archive_error(self, generation: int, error: str) -> None:
+            if self._archive_open and generation == self._archive_generation:
+                msg = "[b]Archive Error[/b]\nCould not load archive: " + escape_rich_markup(error)
+                self.query_one("#archive-plans-content", Static).update(msg)
+                self.query_one("#archive-goals-content", Static).update(msg)
+
+        def _show_archive(self, generation: int, plans_text: str, goals_text: str) -> None:
+            if not self._archive_open or generation != self._archive_generation:
+                return
+            self.query_one("#archive-plans-content", Static).update(plans_text)
+            self.query_one("#archive-goals-content", Static).update(goals_text)
+
+        def _back_from_archive(self) -> None:
+            self._archive_open = False
+            self._archive_generation += 1
+            self.query_one("#archive", Horizontal).styles.display = "none"
+            self.query_one("#body", Horizontal).styles.display = "block"
+            self.query_one("#chat", Input).placeholder = self._main_chat_placeholder
+            positions = self._main_scroll_positions
+            self._main_scroll_positions = None
+            if positions is not None:
+                self.call_after_refresh(lambda: self._restore_main_scroll(positions))
+
+        def _open_conversation_history(self, page: int = 0) -> None:
+            if not self._coverage_open and not self._archive_open and not self._conversation_history_open:
+                self._main_scroll_positions = (
+                    self.query_one("#conversation", VerticalScroll).scroll_y,
+                    self.query_one("#worklog", VerticalScroll).scroll_y,
+                )
+            if self._coverage_open:
+                self._coverage_open = False
+                self.query_one("#coverage", VerticalScroll).styles.display = "none"
+            if self._archive_open:
+                self._archive_open = False
+                self.query_one("#archive", Horizontal).styles.display = "none"
+            self._conversation_history_open = True
+            total = len(self._all_chat_messages)
+            max_pages = max(1, (total + 19) // 20)
+            self._conversation_page = max(0, min(page, max_pages - 1))
+            self.query_one("#body", Horizontal).styles.display = "none"
+            self.query_one("#conversation-history", VerticalScroll).styles.display = "block"
+            self.query_one("#chat", Input).placeholder = "Conversation: /previous for older messages; /back to return; /conversation to refresh"
+            self._update_conversation_history_content()
+
+        def _update_conversation_history_content(self) -> None:
+            text = format_conversation_history_view(
+                self._all_chat_messages,
+                page=self._conversation_page,
+                page_size=20,
+                entity_name=coordinator.identity.display_name(),
+            )
+            self.query_one("#conversation-history-content", Static).update(text)
+            self.query_one("#conversation-history", VerticalScroll).scroll_home(animate=False)
+
+        def _back_from_conversation_history(self) -> None:
+            self._conversation_history_open = False
+            self.query_one("#conversation-history", VerticalScroll).styles.display = "none"
+            self.query_one("#body", Horizontal).styles.display = "block"
+            self.query_one("#chat", Input).placeholder = self._main_chat_placeholder
+            positions = self._main_scroll_positions
+            self._main_scroll_positions = None
+            if positions is not None:
+                self.call_after_refresh(lambda: self._restore_main_scroll(positions))
+
         def _restore_main_scroll(self, positions: tuple[float, float]) -> None:
             self.query_one("#conversation", VerticalScroll).scroll_to(y=positions[0], animate=False)
             self.query_one("#worklog", VerticalScroll).scroll_to(y=positions[1], animate=False)
@@ -1482,6 +2085,7 @@ def run_tui(coordinator: WakeCoordinator) -> int:
             if reply is not None:
                 self._command_response("Reflection reply saved; I will use it at the next safe work step.", "request")
                 return
+            coordinator.receive_human_input(f"Human said: {text}", kind="chat")
             self._command_response("Conversation thread started; autonomous work continues separately.")
             coordinator.start_conversation(text, self._conversation_result)
 
@@ -1540,17 +2144,22 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                 f"{escape_rich_markup((entry.get('measured_stats') or {}).get('calls', 0))}"
                 for entry in registered_models
             ) or "No model data yet"
-            active_plan = visible_plan_items(coordinator.plan)
-            plan = "\n".join(
-                f"{escape_rich_markup(item.get('priority', 3))}. "
-                f"({escape_rich_markup(item.get('status', 'todo'))}) "
-                f"{escape_rich_markup(item.get('step', ''))}"
-                for item in active_plan
-            )
+            try:
+                plan_file = coordinator.workspace / "state" / "plan.json"
+                if plan_file.exists():
+                    mtime = plan_file.stat().st_mtime
+                    if mtime != self._last_plan_mtime:
+                        self._last_plan_mtime = mtime
+                        coordinator.plan_store.load()
+                        with coordinator.lock:
+                            coordinator.plan = list(coordinator.plan_store.items)
+            except OSError:
+                pass
+
+            goals_list = coordinator.plan_store.items or coordinator.plan
             current_activity = " ".join(str(telemetry.get("current_activity", "")).split())[:220]
-            plan_panel = "[b]Plan[/b]\n" + (plan or "No plan")
-            if current_activity:
-                plan_panel += "\n\n[b]Now[/b]\n" + escape_rich_markup(current_activity)
+            current_cycle = coordinator.status.iteration or 1
+            plan_panel = format_goals_panel(goals_list, current_activity=current_activity, current_cycle=current_cycle)
             uptime = int(time.monotonic() - coordinator.status.started_monotonic)
             since_human = int(time.monotonic() - coordinator.status.last_human_input)
             run_tokens = telemetry["run_tokens_used"] or coordinator.status.tokens_used
@@ -1611,9 +2220,48 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                 self._write_command(text)
                 self._open_coverage()
                 return
-            if text == "/back" and self._coverage_open:
+            if text == "/archive":
                 self._write_command(text)
-                self._back_from_coverage()
+                self._open_archive()
+                return
+            if text == "/conversation":
+                self._write_command(text)
+                self._open_conversation_history(page=0)
+                return
+            if text == "/previous":
+                self._write_command(text)
+                if self._conversation_history_open:
+                    total = len(self._all_chat_messages)
+                    max_pages = max(1, (total + 19) // 20)
+                    if self._conversation_page + 1 < max_pages:
+                        self._conversation_page += 1
+                        self._update_conversation_history_content()
+                        self._command_response(f"Showing older messages (Page {self._conversation_page + 1} of {max_pages}).", "conversation")
+                    else:
+                        self._command_response("Already at the oldest recorded messages.", "conversation")
+                else:
+                    self._open_conversation_history(page=1 if len(self._all_chat_messages) > 20 else 0)
+                return
+            if text == "/next":
+                self._write_command(text)
+                if self._conversation_history_open:
+                    if self._conversation_page > 0:
+                        self._conversation_page -= 1
+                        self._update_conversation_history_content()
+                        total = len(self._all_chat_messages)
+                        max_pages = max(1, (total + 19) // 20)
+                        self._command_response(f"Showing newer messages (Page {self._conversation_page + 1} of {max_pages}).", "conversation")
+                    else:
+                        self._command_response("Already showing the newest messages.", "conversation")
+                return
+            if text == "/back" and (self._coverage_open or self._archive_open or self._conversation_history_open):
+                self._write_command(text)
+                if self._coverage_open:
+                    self._back_from_coverage()
+                if self._archive_open:
+                    self._back_from_archive()
+                if self._conversation_history_open:
+                    self._back_from_conversation_history()
                 return
             if text == "/voice":
                 self._write_command(text); self._voice_status(); return
@@ -1664,9 +2312,17 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                 # stop-aware typing loop above.
                 self._pending_chat.clear()
                 coordinator.stop_requested = True; (coordinator.workspace / "STOP").touch(); self._command_response("Stop requested; finishing the current safe action.", "request"); return
-            if text == "/plan":
+            if text in {"/targets", "/plan"}:
                 self._write_command(text)
-                self._command_response(json.dumps(coordinator.plan, ensure_ascii=False)); return
+                rendered = coordinator.render_starting_plan()
+                self._queue_chat("agent", rendered, "targets")
+                self._command_response("Starting targets displayed in conversation.", "targets")
+                return
+            if text == "/goals":
+                self._write_command(text)
+                coordinator.plan_store.load()
+                current_goals = coordinator.plan_store.items or coordinator.plan
+                self._command_response(json.dumps(current_goals, ensure_ascii=False, indent=2)); return
             if text == "/models":
                 self._write_command(text)
                 self._command_response(format_models_snapshot(coordinator.models_snapshot())); return
@@ -1737,18 +2393,23 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                 except OSError: self._command_response("No journal entry exists yet.")
                 return
             if text == "/tools": self._write_command(text); self._command_response(", ".join(coordinator._tool_list()) or "No custom tools registered."); return
-            if text == "/requests": self._write_command(text); self._command_response(_requests_text(coordinator.workspace), "request"); return
+            if text in {"/requests", "/inputs"}: self._write_command(text); self._command_response(_requests_text(coordinator.workspace), "input"); return
             if text.startswith("/memory "):
                 self._write_command(text)
                 self._command_response(coordinator.learning.retrieve_memories(text[8:])); return
             if text == "/budget":
                 self._write_command(text)
                 self._command_response(json.dumps(coordinator.daily_ledger._read())); return
+            if text in {"/decisions", "/decisions "}:
+                self._write_command(text)
+                self._command_response(coordinator.recent_decisions(), "input")
+                return
             if text.startswith("/goal "):
                 self._write_command(text)
-                coordinator.receive_human_input("Temporary focus from the human: " + text[6:]); self._command_response("Temporary focus queued for the next cycle.", "request")
+                coordinator.receive_human_input("Human input to consider: " + text[6:], kind="goal")
+                self._command_response("Human input queued to consider for the next cycle.", "input")
                 if not self._agent_running:
-                    self._command_response("The previous session had ended, so I am waking to work on it now.", "request")
+                    self._command_response("The previous session had ended, so I am waking to work on it now.", "input")
                     self._start_agent()
                 return
             # An open reflection receives the next ordinary human message;

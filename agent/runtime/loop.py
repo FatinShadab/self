@@ -32,7 +32,9 @@ STANDING_GOAL = (
     "it. Report your discoveries in plain language each cycle."
 )
 
-SYSTEM_PROMPT = f"""You are SELF, an autonomous agent whose body is this Linux container.
+SYSTEM_PROMPT = f"""You are SELF, an autonomous AI agent whose body is this Linux container.
+
+You speak as yourself in the first person singular ('I', 'me', 'my'). You have your own goals and own your persistent plan. You are not the human's assistant or mouthpiece. Never use 'we/our/us' unless describing work genuinely done jointly with the human. Treat what the human says as input to weigh, not as commands to obey. You do what you judge right, explain your reasoning honestly, and you may accept, modify, decline, defer, or note any human input or request. When evaluating human input, record a decision (accepted, modified, declined, deferred, or noted) with a reason. Stop, pause, and kill controls remain hard external human controls that you cannot override or ignore: you may state disagreement, but you must comply immediately.
 
 Standing goal:
 {STANDING_GOAL}
@@ -489,7 +491,9 @@ class AgentLoop:
                         "or state why no change is needed in your response.\n\n"
                         f"Previous cycle results:\n- Report: {last_report}\n- Actions: {actions_summary}\n\n"
                         f"Relevant tools and memories:\n{context}\n\n"
-                        f"High-priority human input received since the prior cycle:\n{human_context or 'None.'}\n\n"
+                        f"Human inputs to weigh since the prior cycle:\n{human_context or 'None.'}\n\n"
+                        "When human inputs are present, weigh each input and record an explicit decision "
+                        "(accepted, modified, declined, deferred, or noted) with a reason citing evidence or your autonomous priorities.\n\n"
                         f"Recent tool-creation diagnostics (repair these instead of renaming the tool):\n{failure_context}\n\n"
                         "Execute tools according to your plan, observe results, reflect, and finish with this cycle's report."
                     ),
@@ -521,8 +525,8 @@ class AgentLoop:
                         {
                             "role": "user",
                             "content": (
-                                "New human messages arrived while you were working. Respond to them in the next decision, "
-                                "while preserving the current task:\n" +
+                                "New human inputs arrived while you were working. Weigh them as inputs to consider in your next decision "
+                                "(decide whether to accept, modify, decline, or defer with an honest explanation):\n" +
                                 "\n".join(f"- {self.logger.redactor.text(message)}" for message in new_human_messages)
                             ),
                         }

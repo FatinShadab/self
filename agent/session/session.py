@@ -29,16 +29,20 @@ class HumanInbox:
         state = Path(workspace) / "state"
         self.path, self.cursor_path, self.logger = state / "human_input.jsonl", state / "human_input_cursor.json", logger
 
-    def add(self, text: str) -> None:
+    def add(self, text: str, kind: str = "goal") -> None:
         """Append a human message to the durable inbox."""
         self.path.parent.mkdir(parents=True, exist_ok=True)
-        record = {"timestamp": now(), "text": self.logger.redactor.text(text)[:4_000]}
+        record = {
+            "timestamp": now(),
+            "text": self.logger.redactor.text(text)[:4_000],
+            "kind": str(kind),
+        }
         fd = os.open(self.path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
         try:
             os.write(fd, (json.dumps(record, ensure_ascii=False) + "\n").encode("utf-8"))
         finally:
             os.close(fd)
-        self.logger.log("human_input_received", chars=len(record["text"]))
+        self.logger.log("human_input_received", chars=len(record["text"]), kind=str(kind))
 
     def consume(self) -> list[str]:
         """Return unread human messages and advance the inbox cursor."""
@@ -170,13 +174,14 @@ class SessionStore:
             "long_term_summary": str(safe.get("long_term_summary", ""))[:3_000] or "Compression pending an LLM reflection; full checkpoint retained in handoff_overflow.json.",
             "discoveries": list(safe.get("discoveries", []))[-8:], "tools_created": list(safe.get("tools_created", []))[-8:],
             "failures_and_lessons": list(safe.get("failures_and_lessons", []))[-8:], "open_questions": list(safe.get("open_questions", []))[-8:],
-            "plan": consolidate_plan_items(list(safe.get("plan", [])), max_items=8), "pending_human_requests": list(safe.get("pending_human_requests", []))[:8],
+            "plan": consolidate_plan_items(list(safe.get("plan", [])), max_items=8),
+            "pending_human_inputs": list(safe.get("pending_human_inputs", safe.get("pending_human_requests", [])))[:8],
             "mood_of_run": safe.get("mood_of_run", "exploring"), "compression_pending": True,
         }
         # Guarantee the on-disk handoff cap even when an error message is
         # unusually large. The unabridged checkpoint remains in overflow and
         # journal.md, so this is explicit compaction rather than silent loss.
-        list_fields = ("discoveries", "tools_created", "failures_and_lessons", "open_questions", "pending_human_requests")
+        list_fields = ("discoveries", "tools_created", "failures_and_lessons", "open_questions", "pending_human_inputs")
         while len(json.dumps(compact, ensure_ascii=False).encode("utf-8")) > self.handoff_cap:
             candidate = max(list_fields, key=lambda field: len(compact.get(field, [])))
             if compact.get(candidate):

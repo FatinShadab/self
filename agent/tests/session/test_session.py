@@ -11,7 +11,7 @@ from agent.infra.event_log import EventLogger
 from agent.identity.identity import IdentityStore
 from agent.llm.llm import LLMResult
 from agent.session.session import HumanInbox, SessionStore
-from agent.ui.wake import cardiac_monitor_frame, cardiac_monitor_intensity, escape_rich_markup, WakeCoordinator, clamped_plan_height, normalized_plan, visible_plan_items
+from agent.ui.wake import build_archive_views, cardiac_monitor_frame, cardiac_monitor_intensity, escape_rich_markup, format_conversation_history_view, WakeCoordinator, clamped_plan_height, format_goals_panel, format_starting_plan, normalized_plan, visible_plan_items
 
 
 class WakeFakeLLM:
@@ -136,6 +136,201 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(clamped_plan_height(1, 40), 5)
         self.assertEqual(clamped_plan_height(99, 40), 34)
         self.assertEqual(clamped_plan_height(16, 40), 16)
+
+    def test_format_goals_panel_displays_achieved_and_added_goals_dynamically(self) -> None:
+        goals = [
+            {"goal": "Inspect current state and verify environment facts", "status": "done", "created_cycle": 1, "updated_cycle": 1},
+            {"goal": "Develop reusable tool summarize_map", "status": "in_progress", "created_cycle": 1, "updated_cycle": 2, "priority": 2},
+            {"goal": "Critical bug fix", "status": "todo", "created_cycle": 1, "priority": 1},
+            {"goal": "Test summarize_map with live data", "status": "todo", "created_cycle": 2, "priority": 3},
+        ]
+        panel = format_goals_panel(goals, current_activity="tool: ask_model", current_cycle=2)
+        self.assertIn("[b]Goals[/b]", panel)
+        # Achieved goal must be removed from the main panel
+        self.assertNotIn("Inspect current state and verify environment facts", panel)
+        # Currently working goal must be on top
+        self.assertIn("[cyan]▶ (in progress)[/cyan] Develop reusable tool summarize_map", panel)
+        # Priority 1 must be rendered
+        self.assertIn("[red]! (p1)[/red] Critical bug fix", panel)
+        # In-progress appears before Priority 1
+        pos_working = panel.find("Develop reusable tool summarize_map")
+        pos_p1 = panel.find("Critical bug fix")
+        self.assertLess(pos_working, pos_p1)
+        # Priority 1 appears before Priority 3
+        pos_p3 = panel.find("Test summarize_map with live data")
+        self.assertLess(pos_p1, pos_p3)
+        # Now must be removed from the panel
+        self.assertNotIn("Now", panel)
+        self.assertNotIn("tool: ask_model", panel)
+
+    def test_format_goals_panel_handles_empty_and_caps_long_lists(self) -> None:
+        empty_panel = format_goals_panel([])
+        self.assertIn("No goals recorded yet", empty_panel)
+
+        all_achieved_panel = format_goals_panel([{"goal": "Task 1", "status": "done"}])
+        self.assertIn("All recorded goals achieved", all_achieved_panel)
+
+        many_goals = [
+            {"goal": f"Active task {i}", "status": "todo", "priority": 2, "created_cycle": i} for i in range(1, 9)
+        ]
+        capped_panel = format_goals_panel(many_goals, current_cycle=10)
+        # Max 5 unfinished goals shown
+        self.assertIn("Active task 1", capped_panel)
+        self.assertIn("Active task 5", capped_panel)
+        self.assertNotIn("Active task 6", capped_panel)
+        self.assertIn("(+3 more pending)", capped_panel)
+
+    def test_build_archive_views_renders_two_columns(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            coordinator = WakeCoordinator(root, llm_client=WakeFakeLLM(), max_iterations=0)
+            coordinator.boot()
+
+            # Record an achieved goal in plan_store
+            coordinator.plan_store.items = [
+                {"id": "goal-1", "goal": "Inventory installed packages", "status": "done", "priority": 1, "why": "grounding", "evidence": "dpkg list", "updated_cycle": 2},
+                {"id": "goal-2", "goal": "Explore filesystem", "status": "in_progress", "priority": 2},
+            ]
+            coordinator.plan_store._save_atomic(diff="update", reason="test")
+
+            # Write a completed session to sessions.jsonl and journal.md
+            state_dir = root / "state"
+            state_dir.mkdir(parents=True, exist_ok=True)
+            sessions_file = state_dir / "sessions.jsonl"
+            sessions_file.write_text(json.dumps({
+                "session_id": "sess-prev-001",
+                "start_time": "2026-10-17T10:00:00Z",
+                "end_time": "2026-10-17T10:15:00Z",
+                "end_reason": "max_iterations",
+                "iteration_count": 5,
+                "token_spend": 120,
+            }) + "\n", encoding="utf-8")
+
+            journal_file = state_dir / "journal.md"
+            journal_file.write_text(
+                "## 2026-10-17T10:15:00Z — session sess-prev-001\n\n"
+                "Completed initial exploration safely.\n\n"
+                "### Next plan\n"
+                "- [1] Verify python packages\n"
+                "- [2] Explore network connectivity\n\n"
+                "End reason: max_iterations\n",
+                encoding="utf-8",
+            )
+
+            plans_markup, goals_markup = build_archive_views(root, coordinator)
+
+            # Column 1 assertions (Session plans)
+            self.assertIn("Session Plans", plans_markup)
+            self.assertIn(coordinator.status.session_id, plans_markup)
+            self.assertIn("sess-prev-001", plans_markup)
+            self.assertIn("Verify python packages", plans_markup)
+            self.assertIn("max_iterations", plans_markup)
+
+            # Column 2 assertions (Achieved goals)
+            self.assertIn("Achieved Goals", goals_markup)
+            self.assertIn("Inventory installed packages", goals_markup)
+            self.assertIn("Total Achieved: 1", goals_markup)
+            self.assertIn("Evidence: dpkg list", goals_markup)
+            # In-progress goal should not be in achieved goals column
+            self.assertNotIn("Explore filesystem", goals_markup)
+
+    def test_format_conversation_history_view_pagination_and_empty(self) -> None:
+        empty = format_conversation_history_view([])
+        self.assertIn("No recorded conversation messages yet", empty)
+        self.assertIn("/back", empty)
+
+        # Create 45 messages (simulating ongoing conversation)
+        messages = [
+            {
+                "timestamp": f"2026-10-17T12:{i:02d}:00Z",
+                "role": "human" if i % 2 == 1 else "agent",
+                "message": f"Message number {i}",
+                "kind": "chat" if i % 2 == 1 else "response",
+            }
+            for i in range(1, 46)
+        ]
+
+        # Page 0 (default: latest 20 messages)
+        p0 = format_conversation_history_view(messages, page=0, page_size=20, entity_name="SELF")
+        self.assertIn("Showing messages 26–45 of 45  (Page 1 of 3)", p0)
+        self.assertIn("Message number 26", p0)
+        self.assertIn("Message number 45", p0)
+        self.assertNotIn("Message number 25", p0)
+        self.assertIn("/previous", p0)
+
+        # Page 1 (older 20 messages)
+        p1 = format_conversation_history_view(messages, page=1, page_size=20, entity_name="SELF")
+        self.assertIn("Showing messages 6–25 of 45  (Page 2 of 3)", p1)
+        self.assertIn("Message number 6", p1)
+        self.assertIn("Message number 25", p1)
+        self.assertNotIn("Message number 5", p1)
+        self.assertNotIn("Message number 26", p1)
+
+        # Page 2 (oldest remaining messages)
+        p2 = format_conversation_history_view(messages, page=2, page_size=20, entity_name="SELF")
+        self.assertIn("Showing messages 1–5 of 45  (Page 3 of 3)", p2)
+        self.assertIn("Message number 1", p2)
+        self.assertIn("Message number 5", p2)
+        self.assertIn("Oldest recorded messages", p2)
+        self.assertNotIn("Message number 6", p2)
+
+        # Bad page clamp test
+        p_clamped = format_conversation_history_view(messages, page=99, page_size=20)
+        self.assertIn("Page 3 of 3", p_clamped)
+
+    def test_conversation_history_file_persistence(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            history_file = root / "state" / "conversation_history.jsonl"
+            history_file.parent.mkdir(parents=True, exist_ok=True)
+            for i in range(1, 26):
+                with history_file.open("a", encoding="utf-8") as f:
+                    f.write(json.dumps({
+                        "timestamp": "2026-10-17T12:00:00Z",
+                        "role": "human" if i % 2 == 1 else "agent",
+                        "message": f"Historical line {i}",
+                        "kind": "chat",
+                    }) + "\n")
+            lines = [json.loads(line) for line in history_file.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(len(lines), 25)
+            # The latest 20 messages for the main UI:
+            recent_20 = lines[-20:]
+            self.assertEqual(len(recent_20), 20)
+            self.assertEqual(recent_20[0]["message"], "Historical line 6")
+            self.assertEqual(recent_20[-1]["message"], "Historical line 25")
+
+    def test_format_starting_plan_renders_session_plan(self) -> None:
+        empty = format_starting_plan([])
+        self.assertIn("No starting plan recorded", empty)
+
+        plan = [
+            {"goal": "Inspect current state and verify environment facts", "status": "todo", "why": "Initial model grounding"},
+            {"goal": "Develop reusable tool summarize_map", "status": "todo", "why": "Facilitate inspection"},
+        ]
+        rendered = format_starting_plan(plan, session_id="session-xyz-123456")
+        self.assertIn("Starting Plan", rendered)
+        self.assertIn("session-xyz-", rendered)
+        self.assertIn("1. (todo) Inspect current state and verify environment facts", rendered)
+        self.assertIn("*Why:* Initial model grounding", rendered)
+        self.assertIn("2. (todo) Develop reusable tool summarize_map", rendered)
+
+    def test_coordinator_render_starting_plan_and_session_refresh(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            coordinator = WakeCoordinator(root, llm_client=WakeFakeLLM(), max_iterations=0)
+            coordinator.boot()
+            rendered1 = coordinator.render_starting_plan()
+            self.assertIn("Starting Plan", rendered1)
+            self.assertIn(coordinator.status.session_id[:12], rendered1)
+            session_id1 = coordinator.status.session_id
+
+            # End session and start a new session
+            coordinator.run()
+            # On next boot/run, starting_plan refreshes to the new session
+            coordinator.run()
+            self.assertNotEqual(coordinator.status.session_id, session_id1)
+            rendered2 = coordinator.render_starting_plan()
+            self.assertIn(coordinator.status.session_id[:12], rendered2)
 
     def test_inbox_is_persistent_and_consumed_once(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

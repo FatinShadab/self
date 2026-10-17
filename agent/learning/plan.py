@@ -121,6 +121,7 @@ class PlanStore:
         self.max_items = max(4, max_items)
         self.plan_version = 1
         self.items: list[dict[str, Any]] = []
+        self.human_input_decisions: list[dict[str, Any]] = []
         self._next_id = 1
 
     def initialize(self, seed_task: str = "", default_step: str = "") -> None:
@@ -144,6 +145,7 @@ class PlanStore:
             "updated_cycle": 1,
         }
         self.items = [initial_goal]
+        self.human_input_decisions = []
         self.plan_version = 1
         self._next_id = 2
         self._save_atomic(diff=f"Seeded plan with goal: {seed_content[:100]}", reason="Harness initialization", cycle=1)
@@ -157,6 +159,7 @@ class PlanStore:
             if not isinstance(data, dict):
                 return False
             self.plan_version = int(data.get("plan_version", 1))
+            self.human_input_decisions = list(data.get("human_input_decisions", []))
             raw_items = data.get("items", [])
             self.items = []
             max_id_num = 0
@@ -189,6 +192,7 @@ class PlanStore:
             "last_diff": diff,
             "last_reason": reason,
             "items": self.logger.redactor.value(self.items),
+            "human_input_decisions": self.logger.redactor.value(self.human_input_decisions),
         }
         temp_path = self.plan_path.with_suffix(".tmp")
         temp_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -204,6 +208,7 @@ class PlanStore:
             "active_goals": len(active),
             "top_goal": active[0] if active else None,
             "items": list(self.items),
+            "human_input_decisions": list(self.human_input_decisions),
         }
 
     def _find_item(self, target: Any) -> tuple[int, dict[str, Any]] | tuple[None, None]:
@@ -283,6 +288,7 @@ class PlanStore:
                 "step": goal_text,
                 "status": status if status in ACTIVE_PLAN_STATUSES else "todo",
                 "priority": int(priority) if isinstance(priority, (int, float)) else 2,
+                "source": str(extra.get("source", "agent")),
                 "why": extra.get("why") or clean_reason,
                 "evidence": evidence_ref,
                 "next_steps": next_steps.strip() or f"Execute investigation for {goal_text}",
@@ -294,7 +300,20 @@ class PlanStore:
                 self.items.insert(0, item)
             else:
                 self.items.append(item)
-            diff = f"Added {new_id}: '{goal_text}' (priority={item['priority']}, status={item['status']})"
+            diff = f"Added {new_id}: '{goal_text}' (priority={item['priority']}, status={item['status']}, source={item['source']})"
+
+        elif action in {"decide_human_input", "human_input"}:
+            input_text = str(extra.get("input") or goal or extra.get("text", "")).strip()
+            decision = str(extra.get("decision") or status or "accepted").strip().lower()
+            modified_goal = str(extra.get("modified_goal") or goal or "").strip()
+            return self.record_human_input_decision(
+                input_text=input_text,
+                decision=decision,
+                reason=clean_reason,
+                priority=int(priority) if isinstance(priority, (int, float)) else 2,
+                modified_goal=modified_goal,
+                cycle=cycle,
+            )
 
         elif action in {"edit", "update"}:
             target_key = id or extra.get("target") or goal
@@ -389,6 +408,93 @@ class PlanStore:
             evidence=evidence_ref,
         )
 
+    def record_human_input_decision(
+        self,
+        input_text: str,
+        decision: str,
+        reason: str,
+        priority: int = 2,
+        modified_goal: str = "",
+        cycle: int = 0,
+    ) -> dict[str, Any]:
+        """Record an autonomous decision on a human input with a required reason."""
+        clean_input = str(input_text).strip()
+        clean_decision = str(decision).strip().lower()
+        clean_reason = str(reason).strip()
+        if not clean_input:
+            return {"ok": False, "error": "Human input text is required."}
+        if clean_decision not in {"accepted", "modified", "declined", "deferred", "noted"}:
+            return {
+                "ok": False,
+                "error": f"Invalid decision '{clean_decision}'. Must be one of: accepted, modified, declined, deferred, noted.",
+            }
+        if not clean_reason:
+            return {"ok": False, "error": "A non-empty reason explaining the decision is required."}
+
+        goal_id = None
+        p_val = int(priority) if isinstance(priority, (int, float)) and 1 <= priority <= 3 else 2
+        diff = f"Human input decision: [{clean_decision}] '{clean_input[:60]}' - {clean_reason[:80]}"
+
+        if clean_decision in {"accepted", "modified"}:
+            goal_text = modified_goal if (clean_decision == "modified" and modified_goal) else clean_input
+            new_id = f"goal-{self._next_id}"
+            self._next_id += 1
+            goal_id = new_id
+            item = {
+                "id": new_id,
+                "goal": goal_text,
+                "step": goal_text,
+                "status": "todo",
+                "priority": p_val,
+                "source": "human",
+                "why": clean_reason,
+                "evidence": f"Human input: {clean_input}",
+                "next_steps": f"Autonomous execution for {goal_text}",
+                "created_cycle": cycle or 1,
+                "updated_cycle": cycle or 1,
+            }
+            if p_val == 1:
+                self.items.insert(0, item)
+            else:
+                self.items.append(item)
+            diff += f" -> added {new_id} (source=human, priority={p_val})"
+
+        record = {
+            "input": clean_input,
+            "decision": clean_decision,
+            "reason": clean_reason,
+            "priority": p_val if clean_decision in {"accepted", "modified"} else None,
+            "goal_id": goal_id,
+            "timestamp": now_utc(),
+            "cycle": cycle,
+        }
+        self.human_input_decisions.append(record)
+        self.human_input_decisions = self.human_input_decisions[-32:]
+
+        self.logger.log(
+            "human_input_decision",
+            input=clean_input,
+            decision=clean_decision,
+            reason=clean_reason,
+            priority=p_val if clean_decision in {"accepted", "modified"} else None,
+            goal_id=goal_id,
+            cycle=cycle,
+        )
+
+        self.plan_version += 1
+        self._save_atomic(diff=diff, reason=clean_reason, cycle=cycle)
+        return {
+            "ok": True,
+            "decision": clean_decision,
+            "input": clean_input,
+            "reason": clean_reason,
+            "priority": p_val if clean_decision in {"accepted", "modified"} else None,
+            "goal_id": goal_id,
+            "plan_version": self.plan_version,
+            "diff": diff,
+            "plan": list(self.items),
+        }
+
     def top_items(self, limit: int = 3) -> list[dict[str, Any]]:
         """Return active plan items sorted by priority and position."""
         active = [
@@ -413,22 +519,30 @@ class PlanStore:
     def prompt_summary(self) -> str:
         """Format the active plan items for inclusion in cycle prompts."""
         active = self.top_items(limit=10)
-        if not active:
-            return "No active plan goals. Use update_plan to add a new exploration or self-improvement goal."
         lines: list[str] = []
-        for idx, item in enumerate(active, 1):
-            goal = str(item.get("goal") or item.get("step", "")).strip()
-            status = str(item.get("status", "todo")).strip()
-            priority = item.get("priority", 2)
-            item_id = item.get("id", f"goal-{idx}")
-            next_steps = str(item.get("next_steps", "")).strip()
-            evidence = str(item.get("evidence", "")).strip()
-            entry = f"{idx}. [{item_id}] (priority={priority}, status={status}) {goal}"
-            if next_steps:
-                entry += f"\n   Next step: {next_steps}"
-            if evidence:
-                entry += f"\n   Evidence: {evidence}"
-            lines.append(entry)
+        if not active:
+            lines.append("No active plan goals. Use update_plan to add a new exploration or self-improvement goal.")
+        else:
+            for idx, item in enumerate(active, 1):
+                goal = str(item.get("goal") or item.get("step", "")).strip()
+                status = str(item.get("status", "todo")).strip()
+                priority = item.get("priority", 2)
+                item_id = item.get("id", f"goal-{idx}")
+                source = str(item.get("source", "agent"))
+                next_steps = str(item.get("next_steps", "")).strip()
+                evidence = str(item.get("evidence", "")).strip()
+                entry = f"{idx}. [{item_id}] (priority={priority}, status={status}, source={source}) {goal}"
+                if next_steps:
+                    entry += f"\n   Next step: {next_steps}"
+                if evidence:
+                    entry += f"\n   Evidence: {evidence}"
+                lines.append(entry)
+
+        if self.human_input_decisions:
+            lines.append("\nRecent human input decisions:")
+            for dec in self.human_input_decisions[-4:]:
+                lines.append(f"- [{dec.get('decision')}] \"{dec.get('input', '')[:80]}\": {dec.get('reason', '')[:120]}")
+
         return "\n".join(lines)
 
     def hygiene(self, cycle: int, max_stale_cycles: int = 5) -> list[str]:

@@ -1,5 +1,6 @@
 services:
   self:
+    image: self-self:latest
     build:
       context: .
       dockerfile: Dockerfile

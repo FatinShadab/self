@@ -164,16 +164,16 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     {
         "name": "update_plan",
         "description": (
-            "Update the persistent plan. Requires an action ('add', 'edit', 'drop', 'mark_done', 'reorder', 'unchanged') "
-            "and a required 'reason' citing evidence. Use this to track goals, mark progress, add self-improvement goals "
-            "(e.g. 'improve tool X', 'evaluate model Y', 'fix a failing tool'), or adjust next steps."
+            "Update the persistent plan. Requires an action ('add', 'edit', 'drop', 'mark_done', 'reorder', 'unchanged', 'decide_human_input') "
+            "and a required 'reason' citing evidence. Use this to track goals, mark progress, evaluate human input with decisions, "
+            "add self-improvement goals (e.g. 'improve tool X', 'evaluate model Y', 'fix a failing tool'), or adjust next steps."
         ),
         "input_schema": {
             "type": "object",
             "properties": {
                 "action": {
                     "type": "string",
-                    "enum": ["add", "edit", "drop", "mark_done", "reorder", "unchanged"],
+                    "enum": ["add", "edit", "drop", "mark_done", "reorder", "unchanged", "decide_human_input"],
                     "description": "Plan modification action to perform.",
                 },
                 "reason": {
@@ -194,6 +194,20 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
                     "type": "array",
                     "items": {"type": "string"},
                     "description": "List of goal IDs in new order (for reorder).",
+                },
+                "input": {
+                    "type": "string",
+                    "description": "Human input text being evaluated (for decide_human_input).",
+                },
+                "decision": {
+                    "type": "string",
+                    "enum": ["accepted", "modified", "declined", "deferred", "noted"],
+                    "description": "Decision on human input (for decide_human_input).",
+                },
+                "source": {
+                    "type": "string",
+                    "enum": ["agent", "human"],
+                    "description": "Origin of the plan goal (default 'agent', or 'human' when adopting human input).",
                 },
             },
             "required": ["action", "reason"],

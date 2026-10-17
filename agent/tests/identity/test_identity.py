@@ -138,7 +138,7 @@ class IdentityTests(unittest.TestCase):
         self.assertEqual(len(fake.systems), 1)
         self.assertIn('"name": "Atlas"', fake.systems[0])
         self.assertIn('"name_context"', fake.systems[0])
-        self.assertIn("dependable support", fake.systems[0])
+        self.assertIn("steady endurance", fake.systems[0])
         self.assertIn("not evidence of sentience", fake.systems[0])
 
     def test_unknown_name_gets_honest_non_inferential_context(self) -> None:
@@ -152,7 +152,8 @@ class IdentityTests(unittest.TestCase):
         self.assertEqual(context["kind"], "fictional_character")
         self.assertEqual(context["franchise"], "How to Train Your Dragon")
         self.assertIn("playful", context["character_traits"])
-        self.assertIn("protective", self.identity.prompt_context())
+        self.assertIn("independent", context["character_traits"])
+        self.assertNotIn("protective of the human's goals", self.identity.prompt_context())
 
 
 if __name__ == "__main__":

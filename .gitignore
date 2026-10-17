@@ -160,8 +160,10 @@ env.bak/
 venv.bak/
 
 # SELF runtime state and host-mounted agent data
+.env.bak
 workspace/*
 !workspace/.gitkeep
+workspace-test/
 ab_seed/
 ab_runs/
 eval/ab/plan.json
