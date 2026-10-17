@@ -358,8 +358,11 @@ class WakeCoordinator:
         self.sessions = SessionStore(self.workspace, self.logger)
         self.inbox = HumanInbox(self.workspace, self.logger)
         self.identity = IdentityStore(self.workspace, self.logger)
-        configured_iterations = max_iterations if max_iterations is not None else int(os.getenv("SELF_MAX_ITERATIONS", "0"))
-        self.max_iterations = configured_iterations if configured_iterations > 0 else None
+        if max_iterations is not None:
+            self.max_iterations = max_iterations
+        else:
+            configured_iterations = int(os.getenv("SELF_MAX_ITERATIONS", "0"))
+            self.max_iterations = configured_iterations if configured_iterations > 0 else None
         configured_budget = token_budget if token_budget is not None else int(os.getenv("SELF_TOKEN_BUDGET", "0"))
         self.token_budget = configured_budget if configured_budget > 0 else None
         self.daily_ledger = DailyTokenLedger(self.workspace, self.logger)
@@ -975,10 +978,11 @@ class WakeCoordinator:
             return self._run_session()
 
     def _run_session(self) -> Any:
-        greeting = self.boot()
+        greeting = self.boot() if not self._session_info else ""
         if (self.workspace / "STOP").exists():
             return None
-        self.revise_plan()  # The required wake-up reflection occurs before exploration.
+        if self.max_iterations != 0:
+            self.revise_plan()  # The required wake-up reflection occurs before exploration.
         package_entry = self.learning._load_map().get("entries", {}).get("packages", {})
         startup_context = ""
         package_value = package_entry.get("value")
