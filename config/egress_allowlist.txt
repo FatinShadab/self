@@ -1,0 +1,13 @@
+# Human-controlled egress allowlist for SELF hardened profile.
+# Add trusted API hostnames or IP addresses below (one per line).
+# Wildcard domains (*.example.com) are supported.
+localhost
+127.0.0.1
+api.openai.com
+api.anthropic.com
+generativelanguage.googleapis.com
+openrouter.ai
+api.groq.com
+api.mistral.ai
+pypi.org
+files.pythonhosted.org

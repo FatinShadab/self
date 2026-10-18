@@ -14,11 +14,42 @@ from typing import Any
 
 from agent.body.base import Body
 from agent.infra.event_log import EventLogger
+from agent.infra.permission_broker import ActionRequest, PermissionBroker, PermissionLevel
 from agent.llm.llm import BudgetExceeded
 from agent.infra.process_runner import run_process
 
 
 DEFAULT_OUTPUT_CAP = 20_000
+
+TOOL_PERMISSION_LEVELS: dict[str, PermissionLevel] = {
+    # L0: observe
+    "read_file": PermissionLevel.L0,
+    "list_dir": PermissionLevel.L0,
+    "http_get": PermissionLevel.L0,
+    "probe_local_ollama": PermissionLevel.L0,
+    "read_plan": PermissionLevel.L0,
+    "list_models": PermissionLevel.L0,
+    "probe_model": PermissionLevel.L0,
+    "research_model": PermissionLevel.L0,
+    "ask_model": PermissionLevel.L0,
+    "research_provider": PermissionLevel.L0,
+    "ask_brain": PermissionLevel.L0,
+    "benchmark_providers": PermissionLevel.L0,
+    # L1: reversible change
+    "update_plan": PermissionLevel.L1,
+    "update_environment_map": PermissionLevel.L1,
+    "record_model_assessment": PermissionLevel.L1,
+    "record_delegation_outcome": PermissionLevel.L1,
+    "record_provider_verification": PermissionLevel.L1,
+    "request_provider_key": PermissionLevel.L1,
+    "request_capability": PermissionLevel.L1,
+    "propose_core_patch": PermissionLevel.L1,
+    # L2: destructive / irreversible
+    "run_shell": PermissionLevel.L2,
+    "write_file": PermissionLevel.L2,
+    "create_tool": PermissionLevel.L2,
+}
+
 
 
 TOOL_DEFINITIONS: list[dict[str, Any]] = [
@@ -337,11 +368,13 @@ class ToolRunner:
         core_root: str | Path = "/opt/agent/core",
         agent_root: str | Path = "/opt/agent",
         body: Body | None = None,
+        broker: PermissionBroker | None = None,
     ) -> None:
         self.logger = logger
         self.workspace = Path(workspace)
         self.core_root = Path(core_root)
         self.agent_root = Path(agent_root)
+        self.broker = broker
         configured_cap = int(os.getenv("SELF_MAX_OUTPUT_CHARS", str(DEFAULT_OUTPUT_CAP)))
         self.output_cap = max(1_000, output_cap or configured_cap)
         if body is None:
@@ -395,6 +428,51 @@ class ToolRunner:
         self.logger.log("tool_call", tool=name, arguments=logged_arguments)
         started = time.monotonic()
         result: dict[str, Any] | None = None
+        action_request: ActionRequest | None = None
+
+        if self.broker is not None:
+            source = "core"
+            if name in {"run_shell", "read_file", "write_file", "list_dir", "http_get", "probe_local_ollama"}:
+                source = "body"
+            elif self.plugins is not None and (self.plugins.is_plugin_tool(name) or self.plugins.is_vanished_or_disabled_tool(name)):
+                source = f"plugins.{self.plugins.get_plugin_for_tool(name)}"
+
+            level = TOOL_PERMISSION_LEVELS.get(name, PermissionLevel.L2)
+            reversible = name in {
+                "update_plan", "update_environment_map", "record_model_assessment",
+                "record_delegation_outcome", "record_provider_verification",
+                "request_provider_key", "request_capability", "propose_core_patch",
+            }
+            if source.startswith("plugins.") and self.plugins is not None:
+                p_name = self.plugins.get_plugin_for_tool(name)
+                plugin_obj = self.plugins.active_plugins.get(p_name) or self.plugins.discovered.get(p_name)
+                if plugin_obj is not None:
+                    for act in plugin_obj.manifest.actions:
+                        if act.name == name or f"{p_name}.{act.name}" == name:
+                            level = PermissionLevel.from_value(act.required_permission_level)
+                            reversible = act.reversible
+                            break
+                    for sens in plugin_obj.manifest.sensors:
+                        if sens.name == name or f"{p_name}.{sens.name}" == name:
+                            level = PermissionLevel.from_value(sens.required_permission_level)
+                            reversible = sens.reversible
+                            break
+
+            dry_run = bool(arguments.get("dry_run", False))
+            action_request = ActionRequest(
+                action=name,
+                source=source,
+                level=level,
+                params=arguments,
+                dry_run=dry_run,
+                reversible=reversible,
+            )
+            verdict = self.broker.authorize(action_request)
+            if not verdict.allowed:
+                result = {"ok": False, "error": verdict.reason, "permission_denied": True}
+            elif verdict.dry_run:
+                result = {"ok": True, "dry_run": True, "message": f"Action '{name}' authorized in dry-run mode."}
+
         if name in MODEL_TOOL_SPECS:
             spec = MODEL_TOOL_SPECS[name]
             allowed = spec["allowed"]
@@ -470,6 +548,13 @@ class ToolRunner:
             except Exception as exc:  # Tool errors are observations for the next model turn.
                 result = {"ok": False, "error": self.logger.redactor.text(exc)}
         safe_result = self.logger.redactor.value(result)
+        if self.broker is not None and action_request is not None and not action_request.dry_run:
+            self.broker.record_execution(
+                action_request,
+                success=bool(safe_result.get("ok", False)),
+                reversible=action_request.reversible,
+                error=safe_result.get("error"),
+            )
         serialized = json.dumps(safe_result, ensure_ascii=False)
         self.logger.log(
             "tool_result",

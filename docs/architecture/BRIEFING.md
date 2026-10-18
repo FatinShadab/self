@@ -1,7 +1,7 @@
 # Architecture Briefing: SELF Core & Specializations
 
-**Git Commit:** `14ffa606468920a97c672b39fbf3a43fccc52bdf`  
-**Date:** 2026-10-17  
+**Git Commit:** `p12-safety`  
+**Date:** 2026-10-18  
 **Scope:** Complete baseline architecture briefing for planning modular core and specialization bodies.
 
 ---
@@ -79,14 +79,15 @@ The primary entry point is `python -m agent.wake` `[read] Dockerfile:52`, which 
 5. **Exact Repetition Blocker:** Exact duplicate `(tool_name, arguments)` invocations within the same run are blocked by the harness, forcing the model to try a different investigation or report `[read] agent/runtime/loop.py:583-588`.
 6. **Dynamic Tool Sandbox Pipeline:** When creating tools via `create_tool`, the code must have typed `run(...)` arguments, be approved by a Critic LLM call (`CRITIC_PROMPT`), and pass unittests run in an isolated subprocess with secrets stripped `[read] agent/tools/tool_registry.py:225-403`.
 7. **Attempt Limits on Tool Creation:** An agent is limited to 3 creation attempts per tool name per run. The 3rd failure logs a durable lesson to `workspace/memory/lessons.jsonl` and blocks further attempts in that run `[read] agent/tools/tool_registry.py:236-238, 413-420`.
-8. **Root Shell Privilege Discrepancy:** While Python's `write_file` blocks modifying `/opt/agent/` or managed identity files, `run_shell` executes `/bin/bash` as `USER root` inside the container namespace, allowing raw bash commands to bypass Python-level path guards `[read] Dockerfile:50, agent/tools/base_tools.py:461, 540-547`.
+8. **Root Shell Privilege Discrepancy & Hardened Profile:** In the default profile, `run_shell` executes `/bin/bash` as `USER root` inside the container namespace, allowing raw bash commands to bypass Python-level path guards `[read] Dockerfile:50, agent/tools/base_tools.py:461, 540-547`. The optional `hardened` profile (`docker compose --profile hardened up self-hardened`) completely eliminates this discrepancy by running as unprivileged user `1000:1000`, dropping all capabilities (`cap_drop: ALL`), enabling `no-new-privileges`, mounting the rootfs read-only, and routing network traffic through an allowlisting egress proxy sidecar `[read] docker-compose.yml:56-125`.
 9. **Single Persistent Workspace Bind-Mount:** Only `./workspace` is mounted into the container (at `/home/entity`). The host filesystem, Docker socket, and `eval/` are completely inaccessible `[read] docker-compose.yml:15-19`.
 10. **Mandatory Human Input Arbitration:** Human inputs are never treated as commands. The agent must evaluate each input in a cycle and record one of five explicit decisions (`accepted`, `modified`, `declined`, `deferred`, `noted`) with an evidence-backed reason in `state/plan.json` `[read] agent/learning/plan.py:420-475`.
 11. **Plan Hygiene Purging:** The agent owns `state/plan.json`. Goals marked `"done"` or `"dropped"` are automatically purged from persistent state at cycle end to bound prompt growth `[read] agent/learning/plan.py:550-575`.
 12. **Fixed Base Model + Dynamic Helpers:** The primary thinking model is fixed at startup (`base_model`). It cannot be switched. Helper models can only be queried via `ask_model` for plain-text sub-tasks or used for critic/reflection checkpoints `[read] agent/llm/llm.py:227-229, agent/tools/base_tools.py:56-64`.
-13. **Hard Stop Controls Always Win:** The `/stop` command, SIGINT/SIGTERM, and `workspace/STOP` cannot be overridden or ignored by the model. When detected, loops break immediately without a shutdown LLM call `[read] agent/runtime/loop.py:37, 230-235, agent/ui/wake.py:1456-1465`.
+13. **Hard Stop Controls Always Win:** The `/stop` command, SIGINT/SIGTERM, and `workspace/STOP` cannot be overridden or ignored by the model. When detected by the independent background `StopWatcher` thread, loops break immediately without a shutdown LLM call, and `Body.emergency_stop()` is triggered to cut off in-flight actuation `[read] agent/runtime/loop.py:37, 230-235, agent/infra/stop_watcher.py:40-100, agent/ui/wake.py:1456-1465`.
 14. **Protected Core Harness Patching:** The agent cannot directly modify `/opt/agent/core/`. It can only generate unified diffs saved to `state/proposed_patches/` via `propose_core_patch` for the human operator to inspect and apply from the host `[read] agent/tools/base_tools.py:262-268, 513-516`.
 15. **Hidden Eval Isolation:** The evaluation framework `eval/` is excluded by `.dockerignore`, not mounted in `docker-compose.yml`, and only runs via host scripts with read-only mounts `[read] .dockerignore:4, docker-compose.yml:33-49`.
+16. **Permission Broker & Hash-Chained Audit Trail:** Every action from the body, plugins, or tools is mediated by the core `PermissionBroker` (`L0_OBSERVE` to `L3_ACTUATION`), with default policy denying all >L0 until granted in read-only `/config/permissions.json`. Authorizations, executions, and dry runs are recorded to append-only `state/audit_trail.jsonl` with SHA-256 hash chaining `[read] agent/infra/permission_broker.py:50, agent/infra/audit_trail.py:40`.
 
 ---
 
@@ -115,8 +116,12 @@ The primary entry point is `python -m agent.wake` `[read] Dockerfile:52`, which 
 | `state/model_outcomes.jsonl` | Model call metrics & outcomes | **NO** | JSONL: Metric values, latency, errors |
 | `state/daily_token_budget.json`| Enforced daily token ledger | **NO** (telemetry displays remaining) | Resets at UTC midnight |
 | `state/wake_snapshot.json` | Baseline workspace & uptime | **NO** (changes in greeting) | Detects workspace/tool changes on boot |
-| `logs/actions.jsonl` | Central system event log (105 events)| **NO** (failure context extracts 8 errors) | Unbounded append-only log |
+| `state/audit_trail.jsonl` | Append-only action audit trail with SHA-256 hash chaining | **NO** | JSONL: Index, hash, event, actor, action, result |
+| `state/extension_diffs.log`| Append-only diff log of self modifications loaded from self/ | **NO** | Log: Timestamp, relative path, unified diff |
+| `logs/actions.jsonl` | Central system event log (116 events)| **NO** (failure context extracts 8 errors) | Unbounded append-only log |
 | `config/plugins.json` | Enabled plugins & SHA-256 hashes | **NO** (embodiment & goal notes injected) | Human-owned; mounted read-only into `/config` |
+| `config/permissions.json` | Human permission policy for L0-L3 action levels | **NO** | Human-owned; mounted read-only into `/config` |
+| `config/egress_allowlist.txt`| Allowed domain and IP prefixes for egress proxy sidecar | **NO** | Human-owned; mounted read-only into `/config` |
 | `plugins/<name>/state/` | Per-plugin private state storage | **NO** | Plugin-managed isolated runtime state |
 
 ---

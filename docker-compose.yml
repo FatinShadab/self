@@ -53,3 +53,79 @@ services:
         read_only: true
     entrypoint: ["python", "-m", "eval.runner"]
 
+  self-hardened:
+    profiles: ["hardened"]
+    image: self-self:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "no"
+    mem_limit: 4g
+    cpus: 2
+    pids_limit: 512
+    stdin_open: true
+    tty: true
+    user: "1000:1000"
+    read_only: true
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    tmpfs:
+      - /tmp:rw,noexec,nosuid,size=100M
+      - /run:rw,noexec,nosuid,size=10M
+    environment:
+      - HTTP_PROXY=http://egress-proxy:8080
+      - HTTPS_PROXY=http://egress-proxy:8080
+      - http_proxy=http://egress-proxy:8080
+      - https_proxy=http://egress-proxy:8080
+      - NO_PROXY=localhost,127.0.0.1
+      - no_proxy=localhost,127.0.0.1
+    env_file:
+      - .env
+    volumes:
+      - type: bind
+        source: ${SELF_WORKSPACE_DIR:-./workspace}
+        target: /home/entity
+        read_only: false
+      - type: bind
+        source: ${SELF_CONFIG_DIR:-./config}
+        target: /config
+        read_only: true
+    networks:
+      - hardened-net
+    depends_on:
+      - egress-proxy
+
+  egress-proxy:
+    profiles: ["hardened"]
+    image: self-self:latest
+    build:
+      context: .
+      dockerfile: Dockerfile
+    restart: "no"
+    entrypoint: ["python", "/opt/scripts/egress_proxy.py", "--port", "8080", "--allowlist", "/config/egress_allowlist.txt"]
+    volumes:
+      - type: bind
+        source: ./scripts/egress_proxy.py
+        target: /opt/scripts/egress_proxy.py
+        read_only: true
+      - type: bind
+        source: ${SELF_CONFIG_DIR:-./config}
+        target: /config
+        read_only: true
+    networks:
+      - hardened-net
+      - default
+    security_opt:
+      - no-new-privileges:true
+    cap_drop:
+      - ALL
+    mem_limit: 512m
+    cpus: 0.5
+
+networks:
+  default:
+  hardened-net:
+    internal: true
+

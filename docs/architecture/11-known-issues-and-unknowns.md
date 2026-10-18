@@ -1,7 +1,7 @@
 # Document 11: Known Issues, Tech Debt & Open Unknowns
 
-**Git Commit:** `14ffa606468920a97c672b39fbf3a43fccc52bdf`  
-**Date:** 2026-10-17  
+**Git Commit:** `p12-safety`  
+**Date:** 2026-10-18  
 **Status:** Read-only architecture documentation
 
 ---
@@ -9,9 +9,10 @@
 ## 1. Top 10 Known Issues & Bugs
 
 ### 1. Inconsistent Privilege Boundary Between `write_file` and `run_shell`
-- **Issue:** `write_file` enforces Python-level path restrictions preventing writes to `/opt/agent/core/` and managed identity files `[read] agent/tools/base_tools.py:540-547`. However, `run_shell` executes `/bin/bash` commands as `USER root` `[read] Dockerfile:50`.
-- **Impact:** An agent using `run_shell("chmod +w /opt/agent/core/loop.py && echo ... >> /opt/agent/core/loop.py")` can bypass the Python-level protection and mutate the harness within the container rootfs `[inferred]`.
-- **Location:** `[read] agent/tools/base_tools.py:461, Dockerfile:50`.
+- **Issue:** `write_file` enforces Python-level path restrictions preventing writes to `/opt/agent/core/` and managed identity files `[read] agent/tools/base_tools.py:540-547`. However, in the default compose profile, `run_shell` executes `/bin/bash` commands as `USER root` `[read] Dockerfile:50`.
+- **Impact:** In the default profile, an agent using `run_shell("chmod +w /opt/agent/core/loop.py && echo ... >> /opt/agent/core/loop.py")` can bypass the Python-level protection and mutate the harness within the container rootfs `[inferred]`.
+- **Status as of Prompt 12:** Mitigated under the optional `hardened` compose profile (`docker compose --profile hardened up self-hardened`) which enforces `user: "1000:1000"`, `cap_drop: ALL`, `no-new-privileges: true`, and `read_only: true` container rootfs. Under the hardened profile, root bypass is eliminated. In the default profile, root shell bypass remains an intentional trade-off for convenience and is explicitly documented.
+- **Location:** `[read] agent/tools/base_tools.py:461, Dockerfile:50, docker-compose.yml:56-99`.
 
 ### 2. Deprecated `--token-budget` Flags Still Accepted but Silently Ignored
 - **Issue:** The `--token-budget` argument is accepted by `agent/runtime/loop.py` and `agent/ui/wake.py`, but `BudgetedLLM` explicitly sets `self.token_budget = None` and comments state: *"token_budget, adaptive_budget, max_token_budget are ignored; daily_ledger is the only active token limit"* `[read] agent/llm/llm.py:58-60`.

@@ -1,0 +1,19 @@
+{
+  "default_level": "L0",
+  "grants": {
+    "core": "L0",
+    "body": "L0",
+    "tools": "L0"
+  },
+  "action_grants": {},
+  "rate_limits": {
+    "default": {
+      "max_actions": 120,
+      "window_seconds": 60
+    },
+    "run_shell": {
+      "max_actions": 30,
+      "window_seconds": 60
+    }
+  }
+}

@@ -23,6 +23,7 @@ from agent.helper_models.model_probe import ModelProber
 from agent.helper_models.model_decisions import ModelDecisions
 from agent.infra.file_lock import locked_file
 from agent.learning.plan import PlanStore
+from agent.infra.untrusted import UNTRUSTED_DATA_RULE, wrap_untrusted
 from agent.tools.tool_registry import CREATE_TOOL_DEFINITION, ToolRegistry
 
 
@@ -136,6 +137,9 @@ class AgentConfig:
     session_id: str = ""
     body: Any | None = None
     plugins: Any | None = None
+    broker: Any | None = None
+    audit_trail: Any | None = None
+    stop_watcher: Any | None = None
 
 
 
@@ -258,10 +262,25 @@ class AgentLoop:
             from agent.plugins.manager import PluginManager
             self.plugins = PluginManager(config.workspace, logger=logger)
         self.tools.plugins = self.plugins
+        self.broker = config.broker or getattr(tools, "broker", None)
+        self.audit_trail = config.audit_trail or getattr(tools, "audit_trail", None)
+        self.watcher = config.stop_watcher
+        if self.broker is not None:
+            self.tools.broker = self.broker
+            if self.audit_trail is not None and getattr(self.broker, "audit_trail", None) is None:
+                self.broker.audit_trail = self.audit_trail
         self.stop_file = config.workspace / "STOP"
         self.human_request = config.workspace / "HUMAN_REQUEST.md"
 
     def _stopped(self) -> bool:
+        if self.watcher is not None and self.watcher.is_stopped():
+            self.logger.narrate("Stop requested via watcher; halting cleanly.")
+            self.logger.log("run_stopped", reason="stop_watcher")
+            return True
+        if self.broker is not None and getattr(self.broker, "in_panic", False):
+            self.logger.narrate("Permission broker panic detected; halting cleanly.")
+            self.logger.log("run_stopped", reason="broker_panic")
+            return True
         if self.stop_file.exists():
             self.logger.narrate("STOP file detected; halting cleanly.")
             self.logger.log("run_stopped", reason="stop_file")
@@ -391,7 +410,7 @@ class AgentLoop:
                          "\n".join(line for line in prompt_text.splitlines()
                                    if not line.startswith(OFF_PROMPT_PREFIXES)))
         plugin_embodiment = f"\n\n{self.plugins.get_embodiment_prompt().strip()}" if (self.plugins and self.plugins.get_embodiment_prompt()) else ""
-        return f"{system_prompt}{model_context}\n\n{self.logger.redactor.text(context)}{plugin_embodiment}"
+        return f"{system_prompt}{model_context}\n\n{self.logger.redactor.text(context)}{plugin_embodiment}\n\n{UNTRUSTED_DATA_RULE}"
 
 
     def _refresh_learning_runtime(self) -> None:
@@ -500,10 +519,10 @@ class AgentLoop:
             if self.config.retrieve_memories:
                 legacy_context = retrieve_context(self.config.workspace, query, self.logger)
                 context = (
-                    "## Self notes\n" + self.learning.load_notes() +
-                    "\n\n## Verified environment map\n" + self.learning.map_context() +
-                    "\n\n## Relevant persistent memories\n" + self.learning.retrieve_memories(query) +
-                    "\n\n## Legacy lessons\n" + legacy_context
+                    "## Self notes\n" + wrap_untrusted(self.learning.load_notes(), source="notes") +
+                    "\n\n## Verified environment map\n" + wrap_untrusted(self.learning.map_context(), source="environment_map") +
+                    "\n\n## Relevant persistent memories\n" + wrap_untrusted(self.learning.retrieve_memories(query), source="memories") +
+                    "\n\n## Legacy lessons\n" + wrap_untrusted(legacy_context, source="legacy_context")
                 )
             else:
                 context = "This focused test has no prior memories."
@@ -627,7 +646,7 @@ class AgentLoop:
                 remind_outcome = False
                 for tool_use in tool_uses:
                     if self._stopped():
-                        reason = "stop_file"
+                        reason = "broker_panic" if (self.broker is not None and getattr(self.broker, "in_panic", False)) else "stop_file"
                         break
                     name = str(tool_use.get("name", ""))
                     arguments = tool_use.get("input", {})
@@ -654,19 +673,22 @@ class AgentLoop:
                         except BudgetExceeded:
                             self._pause_until_daily_reset()
                             if self._stopped():
-                                reason = "stop_file"
+                                reason = "broker_panic" if (self.broker is not None and getattr(self.broker, "in_panic", False)) else "stop_file"
                                 break
                             continue
                     tool_results.append(
                         {
                             "type": "tool_result",
                             "tool_use_id": tool_use.get("id", ""),
-                            "content": json.dumps(observation, ensure_ascii=False),
+                            "content": wrap_untrusted(json.dumps(observation, ensure_ascii=False), source=f"tool:{name}"),
                             "is_error": not observation.get("ok", False),
                         }
                     )
                     cycle_actions.append({"name": name, "ok": bool(observation.get("ok", False))})
                     tool_error_count += int(not observation.get("ok", False))
+                    if self._stopped():
+                        reason = "broker_panic" if (self.broker is not None and getattr(self.broker, "in_panic", False)) else "stop_file"
+                        break
                     if name == "ask_model":
                         ask_model_followed = True
                         remind_outcome = bool(observation.get("call_id"))
@@ -674,14 +696,14 @@ class AgentLoop:
                         self.logger.narrate("A human request was created; pausing immediately.")
                         reason = "human_request_pending"
                         break
-                if reason in {"stop_file", "human_request_pending", "token_budget", "wall_clock_budget", "provider_error"}:
+                if reason in {"stop_file", "human_request_pending", "token_budget", "wall_clock_budget", "provider_error", "broker_panic", "stop_watcher"}:
                     break
                 messages.append({"role": "user", "content": tool_results})
                 if remind_outcome:
                     messages.append({"role": "user", "content":
                                      "If useful, call record_delegation_outcome once for the ask_model call_id. Reporting is optional; judge the result yourself."})
 
-            if reason in {"stop_file", "token_budget", "human_request_pending", "wall_clock_budget", "provider_error"}:
+            if reason in {"stop_file", "token_budget", "human_request_pending", "wall_clock_budget", "provider_error", "broker_panic", "stop_watcher"}:
                 break
             completed_iterations += 1
             last_report = cycle_report or "Cycle completed without a textual report."

@@ -5,7 +5,7 @@
     {
       "package": "agent.infra",
       "layer": 0,
-      "purpose": "Event logging, file locks, process runner, provider call caps, and daily token budget hardening."
+      "purpose": "Event logging, file locks, process runner, provider call caps, daily token budget, permission broker, untrusted data delimiters, stop watcher, and audit trail."
     },
     {
       "package": "agent.llm",
@@ -117,6 +117,12 @@
       "path": "agent/tools/tool_worker.py",
       "type": "Subprocess Worker",
       "description": "Subprocess runner for custom tools; reads JSON from stdin and emits JSON envelope."
+    },
+    {
+      "name": "scripts/egress_proxy.py",
+      "path": "scripts/egress_proxy.py",
+      "type": "Proxy Sidecar",
+      "description": "Forward HTTP/HTTPS filtering proxy sidecar with domain allowlist for hardened profile."
     },
     {
       "name": "scripts/run-tests.ps1",
@@ -322,9 +328,29 @@
       ]
     },
     {
+      "name": "action_undo_failed",
+      "emitters": [
+        "agent/infra/permission_broker.py:249"
+      ],
+      "fields": [
+        "action",
+        "error"
+      ]
+    },
+    {
+      "name": "action_undone",
+      "emitters": [
+        "agent/infra/permission_broker.py:245"
+      ],
+      "fields": [
+        "action",
+        "status"
+      ]
+    },
+    {
       "name": "agent_step",
       "emitters": [
-        "agent/runtime/loop.py:337"
+        "agent/runtime/loop.py:356"
       ],
       "fields": [
         "message"
@@ -366,7 +392,7 @@
     {
       "name": "command_finished",
       "emitters": [
-        "agent/body/container.py:415"
+        "agent/body/container.py:424"
       ],
       "fields": [
         "exit_code",
@@ -379,7 +405,7 @@
     {
       "name": "command_output",
       "emitters": [
-        "agent/body/container.py:411"
+        "agent/body/container.py:420"
       ],
       "fields": [
         "output",
@@ -389,7 +415,7 @@
     {
       "name": "command_started",
       "emitters": [
-        "agent/body/container.py:408"
+        "agent/body/container.py:417"
       ],
       "fields": [
         "command",
@@ -400,7 +426,7 @@
     {
       "name": "context_retrieval",
       "emitters": [
-        "agent/runtime/loop.py:180"
+        "agent/runtime/loop.py:184"
       ],
       "fields": [
         "files_scanned",
@@ -474,7 +500,7 @@
     {
       "name": "cycle_completed",
       "emitters": [
-        "agent/runtime/loop.py:688"
+        "agent/runtime/loop.py:710"
       ],
       "fields": [
         "actions",
@@ -486,7 +512,7 @@
     {
       "name": "daily_budget_human_request_created",
       "emitters": [
-        "agent/runtime/loop.py:307"
+        "agent/runtime/loop.py:326"
       ],
       "fields": [
         "path"
@@ -518,7 +544,7 @@
     {
       "name": "daily_token_limit_paused",
       "emitters": [
-        "agent/runtime/loop.py:313"
+        "agent/runtime/loop.py:332"
       ],
       "fields": [
         "session_id"
@@ -527,7 +553,7 @@
     {
       "name": "daily_token_limit_resumed",
       "emitters": [
-        "agent/runtime/loop.py:317"
+        "agent/runtime/loop.py:336"
       ],
       "fields": [
         "session_id"
@@ -540,6 +566,15 @@
       ],
       "fields": [
         "path"
+      ]
+    },
+    {
+      "name": "emergency_stop_error",
+      "emitters": [
+        "agent/infra/stop_watcher.py:160"
+      ],
+      "fields": [
+        "error"
       ]
     },
     {
@@ -559,6 +594,18 @@
       "fields": [
         "keys",
         "source"
+      ]
+    },
+    {
+      "name": "extension_loaded",
+      "emitters": [
+        "agent/infra/untrusted.py:122"
+      ],
+      "fields": [
+        "chars",
+        "critic_checked",
+        "subpath",
+        "test_verified"
       ]
     },
     {
@@ -634,7 +681,7 @@
     {
       "name": "identity_context_fallback",
       "emitters": [
-        "agent/runtime/loop.py:371"
+        "agent/runtime/loop.py:390"
       ],
       "fields": [
         "error_type"
@@ -844,8 +891,8 @@
     {
       "name": "network_request",
       "emitters": [
-        "agent/body/container.py:502",
-        "agent/body/container.py:547",
+        "agent/body/container.py:511",
+        "agent/body/container.py:556",
         "agent/helper_models/model_probe.py:129",
         "agent/helper_models/model_probe.py:124",
         "agent/llm/brain_router.py:175",
@@ -904,7 +951,7 @@
     {
       "name": "plugin_disabled",
       "emitters": [
-        "agent/plugins/manager.py:400"
+        "agent/plugins/manager.py:402"
       ],
       "fields": [
         "plugin"
@@ -913,7 +960,7 @@
     {
       "name": "plugin_enabled",
       "emitters": [
-        "agent/plugins/manager.py:375"
+        "agent/plugins/manager.py:377"
       ],
       "fields": [
         "hash",
@@ -924,7 +971,7 @@
     {
       "name": "plugin_hash_mismatch",
       "emitters": [
-        "agent/plugins/manager.py:450"
+        "agent/plugins/manager.py:452"
       ],
       "fields": [
         "actual",
@@ -935,13 +982,13 @@
     {
       "name": "plugin_load_failed",
       "emitters": [
-        "agent/plugins/manager.py:232",
-        "agent/plugins/manager.py:235",
-        "agent/plugins/manager.py:272",
-        "agent/plugins/manager.py:293",
-        "agent/plugins/manager.py:368",
-        "agent/plugins/manager.py:319",
-        "agent/plugins/manager.py:395"
+        "agent/plugins/manager.py:234",
+        "agent/plugins/manager.py:237",
+        "agent/plugins/manager.py:274",
+        "agent/plugins/manager.py:295",
+        "agent/plugins/manager.py:370",
+        "agent/plugins/manager.py:321",
+        "agent/plugins/manager.py:397"
       ],
       "fields": [
         "error",
@@ -1142,7 +1189,7 @@
     {
       "name": "repeated_tool_action_blocked",
       "emitters": [
-        "agent/runtime/loop.py:643"
+        "agent/runtime/loop.py:662"
       ],
       "fields": [
         "tool"
@@ -1161,7 +1208,7 @@
     {
       "name": "run_completed",
       "emitters": [
-        "agent/runtime/loop.py:719"
+        "agent/runtime/loop.py:741"
       ],
       "fields": [
         "iterations",
@@ -1172,8 +1219,8 @@
     {
       "name": "run_failed",
       "emitters": [
-        "agent/runtime/loop.py:806",
-        "agent/runtime/loop.py:609"
+        "agent/runtime/loop.py:828",
+        "agent/runtime/loop.py:628"
       ],
       "fields": [
         "error",
@@ -1184,7 +1231,7 @@
     {
       "name": "run_started",
       "emitters": [
-        "agent/runtime/loop.py:437"
+        "agent/runtime/loop.py:456"
       ],
       "fields": [
         "curriculum",
@@ -1200,9 +1247,11 @@
     {
       "name": "run_stopped",
       "emitters": [
-        "agent/runtime/loop.py:267",
-        "agent/runtime/loop.py:802",
-        "agent/runtime/loop.py:472"
+        "agent/runtime/loop.py:278",
+        "agent/runtime/loop.py:282",
+        "agent/runtime/loop.py:286",
+        "agent/runtime/loop.py:824",
+        "agent/runtime/loop.py:491"
       ],
       "fields": [
         "reason"
@@ -1250,7 +1299,7 @@
     {
       "name": "session_reflection_completed",
       "emitters": [
-        "agent/session/coordinator.py:689"
+        "agent/session/coordinator.py:716"
       ],
       "fields": [
         "purpose",
@@ -1260,7 +1309,7 @@
     {
       "name": "session_reflection_fallback",
       "emitters": [
-        "agent/session/coordinator.py:692"
+        "agent/session/coordinator.py:719"
       ],
       "fields": [
         "error_type",
@@ -1281,7 +1330,7 @@
     {
       "name": "session_summary",
       "emitters": [
-        "agent/session/coordinator.py:987"
+        "agent/session/coordinator.py:1049"
       ],
       "fields": [
         "message"
@@ -1290,14 +1339,14 @@
     {
       "name": "session_unexpected_exception",
       "emitters": [
-        "agent/session/coordinator.py:1000"
+        "agent/session/coordinator.py:1062"
       ],
       "fields": []
     },
     {
       "name": "stale_budget_plan_recovered",
       "emitters": [
-        "agent/session/coordinator.py:776"
+        "agent/session/coordinator.py:803"
       ],
       "fields": [
         "available_daily_tokens"
@@ -1312,6 +1361,61 @@
         "expected_hash",
         "image_hash"
       ]
+    },
+    {
+      "name": "stop_watcher_panic_triggered",
+      "emitters": [
+        "agent/infra/stop_watcher.py:129"
+      ],
+      "fields": [
+        "reason"
+      ]
+    },
+    {
+      "name": "stop_watcher_paused",
+      "emitters": [
+        "agent/infra/stop_watcher.py:135"
+      ],
+      "fields": []
+    },
+    {
+      "name": "stop_watcher_resumed",
+      "emitters": [
+        "agent/infra/stop_watcher.py:141"
+      ],
+      "fields": []
+    },
+    {
+      "name": "stop_watcher_signal_received",
+      "emitters": [
+        "agent/infra/stop_watcher.py:77"
+      ],
+      "fields": [
+        "signal"
+      ]
+    },
+    {
+      "name": "stop_watcher_started",
+      "emitters": [
+        "agent/infra/stop_watcher.py:88"
+      ],
+      "fields": []
+    },
+    {
+      "name": "stop_watcher_stop_triggered",
+      "emitters": [
+        "agent/infra/stop_watcher.py:118"
+      ],
+      "fields": [
+        "reason"
+      ]
+    },
+    {
+      "name": "stop_watcher_stopped",
+      "emitters": [
+        "agent/infra/stop_watcher.py:97"
+      ],
+      "fields": []
     },
     {
       "name": "token_spend",
@@ -1337,7 +1441,7 @@
       "name": "tool_call",
       "emitters": [
         "agent/tests/identity/test_identity.py:66",
-        "agent/tools/base_tools.py:395"
+        "agent/tools/base_tools.py:428"
       ],
       "fields": [
         "arguments",
@@ -1410,7 +1514,7 @@
       "name": "tool_result",
       "emitters": [
         "agent/tests/identity/test_identity.py:67",
-        "agent/tools/base_tools.py:474"
+        "agent/tools/base_tools.py:559"
       ],
       "fields": [
         "duration_ms",
@@ -1456,7 +1560,7 @@
     {
       "name": "zero_cycle_session_preserved",
       "emitters": [
-        "agent/session/coordinator.py:956"
+        "agent/session/coordinator.py:1018"
       ],
       "fields": [
         "end_reason",
@@ -1664,6 +1768,18 @@
       "reader": "agent/reporting/report.py"
     },
     {
+      "path": "workspace/state/audit_trail.jsonl",
+      "purpose": "Append-only hash-chained action audit log with SHA-256 verification",
+      "writer": "agent/infra/audit_trail.py",
+      "reader": "agent/infra/audit_trail.py"
+    },
+    {
+      "path": "workspace/state/extension_diffs.log",
+      "purpose": "Append-only diff log for self-modifications loaded from /home/entity/self/",
+      "writer": "agent/infra/untrusted.py",
+      "reader": "agent/infra/untrusted.py"
+    },
+    {
       "path": "workspace/logs/actions.jsonl",
       "purpose": "Primary append-only event log containing all system and agent events",
       "writer": "agent/infra/event_log.py",
@@ -1680,6 +1796,18 @@
       "purpose": "Human-owned configuration file recording plugin enablement status and SHA-256 hash pins",
       "writer": "agent/plugins/manager.py",
       "reader": "agent/plugins/manager.py"
+    },
+    {
+      "path": "config/permissions.json",
+      "purpose": "Human-owned permission policy defining action levels (L0-L3) and actor grants",
+      "writer": "Human operator",
+      "reader": "agent/infra/permission_broker.py"
+    },
+    {
+      "path": "config/egress_allowlist.txt",
+      "purpose": "Human-owned domain and IP prefix allowlist for hardened egress proxy sidecar",
+      "writer": "Human operator",
+      "reader": "scripts/egress_proxy.py"
     }
   ],
   "env_vars": [
@@ -1928,6 +2056,24 @@
       "default": "./workspace",
       "where_read": "docker-compose.yml:34",
       "meaning": "Host directory mounted as read-only workspace for eval container."
+    },
+    {
+      "name": "HTTP_PROXY",
+      "default": "",
+      "where_read": "docker-compose.yml:78",
+      "meaning": "HTTP forward proxy for container egress filtering under hardened profile."
+    },
+    {
+      "name": "HTTPS_PROXY",
+      "default": "",
+      "where_read": "docker-compose.yml:79",
+      "meaning": "HTTPS forward proxy for container egress filtering under hardened profile."
+    },
+    {
+      "name": "NO_PROXY",
+      "default": "localhost,127.0.0.1",
+      "where_read": "docker-compose.yml:82",
+      "meaning": "Bypass list for proxy connections under hardened profile."
     }
   ]
 }
