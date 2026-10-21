@@ -4,6 +4,21 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+### Versioning Scheme
+- **Core Engine Releases (`core-v<major>.<minor>.<patch>[-rcN]`):** Tracks releases of the complete autonomous agent system, runtime loop, safety mechanisms, container packaging, and operator tooling (e.g. `core-v0.1.0-rc1`, `core-v0.1.0-rc2`).
+- **Plugin API Specification (`VERSION` file and `CORE_API_VERSION`):** SemVer specification governing the plugin interface (manifest schema, lifecycle hooks, tool registration, permissions, and slash commands). Plugins declare compatibility ranges against this specification (e.g. `core_api: ">=1.1.0,<2.0.0"`). Git tags `v1.0.0` and `v1.1.0` mark Plugin API milestones.
+
+## [core-v0.1.0-rc1] - 2026-10-21
+
+### Added
+- **Core Release Candidate 1 Suite (Prompt 18)**:
+  - Zero-plugin regression suite (`agent/tests/plugins/test_release_regression.py`) and golden prompt snapshots ensuring full backwards-compatibility when the plugin subsystem is present but no plugins are enabled.
+  - Enable, disable, and replug round-trip verification for the `pet_companion` demo plugin across cycle boundaries.
+  - Live diagnostic check script (`scripts/live-check.ps1` and `scripts/test-live-check.ps1`) reporting discovered plugin status, SHA-256 hash pinning state, plugin proposals, active project reviews, cost ledger summaries, and warnings on `plugin_hash_mismatch`.
+  - Run log analysis module (`agent/reporting/run_analysis.py` and `scripts/analyze-run.ps1`) evaluating 30-cycle execution traces: plan updates (agent vs harness_auto), handoff growth, human input decisions, failure categorizations, plugin lifecycle events, and per-cycle token spend.
+  - Workspace migration documentation (`docs/workspace-migration.md`) and state partitioning migration script (`scripts/migrate_p14_tagged_state.py`) providing automated snapshot creation and byte-for-byte SHA-256 rollback.
+  - Read-only container distribution of developer documentation in `/opt/agent/docs/plugins/` with strict exclusion of internal architecture and evaluation files from the image.
+
 ## [1.1.0] - 2026-10-21
 
 ### Added

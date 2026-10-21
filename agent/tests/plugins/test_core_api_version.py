@@ -67,6 +67,12 @@ class CoreApiVersionTests(unittest.TestCase):
         self.assertTrue(is_core_api_compatible("*", "1.0.0"))
         self.assertTrue(is_core_api_compatible("any", "1.0.0"))
 
+        # Plugin declaring >=1.1.0 rejected on simulated 1.0.x core
+        self.assertFalse(is_core_api_compatible(">=1.1.0", "1.0.0"))
+        self.assertFalse(is_core_api_compatible(">=1.1.0,<2.0.0", "1.0.4"))
+        self.assertTrue(is_core_api_compatible(">=1.1.0,<2.0.0", "1.1.0"))
+        self.assertTrue(is_core_api_compatible(">=1.1.0,<2.0.0", "1.1.2"))
+
         # Empty / missing range must evaluate to False
         self.assertFalse(is_core_api_compatible("", "1.0.0"))
         self.assertFalse(is_core_api_compatible("   ", "1.0.0"))
@@ -112,6 +118,27 @@ class CoreApiVersionTests(unittest.TestCase):
         self.assertIn("future_plugin", msg)
         self.assertIn(">=99.0.0", msg)
         self.assertIn(CORE_API_VERSION, msg)
+
+    def test_plugin_requiring_newer_core_api_rejected_on_simulated_older_core(self) -> None:
+        """A plugin declaring >=1.1.0 is rejected by a simulated 1.0.x core with clear message."""
+        manifest = {
+            "name": "slash_command_plugin",
+            "version": "1.0.0",
+            "core_api": ">=1.1.0,<2.0.0",
+            "kind": "skill",
+            "description": "Requires core 1.1.0+",
+            "tools": [{"name": "tool_b"}],
+            "sensors": [],
+            "actions": [],
+            "starting_goal_seeds": [],
+            "embodiment": "Skills requiring 1.1.0.",
+        }
+        with self.assertRaises(PluginManifestValidationError) as ctx:
+            parse_manifest(manifest, current_api="1.0.0")
+        msg = str(ctx.exception)
+        self.assertIn("slash_command_plugin", msg)
+        self.assertIn(">=1.1.0,<2.0.0", msg)
+        self.assertIn("1.0.0", msg)
 
     def test_enabled_plugin_becoming_incompatible_preserves_state_and_suspends_goals(self) -> None:
         # Create a workspace plugin
@@ -166,7 +193,7 @@ class CoreApiVersionTests(unittest.TestCase):
         self.assertEqual(plan_store.items[1]["status"], "todo")
 
         # 2. Simulate core upgrade: plugin's core_api range excludes the new version
-        manifest["core_api"] = "<1.0.0"  # Excludes current 1.0.0
+        manifest["core_api"] = "<1.0.0"  # Excludes current core (1.1.0)
         (plugin_dir / "plugin.json").write_text(json.dumps(manifest), encoding="utf-8")
 
         # 3. Next cycle boundary sync
@@ -198,7 +225,7 @@ class CoreApiVersionTests(unittest.TestCase):
         self.assertTrue(hello_manifest.exists())
         data = json.loads(hello_manifest.read_text(encoding="utf-8"))
         self.assertEqual(data["name"], "hello")
-        # Manifest declares core_api compatible with 1.0.0
+        # Manifest declares core_api compatible with current core (1.1.0)
         self.assertTrue(is_core_api_compatible(data["core_api"], CORE_API_VERSION))
 
         # Copy hello to workspace to test hash mismatch and re-enable

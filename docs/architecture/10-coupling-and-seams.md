@@ -241,9 +241,9 @@ When a body or specialization plugin (e.g. an antivirus scanner or sensor plugin
 ## 6. Core API Versioning, Compatibility Ranges & SDK Seam (Prompt 15)
 
 `[read] agent/plugins/manifest.py:10-88, agent/plugins/cli.py:1-380, VERSION:1`:
-1. **Core Version Semver (`CORE_API_VERSION = "1.1.0"`):**
-   - Core API version is tracked in `CORE_API_VERSION` and verified against repo root `VERSION`.
-   - Breaking contract changes increment Major, backwards-compatible additions increment Minor, bug fixes increment Patch.
+1. **Core Version Semver (`CORE_API_VERSION = "1.1.0"` vs `core-v0.1.0-rcX`):**
+   - Core API specification version is tracked in `CORE_API_VERSION` (`agent/plugins/manifest.py`) and verified against repo root `VERSION`. It defines the SemVer contract for plugin authors (breaking changes bump Major, additions bump Minor, fixes bump Patch).
+   - System releases of the overall agent harness, container packaging, and runtime loop follow a separate Core Release track (`core-v0.1.0-rc1`, `core-v0.1.0-rc2`). Git tags `v1.0.0` and `v1.1.0` mark Plugin API milestones, while `core-v0.1.0-rcX` marks Core Engine release candidates.
 2. **Manifest Range Compatibility:**
    - Manifests declare a `core_api` compatible range (e.g. `">=1.0,<2.0"`).
    - Incompatible plugins are rejected at discovery with `plugin_load_failed`.
