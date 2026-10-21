@@ -308,6 +308,97 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "reasoning": {"type": "string", "description": "Evidence and reason the core change is needed."},
         }, "required": ["name", "diff", "reasoning"]},
     },
+    {
+        "name": "read_cost_ledger",
+        "description": "Read measured cost ledger baselines (median and p90 for tool tokens, LLM calls, wall time, cycles) and totals for active or historical plugin projects.",
+        "input_schema": {"type": "object", "properties": {}},
+    },
+    {
+        "name": "propose_plugin",
+        "description": "Propose developing a new specialization plugin. Requires evidence, alternatives considered, cost estimates citing ledger data, expected benefits, risk-level actions, maintenance burden, stop-loss thresholds, and rollback plan.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Lowercase snake_case name of the proposed plugin."},
+                "need": {"type": "string", "description": "The specific capability gap or need justifying a full plugin."},
+                "evidence": {"type": "string", "description": "Durable facts or observations demonstrating the need."},
+                "alternatives_considered": {"type": "string", "description": "Lower capability ladder rungs considered (existing tools, helper model, tool) and why they were not enough."},
+                "estimate": {
+                    "type": "object",
+                    "description": "Cost estimates with ranges for tokens, cycles, wall time, human review minutes, and derivation citing ledger data.",
+                    "properties": {
+                        "tokens": {"type": "object", "description": "Estimated token range {min, max}."},
+                        "cycles": {"type": "object", "description": "Estimated cycle range {min, max}."},
+                        "wall_time": {"type": "object", "description": "Estimated wall time range {min, max}."},
+                        "human_review_minutes": {"type": "object", "description": "Estimated human review minutes range {min, max}."},
+                        "derivation": {"type": "string", "description": "How estimates were derived citing cost ledger data."}
+                    },
+                    "required": ["tokens", "cycles", "wall_time", "human_review_minutes", "derivation"]
+                },
+                "expected_benefit": {"type": "string", "description": "Expected durable benefit to the agent's autonomous goals."},
+                "actions_needed_with_risk_levels": {
+                    "type": "array",
+                    "description": "List of actions/sensors needed with their risk class and permission levels (L0-L3).",
+                    "items": {"type": "object"}
+                },
+                "maintenance_burden": {"type": "string", "description": "Ongoing maintenance, state footprint, and unplug impact."},
+                "stop_loss": {"type": "string", "description": "Stop-loss criteria and review triggers at 25%, 50%, and 100% of estimate."},
+                "rollback": {"type": "string", "description": "Rollback procedure if plugin development is abandoned or rejected."}
+            },
+            "required": [
+                "name", "need", "evidence", "alternatives_considered", "estimate",
+                "expected_benefit", "actions_needed_with_risk_levels",
+                "maintenance_burden", "stop_loss", "rollback"
+            ]
+        },
+    },
+    {
+        "name": "scaffold_plugin",
+        "description": "Scaffold a new plugin draft in workspace/plugin_dev/<name>/ from the starter template. The loader never loads from plugin_dev.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Lowercase snake_case name of the plugin."},
+                "kind": {"type": "string", "enum": ["body", "skill", "both"], "default": "skill", "description": "Plugin category."},
+                "description": {"type": "string", "description": "Short description of the plugin's purpose."}
+            },
+            "required": ["name"]
+        },
+    },
+    {
+        "name": "validate_plugin",
+        "description": "Run static validation on a plugin draft in workspace/plugin_dev/<name>/: check manifest, namespacing, declared permissions, secret reads, undeclared network/subprocess use, and prompt injection strings.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Name of the plugin draft to validate."}
+            },
+            "required": ["name"]
+        },
+    },
+    {
+        "name": "test_plugin",
+        "description": "Execute unittests and simulation scenarios for a plugin draft in workspace/plugin_dev/<name>/ in an isolated environment without real resources.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Name of the plugin draft to test."},
+                "test_type": {"type": "string", "enum": ["unit", "sim"], "default": "unit", "description": "Type of tests to run."}
+            },
+            "required": ["name"]
+        },
+    },
+    {
+        "name": "request_plugin_review",
+        "description": "Request a strict critic review of a validated and tested plugin draft in workspace/plugin_dev/<name>/, generating a diff and permission summary review packet for human inspection.",
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "name": {"type": "string", "description": "Name of the plugin draft to review."}
+            },
+            "required": ["name"]
+        },
+    },
 ]
 
 # Fixed experiment arms remove model-discovery and supplementary-provider paths
@@ -398,6 +489,27 @@ class ToolRunner:
         self.plan_store: Any = None
         self.plugins: Any = None
         self.current_cycle: int = 1
+        from agent.infra.cost_ledger import CostLedger
+        self.cost_ledger = CostLedger(self.workspace)
+        self.review_call: Any = None
+        self._plugin_dev: Any = None
+
+    @property
+    def plugin_dev(self) -> Any:
+        if self._plugin_dev is None:
+            import importlib
+            mod = importlib.import_module("agent.plugins.self_dev")
+            self._plugin_dev = mod.PluginDevManager(
+                workspace=self.workspace,
+                logger=self.logger,
+                cost_ledger=self.cost_ledger,
+                review_call=self.review_call,
+            )
+        return self._plugin_dev
+
+    @plugin_dev.setter
+    def plugin_dev(self, value: Any) -> None:
+        self._plugin_dev = value
 
     @property
     def identity(self) -> Any:
@@ -583,7 +695,28 @@ class ToolRunner:
         if self.plan_store is None:
             raise RuntimeError("persistent plan store is not configured")
         cycle = arguments.pop("cycle", self.current_cycle)
-        return self.plan_store.update_plan(cycle=cycle, **arguments)
+        res = self.plan_store.update_plan(cycle=cycle, **arguments)
+        if res.get("ok"):
+            act = str(arguments.get("action", "")).lower()
+            dec = str(arguments.get("decision", "")).lower()
+            proj = str(arguments.get("project") or arguments.get("id") or arguments.get("goal") or "").strip()
+            reason_text = str(arguments.get("reason", ""))
+            if act in {"decide_plugin_review", "plugin_project_review"} or (dec in {"continue", "reduce_scope", "abandon"} and proj):
+                ledger_summary = self.cost_ledger.get_summary()
+                pdata = ledger_summary.get("plugin_projects", {}).get(proj, {})
+                thresh = int(arguments.get("threshold", 25))
+                self.logger.log(
+                    "plugin_project_review",
+                    project=proj,
+                    threshold=thresh,
+                    decision=dec or "continue",
+                    reason=reason_text,
+                    tokens_spent=pdata.get("tokens", 0),
+                    cycles_spent=pdata.get("cycles", 0),
+                    token_estimate=pdata.get("token_estimate", 0),
+                    cycle_estimate=pdata.get("cycle_estimate", 0),
+                )
+        return res
 
     def update_environment_map(self, entries: list[dict[str, Any]]) -> dict[str, Any]:
         """Record observed environment facts through the learning store."""
@@ -660,4 +793,53 @@ class ToolRunner:
     def http_get(self, url: str, timeout: float = 20, max_chars: int = DEFAULT_OUTPUT_CAP) -> dict[str, Any]:
         """Fetch a URL and record observable network access."""
         return self.body.http_get(url=url, timeout=timeout, max_chars=max_chars)
+
+    def read_cost_ledger(self) -> dict[str, Any]:
+        """Read measured cost ledger baselines and plugin project totals."""
+        return self.cost_ledger.get_summary()
+
+    def propose_plugin(
+        self,
+        name: str,
+        need: str,
+        evidence: str,
+        alternatives_considered: Any,
+        estimate: Any,
+        expected_benefit: str,
+        actions_needed_with_risk_levels: Any,
+        maintenance_burden: str,
+        stop_loss: Any,
+        rollback: str,
+    ) -> dict[str, Any]:
+        """Propose developing a specialization plugin."""
+        return self.plugin_dev.propose_plugin(
+            name=name,
+            need=need,
+            evidence=evidence,
+            alternatives_considered=alternatives_considered,
+            estimate=estimate,
+            expected_benefit=expected_benefit,
+            actions_needed_with_risk_levels=actions_needed_with_risk_levels,
+            maintenance_burden=maintenance_burden,
+            stop_loss=stop_loss,
+            rollback=rollback,
+            plan_store=self.plan_store,
+            cycle=self.current_cycle,
+        )
+
+    def scaffold_plugin(self, name: str, kind: str = "skill", description: str = "") -> dict[str, Any]:
+        """Scaffold a plugin draft in workspace/plugin_dev/<name>/."""
+        return self.plugin_dev.scaffold_plugin(name=name, kind=kind, description=description)
+
+    def validate_plugin(self, name: str) -> dict[str, Any]:
+        """Run static validation on a plugin draft in workspace/plugin_dev/<name>/."""
+        return self.plugin_dev.validate_plugin(name=name)
+
+    def test_plugin(self, name: str, test_type: str = "unit") -> dict[str, Any]:
+        """Execute unittests for a plugin draft in workspace/plugin_dev/<name>/."""
+        return self.plugin_dev.test_plugin(name=name, test_type=test_type)
+
+    def request_plugin_review(self, name: str) -> dict[str, Any]:
+        """Request strict critic review of a validated plugin draft."""
+        return self.plugin_dev.request_plugin_review(name=name)
 

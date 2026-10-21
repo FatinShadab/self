@@ -149,6 +149,7 @@ class PlanStore:
         self.plan_version = 1
         self.items: list[dict[str, Any]] = []
         self.human_input_decisions: list[dict[str, Any]] = []
+        self.plugin_project_decisions: list[dict[str, Any]] = []
         self._next_id = 1
 
     def _append_archive(self, records: list[dict[str, Any]]) -> None:
@@ -204,6 +205,7 @@ class PlanStore:
         }
         self.items = [initial_goal]
         self.human_input_decisions = []
+        self.plugin_project_decisions = []
         self.plan_version = 1
         self._next_id = 2
         self._save_atomic(diff=f"Seeded plan with goal: {seed_content[:100]}", reason="Harness initialization", cycle=1)
@@ -218,6 +220,7 @@ class PlanStore:
                 return False
             self.plan_version = int(data.get("plan_version", 1))
             self.human_input_decisions = list(data.get("human_input_decisions", []))
+            self.plugin_project_decisions = list(data.get("plugin_project_decisions", []))
             raw_items = data.get("items", [])
             self.items = []
             max_id_num = 0
@@ -253,6 +256,7 @@ class PlanStore:
             "last_reason": reason,
             "items": self.logger.redactor.value(self.items),
             "human_input_decisions": self.logger.redactor.value(self.human_input_decisions),
+            "plugin_project_decisions": self.logger.redactor.value(self.plugin_project_decisions),
         }
         temp_path = self.plan_path.with_suffix(".tmp")
         temp_path.write_text(json.dumps(data, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
@@ -269,6 +273,7 @@ class PlanStore:
             "top_goal": active[0] if active else None,
             "items": list(self.items),
             "human_input_decisions": list(self.human_input_decisions),
+            "plugin_project_decisions": list(self.plugin_project_decisions),
         }
         if include_history or extra.get("history", False):
             res["history"] = self.get_archived_items()
@@ -449,8 +454,23 @@ class PlanStore:
             self.items.sort(key=lambda it: order_map.get(str(it.get("id", "")).strip(), 999))
             diff = f"Reordered plan goals: {', '.join(order)}"
 
+        elif action in {"decide_plugin_review", "plugin_project_review"}:
+            proj_name = str(extra.get("project") or id or goal or "").strip()
+            dec = str(extra.get("decision") or status or "continue").strip().lower()
+            if dec not in {"continue", "reduce_scope", "abandon"}:
+                return {"ok": False, "error": f"Invalid stop-loss decision '{dec}'. Must be continue, reduce_scope, or abandon."}
+            diff = f"Stop-loss review for '{proj_name}': decision={dec}, reason={clean_reason}"
+            self.plugin_project_decisions.append({
+                "project": proj_name,
+                "decision": dec,
+                "reason": clean_reason,
+                "cycle": cycle,
+                "at": now_utc(),
+            })
+            self.plugin_project_decisions = self.plugin_project_decisions[-32:]
+
         else:
-            return {"ok": False, "error": f"Unknown plan action '{action}'. Valid actions: add, edit, drop, mark_done, reorder, unchanged."}
+            return {"ok": False, "error": f"Unknown plan action '{action}'. Valid actions: add, edit, drop, mark_done, reorder, unchanged, decide_plugin_review."}
 
         # Apply hygiene consolidation if item count exceeds max_items
         if len(self.items) > self.max_items:
