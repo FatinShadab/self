@@ -162,6 +162,7 @@ flowchart LR
 | `/decisions` | `coordinator.recent_decisions()` `[read] line 2403` | Lists the last 10 human input decisions with their reasons. |
 | `/goal <text>` | `coordinator.receive_human_input(..., kind="goal")` `[read] line 2407` | Queues a human goal to consider for the next cycle; starts agent if stopped. |
 | `/plugins <subcmd>` | `coordinator.handle_plugins_command(args)` `[read] line 2410` | Lists plugins (`/plugins list`) or enables/disables them (`/plugins enable <name>`, `/plugins disable <name>`). |
+| `/<plugin_cmd> <args>`| `coordinator.handle_slash_command(text)` `[read] agent/session/coordinator.py:518` | Dispatches to active plugin-registered slash commands (e.g. `/pet <message>`). Does not pollute agent inbox. |
 
 ---
 

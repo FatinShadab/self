@@ -166,8 +166,8 @@ To decouple the core agent from the Linux container and enable specialized bodie
    - *Implementation:* `loop.py` decomposes prompts into core rules, dynamic body embodiment (`body.describe().embodiment`), and delimited plugin embodiment and seeds.
 3. **State Partitioning & Namespace Organization — Difficulty: MEDIUM [IMPLEMENTED in Prompt 11]**
    - *Implementation:* Plugin state is isolated in `workspace/plugins/<name>/state/`, excluded from hash verification.
-4. **Tool Registry & Dynamic Offerings — Difficulty: LOW [IMPLEMENTED in Prompt 11]**
-   - *Implementation:* `PluginManager` dynamically registers namespaced tools `<plugin>.<tool>`, validates schemas, rejects core collisions, and dispatches calls.
+4. **Tool Registry & Dynamic Offerings — Difficulty: LOW [IMPLEMENTED in Prompt 11 & 16]**
+   - *Implementation:* `PluginManager` dynamically registers namespaced tools `<plugin>.<tool>`, validates schemas, rejects core collisions, and dispatches calls. Slash commands registered by active plugins (such as `/pet <message>` in `pet_companion`) dispatch directly to plugin handlers without polluting agent task queues.
 5. **Plan Seeding & Startup Tasks — Difficulty: LOW [IMPLEMENTED in Prompt 10 & 11]**
    - *Implementation:* Initial seed task parameterized via `body.initial_orientation_task()` and plugin starting goal seeds.
 6. **Identity Framing & Default Interests — Difficulty: LOW [IMPLEMENTED in Prompt 10]**

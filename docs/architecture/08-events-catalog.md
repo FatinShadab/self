@@ -72,6 +72,12 @@ This catalog documents all **101** unique event types statically found across th
 | `plan_hygiene_applied` | `[read] agent/learning/plan.py:574` | `cycle`, `diff`, `plan_version` | Completed and dropped goals were cleaned from state/plan.json. |
 | `plan_unchanged` | `[read] agent/learning/plan.py:444`<br>`[read] agent/learning/plan.py:300` | `cycle`, `diff`, `evidence`, `plan_version`, `reason`, `source` | The agent (source='agent') or harness fallback (source='harness_auto') affirmed that the existing plan remains valid. |
 | `plan_updated` | `[read] agent/learning/plan.py:381` | `cycle`, `diff`, `evidence`, `plan_version`, `reason` | The agent modified state/plan.json citing evidence and reasons. |
+| `plugin_command_error` | `[read] agent/plugins/manager.py:539` | `command`, `error`, `plugin` | An error occurred while executing a plugin-registered slash command. |
+| `plugin_disabled` | `[read] agent/plugins/manager.py:441` | `plugin` | A plugin was deactivated at a cycle boundary. |
+| `plugin_enabled` | `[read] agent/plugins/manager.py:417` | `hash`, `plugin`, `version` | A plugin was activated and dynamic tools registered at a cycle boundary. |
+| `plugin_hash_mismatch` | `[read] agent/plugins/manager.py:524` | `actual`, `expected`, `plugin` | An enabled plugin was refused because its disk hash diverged from the pinned hash. |
+| `plugin_load_failed` | `[read] agent/plugins/manager.py:249`<br>`[read] agent/plugins/manager.py:288` | `error`, `plugin` | A plugin failed schema parsing, core compatibility, or dynamic loading. |
+| `plugin_removed` | `[read] agent/plugins/manager.py:465` | `archive_path`, `mode`, `plugin` | A plugin was removed and archived or purged by operator command. |
 | `provider_backoff` | `[read] agent/llm/brain_router.py:155` | `detail`, `provider`, `seconds` | The brain router applied exponential backoff after a provider rate limit. |
 | `provider_benchmark_completed` | `[read] agent/tools/benchmark.py:37` | `cases_per_provider`, `providers` | A local benchmark run across configured providers completed. |
 | `provider_call_attempt` | `[read] agent/llm/brain_router.py:125` | `model`, `provider`, `provider_call_number` | A supplementary provider API call was initiated via the brain router. |
