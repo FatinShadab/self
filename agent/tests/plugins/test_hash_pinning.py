@@ -36,7 +36,7 @@ class HashPinningTests(unittest.TestCase):
         manifest = {
             "name": "secure_plugin",
             "version": "0.1.0",
-            "core_api": "1.0.0",
+            "core_api": ">=1.0.0,<2.0.0",
             "kind": "skill",
             "description": "Secure plugin with hash verification",
             "tools": [{"name": "compute", "description": "compute"}],
@@ -112,7 +112,7 @@ class HashPinningTests(unittest.TestCase):
         manifest = {
             "name": "stateful_plugin",
             "version": "0.1.0",
-            "core_api": "1.0.0",
+            "core_api": ">=1.0.0,<2.0.0",
             "kind": "skill",
             "description": "Stateful plugin",
             "tools": [{"name": "ping", "description": "ping"}],
