@@ -292,11 +292,19 @@ class LearningStore:
         self.logger.log("memory_retrieval", query=query[:500], selected=len(selected), total=len(entries))
         if not selected:
             return "No closely related persistent memories yet."
-        return "\n".join(
-            f"- Tried: {entry.get('what_was_tried', '')}\n  Outcome: {entry.get('outcome', '')}\n"
-            f"  Lesson: {entry.get('lesson', '')}\n  Tags: {', '.join(entry.get('tags', []))}"
-            for entry in selected
-        )[:12_000]
+        def _fmt_entry(entry: dict) -> str:
+            lines = [
+                f"- Tried: {entry.get('what_was_tried', '')}",
+                f"  Outcome: {entry.get('outcome', '')}",
+                f"  Lesson: {entry.get('lesson', '')}",
+                f"  Tags: {', '.join(entry.get('tags', []))}",
+            ]
+            rp = entry.get("report_path")
+            if rp:
+                lines.append(f"  Report: {rp}")
+            return "\n".join(lines)
+
+        return "\n".join(_fmt_entry(e) for e in selected)[:12_000]
 
     def map_context(self, active_plugins: Any = None) -> str:
         """Return verified environment-map context for a prompt."""

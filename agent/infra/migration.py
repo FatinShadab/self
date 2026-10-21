@@ -10,17 +10,122 @@ from pathlib import Path
 from typing import Any
 
 def deterministic_summary(text: str, max_chars: int = 280) -> str:
-    """Produce a deterministic bounded summary of text without LLM or token spend."""
+    """Produce a deterministic bounded summary of cycle-report text.
+
+    Rules (applied in order):
+    1. Empty input → sentinel string.
+    2. Already ≤ max_chars → returned unchanged (no report file).
+    3. Strip markdown noise and boilerplate header lines.
+    4. Prefer a "findings" section if one is present.
+    5. Otherwise: first sentence + (if room) last sentence.
+    6. Cut at a sentence/clause boundary; append "…" only when truncated.
+    """
+    import re
+
     if not text:
         return "Cycle completed without a textual report."
-    clean = " ".join(text.strip().split())
-    if len(clean) <= max_chars:
-        return clean
-    truncated = clean[:max_chars - 3]
-    last_space = truncated.rfind(" ")
-    if last_space > max_chars // 2:
-        truncated = truncated[:last_space]
-    return truncated + "..."
+
+    # ── 1. Collapse unicode non-breaking / thin spaces to regular space ──────
+    text = text.replace("\u00a0", " ").replace("\u202f", " ").replace("\u2011", "-")
+
+    # ── 2. Split into lines and strip markdown noise from each line ──────────
+    _MD_INLINE = re.compile(r"\*{1,2}([^*]*?)\*{1,2}|`([^`]*)`")
+    _MD_HEADER = re.compile(r"^#+\s*")
+    _MD_LIST   = re.compile(r"^\s*(\d+\.|\d+\)|\*|-|\+|[>|])\s+")
+
+    def _clean_line(ln: str) -> str:
+        ln = _MD_HEADER.sub("", ln)
+        ln = _MD_LIST.sub("", ln)
+        ln = _MD_INLINE.sub(lambda m: m.group(1) or m.group(2) or "", ln)
+        return ln.strip()
+
+    # ── 3. Remove boilerplate header lines & lead-in prefixes ────────────────
+    _TITLE_LINE = re.compile(
+        r"^(cycle\s*[\u2011\-]?\s*\d+.*|exploration\s+cycle\s*\d+.*"
+        r"|what\s+i\s+(did|observed|explored|discovered|learned).*"
+        r"|narrative\s+of\s+actions.*"
+        r"|narration\s*:?\s*$"
+        r"|action\s+taken\s*:?\s*$"
+        r"|recorded\s+observation\s*:?\s*$)",
+        re.IGNORECASE,
+    )
+    _LEAD_IN = re.compile(
+        r"^(narration|action\s+taken|recorded\s+observation)\s*:\s*",
+        re.IGNORECASE,
+    )
+
+    lines = text.splitlines()
+    body_lines: list[str] = []
+    for ln in lines:
+        cleaned = _clean_line(ln)
+        if not cleaned:
+            continue
+        if _TITLE_LINE.match(cleaned):
+            continue
+        cleaned = _LEAD_IN.sub("", cleaned).strip()
+        if cleaned:
+            body_lines.append(cleaned)
+
+    body = " ".join(body_lines)
+    body = re.sub(r"\s{2,}", " ", body).strip()
+
+    if not body:
+        body = text.strip()
+
+    if len(body) <= max_chars:
+        return body
+
+    # ── 4. Look for a preferred section ─────────────────────────────────────
+    _SECTION = re.compile(
+        r"(?:^|\s)(?:Discoveries?|Findings?|Lesson|Result|What\s+I\s+learned?|Next)\s*[:\-]?\s*",
+        re.IGNORECASE,
+    )
+    m = _SECTION.search(body)
+    if m:
+        candidate = body[m.start():].strip(" .\t-:")
+        if len(candidate) >= max_chars // 4:
+            body = candidate
+    else:
+        # If no preferred section exists, take first sentence plus last sentence
+        # (with ellipsis between if intermediate sentences were omitted)
+        sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+(?=[A-Za-z0-9])", body) if s.strip()]
+        if len(sentences) >= 3:
+            combined = f"{sentences[0]} … {sentences[-1]}"
+            if len(combined) <= max_chars:
+                return combined
+            body = combined
+        elif len(sentences) == 2:
+            combined = f"{sentences[0]} {sentences[1]}"
+            if len(combined) <= max_chars:
+                return combined
+            body = combined
+
+    if len(body) <= max_chars:
+        return body
+
+    # ── 5. Cut at a boundary ─────────────────────────────────────────────────
+    budget = max_chars - 1  # leave room for ellipsis char
+    window_start = budget - max(1, budget // 5)  # last 20 % of budget
+
+    # Prefer sentence-end boundary (. ! ?)
+    for end_char in ".!?":
+        idx = body.rfind(end_char, window_start, budget)
+        if idx != -1:
+            return body[: idx + 1] + "…"
+
+    # Fall back to clause boundary (; ,)
+    for end_char in ";,":
+        idx = body.rfind(end_char, window_start, budget)
+        if idx != -1:
+            return body[: idx + 1] + "…"
+
+    # Fall back to word boundary
+    idx = body.rfind(" ", window_start, budget)
+    if idx != -1:
+        return body[:idx] + "…"
+
+    # Hard cut
+    return body[:budget] + "…"
 
 
 def sha256_file(path: Path) -> str:
@@ -81,8 +186,7 @@ def run_migration_p14(workspace: str | Path, backup_dir: str | Path | None = Non
             backed_up.append(rel)
 
     manifest_json = json.dumps(manifest, indent=2, sort_keys=True) + "\n"
-    (backup_path / "manifest.json").write_text(manifest_json, encoding="utf-8")
-    (backup_path / "backup_manifest.json").write_text(manifest_json, encoding="utf-8")
+    (backup_path / "backup_manifest.json").write_text(manifest_json, encoding="utf-8", newline="\n")
 
     stats: dict[str, Any] = {
         "timestamp": ts,
@@ -95,6 +199,9 @@ def run_migration_p14(workspace: str | Path, backup_dir: str | Path | None = Non
         "plan_items_tagged": 0,
         "identity_interests_tagged": 0,
         "tools_meta_tagged": 0,
+        "entries_with_report": 0,
+        "entries_left_alone": 0,
+        "entries_already_4000": 0,
     }
 
     # 2. Migrate memory.jsonl: bounded summary + report pointer + tags
@@ -122,16 +229,26 @@ def run_migration_p14(workspace: str | Path, backup_dir: str | Path | None = Non
                 rec.setdefault("body", "container")
 
                 orig_lesson = rec.get("lesson", "")
-                if "report_path" not in rec and orig_lesson:
+                if "report_path" in rec:
+                    # Already migrated – leave lesson and report_path unchanged (idempotent)
+                    pass
+                elif orig_lesson and len(orig_lesson) > 280:
+                    # Needs bounding: write full report, store summary in lesson
                     report_file = f"report_migrated_{idx:05d}.txt"
                     report_rel = f"state/reports/{report_file}"
                     report_abs = ws / report_rel
                     if not report_abs.exists():
-                        report_abs.write_text(orig_lesson, encoding="utf-8")
+                        report_abs.write_text(orig_lesson, encoding="utf-8", newline="\n")
                     rec["report_path"] = report_rel
                     rec["lesson"] = deterministic_summary(orig_lesson)
-                elif "report_path" not in rec:
-                    rec["lesson"] = deterministic_summary(orig_lesson)
+                    stats["entries_with_report"] += 1
+                    if len(orig_lesson) == 4000:
+                        stats["entries_already_4000"] += 1
+                elif orig_lesson:
+                    # Short lesson – keep as-is, no report file
+                    stats["entries_left_alone"] += 1
+                    if len(orig_lesson) == 4000:
+                        stats["entries_already_4000"] += 1
 
                 stats["memory_migrated"] += 1
                 new_lines.append(json.dumps(rec, ensure_ascii=False, separators=(",", ":")))
@@ -139,7 +256,7 @@ def run_migration_p14(workspace: str | Path, backup_dir: str | Path | None = Non
                 new_lines.append(line_str)
 
         tmp_mem = mem_path.with_suffix(".tmp")
-        tmp_mem.write_text("\n".join(new_lines) + ("\n" if new_lines else ""), encoding="utf-8")
+        tmp_mem.write_text("\n".join(new_lines) + ("\n" if new_lines else ""), encoding="utf-8", newline="\n")
         tmp_mem.replace(mem_path)
         stats["memory_bytes_after"] = mem_path.stat().st_size
 
@@ -157,7 +274,7 @@ def run_migration_p14(workspace: str | Path, backup_dir: str | Path | None = Non
                         ent.setdefault("body", "container")
                         stats["map_entries_tagged"] += 1
                 tmp_map = map_path.with_suffix(".tmp")
-                tmp_map.write_text(json.dumps(map_data, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+                tmp_map.write_text(json.dumps(map_data, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
                 tmp_map.replace(map_path)
         except (OSError, json.JSONDecodeError):
             pass
@@ -176,7 +293,7 @@ def run_migration_p14(workspace: str | Path, backup_dir: str | Path | None = Non
                         it.setdefault("body", "container")
                         stats["plan_items_tagged"] += 1
                 tmp_plan = plan_path.with_suffix(".tmp")
-                tmp_plan.write_text(json.dumps(plan_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+                tmp_plan.write_text(json.dumps(plan_data, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
                 tmp_plan.replace(plan_path)
         except (OSError, json.JSONDecodeError):
             pass
@@ -202,7 +319,7 @@ def run_migration_p14(workspace: str | Path, backup_dir: str | Path | None = Non
                         stats["identity_interests_tagged"] += 1
                 id_data["interests"] = tagged_interests
                 tmp_id = id_path.with_suffix(".tmp")
-                tmp_id.write_text(json.dumps(id_data, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8")
+                tmp_id.write_text(json.dumps(id_data, indent=2, ensure_ascii=False, sort_keys=True) + "\n", encoding="utf-8", newline="\n")
                 tmp_id.replace(id_path)
         except (OSError, json.JSONDecodeError):
             pass
@@ -214,7 +331,7 @@ def run_migration_p14(workspace: str | Path, backup_dir: str | Path | None = Non
             text = notes_path.read_text(encoding="utf-8")
             if not text.startswith("---") and not text.startswith("<!-- tags:"):
                 tagged_text = "<!-- tags: plugin=core body=container -->\n" + text
-                notes_path.write_text(tagged_text, encoding="utf-8")
+                notes_path.write_text(tagged_text, encoding="utf-8", newline="\n")
         except OSError:
             pass
 
@@ -228,7 +345,7 @@ def run_migration_p14(workspace: str | Path, backup_dir: str | Path | None = Non
                     meta.setdefault("body", "container")
                     stats["tools_meta_tagged"] += 1
                     tmp_tool = meta_file.with_suffix(".tmp")
-                    tmp_tool.write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+                    tmp_tool.write_text(json.dumps(meta, indent=2, ensure_ascii=False) + "\n", encoding="utf-8", newline="\n")
                     tmp_tool.replace(meta_file)
             except (OSError, json.JSONDecodeError):
                 pass
@@ -245,11 +362,14 @@ def run_migration_p14(workspace: str | Path, backup_dir: str | Path | None = Non
         f"Map entries tagged: {stats['map_entries_tagged']}\n"
         f"Plan items tagged: {stats['plan_items_tagged']}\n"
         f"Identity interests tagged: {stats['identity_interests_tagged']}\n"
-        f"Tool meta records tagged: {stats['tools_meta_tagged']}\n\n"
+        f"Tool meta records tagged: {stats['tools_meta_tagged']}\n"
+        f"Entries with report file: {stats['entries_with_report']}\n"
+        f"Entries left unchanged (short lesson): {stats['entries_left_alone']}\n"
+        f"Entries already at 4000 chars (upstream truncation): {stats['entries_already_4000']}\n\n"
         f"To restore pre-migration files byte-for-byte:\n"
         f"  python scripts/migrate_p14_tagged_state.py --restore {backup_path}\n"
     )
-    log_file.write_text(log_content, encoding="utf-8")
+    log_file.write_text(log_content, encoding="utf-8", newline="\n")
 
     return stats
 

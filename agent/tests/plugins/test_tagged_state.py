@@ -472,9 +472,9 @@ class TaggedStateAcceptanceTests(unittest.TestCase):
         migration_stats = run_migration_p14(self.workspace)
         backup_path = migration_stats["backup_path"]
 
-        # Verify backup manifest existence and contents
+        # Verify backup manifest existence and contents: only backup_manifest.json is written
         self.assertTrue((Path(backup_path) / "backup_manifest.json").exists())
-        self.assertTrue((Path(backup_path) / "manifest.json").exists())
+        self.assertFalse((Path(backup_path) / "manifest.json").exists())
 
         # Verify migration results
         # 1. Audit trail was NEVER touched or rewritten!
