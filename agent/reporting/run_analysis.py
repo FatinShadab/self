@@ -124,7 +124,7 @@ def analyze_run(
             failure_counts[f"denied:{act}({lvl})"] += 1
             if c in cycles_data:
                 cycles_data[c].failures.append(f"denied:{act}")
-        elif evt_name == "duplicate_action_blocked":
+        elif evt_name in {"duplicate_action_blocked", "repeated_tool_action_blocked"}:
             t_name = str(ev.get("tool", "unknown_tool"))
             failure_counts[f"duplicate_blocked:{t_name}"] += 1
 
@@ -133,8 +133,8 @@ def analyze_run(
             plugin_event_counts[evt_name] += 1
 
         # 5. Token spend
-        in_tok = int(ev.get("input_tokens") or 0)
-        out_tok = int(ev.get("output_tokens") or 0)
+        in_tok = int(ev.get("call_input_tokens") or ev.get("input_tokens") or 0)
+        out_tok = int(ev.get("call_output_tokens") or ev.get("output_tokens") or 0)
         tot_tok = int(ev.get("total_tokens") or (in_tok + out_tok))
 
         # Check tool actions from cycle_completed
