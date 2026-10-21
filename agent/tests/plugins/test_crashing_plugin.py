@@ -36,7 +36,7 @@ class CrashingPluginTests(unittest.TestCase):
         manifest = {
             "name": "broken_syntax",
             "version": "0.1.0",
-            "core_api": "0.1.0",
+            "core_api": "1.0.0",
             "kind": "skill",
             "description": "Broken syntax plugin",
             "tools": [{"name": "broken_tool", "description": "broken"}],
@@ -74,7 +74,7 @@ class CrashingPluginTests(unittest.TestCase):
         manifest = {
             "name": "crashing_enable",
             "version": "0.1.0",
-            "core_api": "0.1.0",
+            "core_api": "1.0.0",
             "kind": "skill",
             "description": "Crashing on_enable plugin",
             "tools": [{"name": "noop", "description": "noop"}],
@@ -112,7 +112,7 @@ class CrashingPluginTests(unittest.TestCase):
         manifest = {
             "name": "crashing_tool",
             "version": "0.1.0",
-            "core_api": "0.1.0",
+            "core_api": "1.0.0",
             "kind": "skill",
             "description": "Plugin with crashing tool",
             "tools": [{"name": "fail_now", "description": "always fails"}],

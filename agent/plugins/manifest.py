@@ -7,7 +7,7 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-CORE_API_VERSION = "0.1.0"
+CORE_API_VERSION = "1.0.0"
 VALID_KINDS = frozenset({"body", "skill", "both"})
 VALID_RISK_CLASSES = frozenset({"reads", "writes", "executes", "network"})
 
@@ -35,12 +35,14 @@ def _parse_version(v: str) -> tuple[int, int, int]:
 def is_core_api_compatible(required_range: str, current_api: str = CORE_API_VERSION) -> bool:
     """Check if the current core API version satisfies the plugin's compatible range."""
     required = required_range.strip()
-    if not required or required in {"*", "any"}:
+    if not required:
+        return False
+    if required in {"*", "any"}:
         return True
 
     curr = _parse_version(current_api)
 
-    # Check comma-separated range clauses e.g. '>=0.1.0,<1.0.0'
+    # Check comma-separated range clauses e.g. '>=1.0.0,<2.0.0' or '>=1.0,<2.0'
     clauses = [c.strip() for c in required.split(",") if c.strip()]
     for clause in clauses:
         if clause.startswith("^"):
@@ -79,6 +81,10 @@ def is_core_api_compatible(required_range: str, current_api: str = CORE_API_VERS
             target = _parse_version(clause[2:])
             if curr != target:
                 return False
+        elif clause.startswith("="):
+            target = _parse_version(clause[1:])
+            if curr != target:
+                return False
         else:
             # Exact match
             target = _parse_version(clause)
@@ -89,6 +95,7 @@ def is_core_api_compatible(required_range: str, current_api: str = CORE_API_VERS
 
 @dataclass
 class PluginSensor:
+    """Declared passive sensor telemetry specification."""
     name: str
     description: str
     risk_class: str
@@ -98,6 +105,7 @@ class PluginSensor:
 
 @dataclass
 class PluginAction:
+    """Declared environmental action specification."""
     name: str
     description: str
     risk_class: str
@@ -107,12 +115,14 @@ class PluginAction:
 
 @dataclass
 class DeclaredNeeds:
+    """Declared external prerequisites for plugin operation."""
     env_vars: list[str] = field(default_factory=list)
     mounts: list[str] = field(default_factory=list)
 
 
 @dataclass
 class PluginManifest:
+    """Parsed and validated plugin manifest representation."""
     name: str
     version: str
     core_api: str
@@ -129,6 +139,7 @@ class PluginManifest:
     tests_entry_point: str = ""
 
     def to_dict(self) -> dict[str, Any]:
+        """Convert manifest object to standard dictionary representation."""
         return {
             "name": self.name,
             "version": self.version,
@@ -168,7 +179,11 @@ class PluginManifest:
         }
 
 
-def parse_manifest(source: dict[str, Any] | str | Path) -> PluginManifest:
+def parse_manifest(
+    source: dict[str, Any] | str | Path,
+    current_api: str = CORE_API_VERSION,
+    check_compatibility: bool = True,
+) -> PluginManifest:
     """Parse and strictly validate a plugin.json manifest."""
     if isinstance(source, (str, Path)):
         path = Path(source)
@@ -195,10 +210,10 @@ def parse_manifest(source: dict[str, Any] | str | Path) -> PluginManifest:
 
     core_api = str(raw.get("core_api", "")).strip()
     if not core_api:
-        raise PluginManifestValidationError("Plugin 'core_api' compatible range is required.")
-    if not is_core_api_compatible(core_api):
+        raise PluginManifestValidationError(f"Plugin '{name}' core_api field is missing or empty. A valid core_api compatible range is required.")
+    if check_compatibility and not is_core_api_compatible(core_api, current_api=current_api):
         raise PluginManifestValidationError(
-            f"Plugin '{name}' core_api range '{core_api}' is incompatible with core version '{CORE_API_VERSION}'."
+            f"Plugin '{name}' core_api range '{core_api}' is incompatible with core version '{current_api}'."
         )
 
     kind = str(raw.get("kind", "")).strip().lower()

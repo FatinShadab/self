@@ -2,11 +2,13 @@
 from __future__ import annotations
 
 from agent.plugins.manifest import (
+    CORE_API_VERSION,
     DeclaredNeeds,
     PluginAction,
     PluginManifest,
     PluginManifestValidationError,
     PluginSensor,
+    is_core_api_compatible,
     parse_manifest,
 )
 from agent.plugins.manager import (
@@ -16,6 +18,7 @@ from agent.plugins.manager import (
 )
 
 __all__ = [
+    "CORE_API_VERSION",
     "DeclaredNeeds",
     "Plugin",
     "PluginAction",
@@ -24,5 +27,6 @@ __all__ = [
     "PluginManifestValidationError",
     "PluginSensor",
     "compute_plugin_hash",
+    "is_core_api_compatible",
     "parse_manifest",
 ]
