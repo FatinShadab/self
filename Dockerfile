@@ -35,6 +35,9 @@ COPY agent/requirements.txt /opt/agent/requirements.txt
 RUN python -m pip install --no-cache-dir --default-timeout=120 -r /opt/agent/requirements.txt
 
 COPY agent/ /opt/agent/
+COPY VERSION /opt/agent/VERSION
+COPY docs/plugins/ /opt/agent/docs/plugins/
+COPY plugins/_template /opt/agent/plugins/_template/
 
 # Keep the full package tree image-owned and read-only.  The legacy core
 # citations used by identity explanations resolve to the moved sources.

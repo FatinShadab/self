@@ -34,6 +34,7 @@ a person, biological life-form, or proof of consciousness.
 | **Models** | Configure a base model and eligible helpers for bounded subtasks, critic calls, and reflections; probe availability and report outcomes. |
 | **Interface** | Terminal UI with plans, status, model choices, coverage, goals, stop/pause controls, optional voice, and a separate read-only conversation channel. |
 | **Identity** | Keep a small, evidence-backed operating record and a file-and-line explanation of its code. |
+| **Plugins** | Modular specialization framework for decoupled bodies and skills with static SDK CLI and SHA-256 hash pinning. |
 | **Evaluation** | Run host-only calibration and randomized helper-model A/B experiments without exposing hidden tasks to the agent service. |
 
 See the [harness architecture](agent/README.md) for the package map and code
@@ -567,6 +568,35 @@ it clears the repository's workspace, checks A–E output, writes a name through
 the identity API, validates a later
 named greeting and protected-core rejection, and confirms a proposed patch is
 saved for human review.
+
+## Plugins
+
+SELF features a modular specialization plugin system that decouples the reusable core agent from specialized bodies (senses and actions) and skills (tools and goal seeds).
+
+- **[Plugin Overview](docs/plugins/overview.md)** — What plugins are, how they differ from ad-hoc tools, and plugin classes (`body`, `skill`, `both`).
+- **[Manifest Reference](docs/plugins/manifest-reference.md)** — Complete schema specification for `plugin.json` and core API compatibility ranges.
+- **[Authoring Guide](docs/plugins/authoring-guide.md)** — Step-by-step tutorial for scaffolding, implementing, and validating plugins using the Plugin SDK CLI.
+- **[Permissions and Risk](docs/plugins/permissions-and-risk.md)** — Risk levels (L0–L3), reversibility rules, and human governance via `/config/permissions.json`.
+- **[Lifecycle and Hash Pinning](docs/plugins/lifecycle.md)** — Dynamic plug/unplug, cycle boundary synchronization, SHA-256 hash pinning, and version upgrades.
+- **[Testing and Verification](docs/plugins/testing.md)** — Unit testing, simulation testing, and scenario verification.
+
+### Plugin SDK CLI
+
+The SDK includes a static CLI for developer workflows:
+
+```bash
+# Scaffold a new plugin skeleton from the built-in template
+python -m agent.plugins new <name>
+
+# Statically validate a plugin manifest and structure without executing code
+python -m agent.plugins validate plugins/<name>
+
+# List discovered plugins, enablement status, and SHA-256 hash pinning
+python -m agent.plugins list
+
+# Check compatibility of all plugins against the current core API version
+python -m agent.plugins check
+```
 
 ## Contributing and project policies
 
