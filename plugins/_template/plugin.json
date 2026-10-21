@@ -1,0 +1,57 @@
+{
+  "name": "_template",
+  "version": "1.0.0",
+  "core_api": ">=1.0.0,<2.0.0",
+  "kind": "both",
+  "description": "Template plugin demonstrating dynamic tools, sensors, actions, and tests.",
+  "tools": [
+    {
+      "name": "sample_tool",
+      "description": "Echoes a message with plugin metadata.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Input message to echo",
+            "default": "hello"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      }
+    }
+  ],
+  "sensors": [
+    {
+      "name": "sample_sensor",
+      "description": "Observes template plugin operational status.",
+      "risk_class": "reads",
+      "reversible": true,
+      "required_permission_level": "L0"
+    }
+  ],
+  "actions": [
+    {
+      "name": "sample_action",
+      "description": "Executes a simulated reversible operation.",
+      "risk_class": "executes",
+      "reversible": true,
+      "required_permission_level": "L1"
+    }
+  ],
+  "starting_goal_seeds": [
+    "Verify template plugin installation and report status."
+  ],
+  "embodiment": "I have template specialization capabilities available.",
+  "identity_notes": [
+    "I provide template tooling and sensor telemetry for demonstration."
+  ],
+  "state_dir": "state",
+  "declared_needs": {
+    "env_vars": [],
+    "mounts": []
+  },
+  "tests_entry_point": "tests/test_plugin.py"
+}
