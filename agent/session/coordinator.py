@@ -514,6 +514,12 @@ class WakeCoordinator:
 
         return "Unknown plugins command. Usage: /plugins list, /plugins enable <name>, /plugins disable <name>"
 
+    def handle_slash_command(self, text: str) -> str | None:
+        """Dispatch a human-facing slash command to active plugins."""
+        if hasattr(self, "plugins") and self.plugins is not None:
+            return self.plugins.handle_slash_command(text)
+        return None
+
     def _orientation_changes(self) -> list[str]:
         sense_data = self.body.sense()
         changes = sense_data.get("orientation_changes")

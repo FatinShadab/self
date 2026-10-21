@@ -114,6 +114,14 @@ class PluginAction:
 
 
 @dataclass
+class PluginCommand:
+    """Declared human-facing slash command specification."""
+    name: str
+    description: str
+    usage: str = ""
+
+
+@dataclass
 class DeclaredNeeds:
     """Declared external prerequisites for plugin operation."""
     env_vars: list[str] = field(default_factory=list)
@@ -137,6 +145,7 @@ class PluginManifest:
     state_dir: str = ""
     declared_needs: DeclaredNeeds = field(default_factory=DeclaredNeeds)
     tests_entry_point: str = ""
+    commands: list[PluginCommand] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert manifest object to standard dictionary representation."""
@@ -176,6 +185,14 @@ class PluginManifest:
                 "mounts": self.declared_needs.mounts,
             },
             "tests_entry_point": self.tests_entry_point,
+            "commands": [
+                {
+                    "name": c.name,
+                    "description": c.description,
+                    "usage": c.usage,
+                }
+                for c in self.commands
+            ],
         }
 
 
@@ -323,6 +340,21 @@ def parse_manifest(
 
     tests_entry_point = str(raw.get("tests_entry_point", "")).strip()
 
+    # Commands (optional list of human-facing slash commands)
+    raw_commands = raw.get("commands", [])
+    if not isinstance(raw_commands, list):
+        raise PluginManifestValidationError("Plugin 'commands' must be a list of command definitions.")
+    commands: list[PluginCommand] = []
+    for idx, c in enumerate(raw_commands):
+        if not isinstance(c, dict):
+            raise PluginManifestValidationError(f"Command at index {idx} must be a dict.")
+        c_name = str(c.get("name", "")).strip().lstrip("/")
+        c_desc = str(c.get("description", "")).strip()
+        c_usage = str(c.get("usage", "")).strip()
+        if not c_name:
+            raise PluginManifestValidationError(f"Command at index {idx} requires a 'name'.")
+        commands.append(PluginCommand(name=c_name, description=c_desc, usage=c_usage))
+
     return PluginManifest(
         name=name,
         version=version,
@@ -338,4 +370,5 @@ def parse_manifest(
         state_dir=state_dir,
         declared_needs=declared_needs,
         tests_entry_point=tests_entry_point,
+        commands=commands,
     )

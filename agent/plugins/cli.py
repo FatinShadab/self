@@ -280,6 +280,20 @@ def cmd_validate(
         if state_path.is_absolute() or ".." in state_path.parts:
             errors.append(f"Plugin 'state_dir' must be a relative subdirectory, got: {state_dir!r}")
 
+    # Commands validation (optional)
+    raw_commands = raw.get("commands")
+    if raw_commands is not None:
+        if not isinstance(raw_commands, list):
+            errors.append("Plugin 'commands' must be a list.")
+        else:
+            for idx, c in enumerate(raw_commands):
+                if not isinstance(c, dict):
+                    errors.append(f"Command at index {idx} must be a dict.")
+                    continue
+                c_name = str(c.get("name", "")).strip()
+                if not c_name:
+                    errors.append(f"Command at index {idx} requires a 'name'.")
+
     # 7. Tests folder verification
     tests_entry = str(raw.get("tests_entry_point", "")).strip()
     tests_dir = plugin_dir / "tests"
@@ -370,7 +384,7 @@ def cmd_list(
         if not base.exists() or not base.is_dir():
             return
         for entry in sorted(base.iterdir()):
-            if entry.name in {"_archive", "_template"} or entry.name.startswith(("_", ".")):
+            if entry.name in {"_archive", "_template", "examples"} or entry.name.startswith(("_", ".")):
                 continue
             manifest_file = entry / "plugin.json"
             if entry.is_dir() and manifest_file.exists():
@@ -419,7 +433,11 @@ def cmd_list(
 
     # Scan shipped and workspace
     scan_dir(shipped_d, "shipped")
+    if (shipped_d / "examples").exists() and (shipped_d / "examples").is_dir():
+        scan_dir(shipped_d / "examples", "shipped")
     scan_dir(ws / "plugins", "workspace")
+    if (ws / "plugins" / "examples").exists() and (ws / "plugins" / "examples").is_dir():
+        scan_dir(ws / "plugins" / "examples", "workspace")
 
     if output_json:
         print(json.dumps(list(discovered.values()), indent=2))
@@ -458,7 +476,7 @@ def cmd_check(
         if not base.exists() or not base.is_dir():
             return
         for entry in sorted(base.iterdir()):
-            if entry.name in {"_archive", "_template"} or entry.name.startswith(("_", ".")):
+            if entry.name in {"_archive", "_template", "examples"} or entry.name.startswith(("_", ".")):
                 continue
             manifest_file = entry / "plugin.json"
             if entry.is_dir() and manifest_file.exists():
@@ -502,7 +520,11 @@ def cmd_check(
                     })
 
     scan_dir(shipped_d, "shipped")
+    if (shipped_d / "examples").exists() and (shipped_d / "examples").is_dir():
+        scan_dir(shipped_d / "examples", "shipped")
     scan_dir(ws / "plugins", "workspace")
+    if (ws / "plugins" / "examples").exists() and (ws / "plugins" / "examples").is_dir():
+        scan_dir(ws / "plugins" / "examples", "workspace")
 
     if output_json:
         print(json.dumps({"current_core_api": current_api, "all_compatible": all_compatible, "plugins": results}, indent=2))

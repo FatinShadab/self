@@ -1407,6 +1407,12 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                     self._command_response("The previous session had ended, so I am waking to work on it now.", "input")
                     self._start_agent()
                 return
+            if text.startswith("/"):
+                plugin_resp = coordinator.handle_slash_command(text)
+                if plugin_resp is not None:
+                    self._write_command(text)
+                    self._command_response(plugin_resp, "input")
+                    return
             # An open reflection receives the next ordinary human message;
             # otherwise ordinary chat remains separate from autonomous input.
             self._ordinary_human_message(text)
