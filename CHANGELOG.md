@@ -7,6 +7,17 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 ## [1.1.0] - 2026-10-21
 
 ### Added
+- **Plugin Self-Development & Cost Awareness Pipeline (Prompt 17)**:
+  - `CostLedger` primitive (`state/cost_ledger.jsonl`) aggregating measured token spend, LLM calls, wall-clock duration, cycles, and attempts for custom tools and plugin development projects.
+  - Six new autonomous tools on `ToolRunner`: `read_cost_ledger`, `propose_plugin`, `scaffold_plugin`, `validate_plugin`, `test_plugin`, `request_plugin_review`.
+  - Proposal requirements with 10 mandatory fields; cost estimates must reference measured ledger medians and p90 baselines, rejecting contradictory figures.
+  - Isolated draft area in `workspace/plugin_dev/<name>/`; discovery strictly ignores `plugin_dev/`.
+  - Advisory static validation (`validate_plugin`) scanning manifest schema, namespacing, permissions, secret credential access, undeclared network/subprocess use, and prompt injection patterns.
+  - Sandboxed test runner (`test_plugin`) executing in child process with stripped credentials and loopback proxy routing (`127.0.0.1:0`).
+  - Strict critic review prompt (`PLUGIN_CRITIC_PROMPT`) checking declared action risk levels, untrusted data handling, state isolation, unplug behavior, and test quality, subject to daily token ledger budget reservations.
+  - Stop-loss review checkpoints at 25%, 50%, and 100% of estimate upper bound; unacknowledged thresholds block further self-dev tools until explicit continue / reduce_scope / abandon plan decisions are recorded.
+  - Human governance commands: `/proposals`, `/proposals comment <name> <comment>`, and `/plugins promote <name>`.
+  - Added `"proposal"` and `"proposals"` to `RESERVED_SLASH_COMMANDS`.
 - **Plugin Slash Command Framework**:
   - `PluginCommand` manifest specification and core API registration mechanism.
   - Manifest field `commands` allowing plugins to declare human-facing slash commands.
@@ -19,6 +30,9 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Sensors (`pet_status`, `habitat_status`), actions (`feed`, `play`, `rest_pet` at L1; irreversible `release_pet` at L2 denied by default), and conversation tool (`talk_to_pet`).
   - Human direct slash command `/pet <message>`.
   - Embodiment text ensuring first-person agent identity is maintained and virtual pet state is not interpreted as sentience.
+
+### Changed
+- **System Prompt Head**: Added the explicit 5-rung capability ladder (a. existing tools, b. helper model, c. create a tool, d. develop a plugin, e. request capability expansion from human; lowest rung preferred with justification) and cost floor principles unconditionally to the core system prompt preamble. Note: This consciously modifies the baseline system prompt string from Phase 14 while preserving character-for-character prompt formatting across embodiments.
 
 ## [1.0.0] - 2026-10-21
 

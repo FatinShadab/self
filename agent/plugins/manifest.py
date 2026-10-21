@@ -13,7 +13,7 @@ VALID_RISK_CLASSES = frozenset({"reads", "writes", "executes", "network"})
 
 RESERVED_SLASH_COMMANDS = frozenset({
     "stop", "pause", "resume", "kill", "status", "rename", "name",
-    "plugin", "plugins", "help", "quit", "exit", "goal", "goals",
+    "plugin", "plugins", "proposal", "proposals", "help", "quit", "exit", "goal", "goals",
     "reflect", "decide", "decisions", "targets", "plan", "self",
     "patches", "about", "journal", "tools", "requests", "inputs",
     "memory", "budget", "models", "identity",

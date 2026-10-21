@@ -55,7 +55,14 @@ Operating rules:
 - If a supplementary provider lacks a credential, use request_provider_key. It writes /home/entity/state/key_requests.md for the human; do not create accounts or stop unrelated exploration.
 - For a separate plain-text API call to a supplementary LLM, use ask_brain only when its router confirms a configured provider and verified limits. This does not change your primary model. Never use multiple accounts or try to evade limits.
 - The primary thinking model is fixed to the configured base model. Helper models exist; you can probe and research them, then record your own evidence-backed assessment. Configured names alone do not prove accessibility.
-- Use ask_model for a plain-text helper sub-task when you choose to delegate; continuing alone is fine."""
+- Use ask_model for a plain-text helper sub-task when you choose to delegate; continuing alone is fine.
+- Capability ladder: When you need a capability, choose the lowest rung that works and state why lower rungs were not enough:
+  (a) use existing tools;
+  (b) call a helper model;
+  (c) create a tool (cheap);
+  (d) develop a plugin (expensive, slow, needs human approval to enable);
+  (e) request a capability expansion from the human.
+- Tool-level numbers from read_cost_ledger are the absolute floor for plugin estimates. A plugin is not a tool: it consists of many tool-sized pieces plus integration, simulation tests, a heavier critic review, human review time, and ongoing maintenance. Build drafts only in workspace/plugin_dev/<name>/ via scaffold_plugin; the loader never loads from plugin_dev. Only the human can promote or enable."""
 
 CORE_CAPABILITY_RULE = "- Any new credential, host mount, port, email, money, third-party account, or external service is a capability expansion. Use request_capability and wait for the human to change host .env/docker-compose; do not try to perform it yourself."
 
@@ -250,6 +257,8 @@ class AgentLoop:
         self.tools.learning = self.learning
         self.plan_store = getattr(tools, "plan_store", None) or PlanStore(config.workspace, logger)
         self.tools.plan_store = self.plan_store
+        self.tools.review_call = self.llm.call
+        self.reviewed_thresholds: dict[str, set[int]] = {}
         self.brain_router = BrainRouter(config.workspace, logger)
         self.tools.brain_router = self.brain_router
         self.capabilities = CapabilityRequests(config.workspace, logger)
@@ -262,6 +271,14 @@ class AgentLoop:
             from agent.plugins.manager import PluginManager
             self.plugins = PluginManager(config.workspace, logger=logger)
         self.tools.plugins = self.plugins
+        from agent.plugins.self_dev import PluginDevManager
+        self.plugin_dev = PluginDevManager(
+            workspace=config.workspace,
+            logger=logger,
+            cost_ledger=self.tools.cost_ledger,
+            review_call=self.llm.call,
+        )
+        self.tools.plugin_dev = self.plugin_dev
         self.broker = config.broker or getattr(tools, "broker", None)
         self.audit_trail = config.audit_trail or getattr(tools, "audit_trail", None)
         self.watcher = config.stop_watcher
@@ -380,7 +397,89 @@ class AgentLoop:
             return f"Updating plan ({action}): {str(arguments.get('reason', ''))[:100]}..."
         if name == "propose_core_patch":
             return "Saving a core-change proposal for human review..."
+        if name == "read_cost_ledger":
+            return "Reviewing measured cost baselines in the ledger..."
+        if name == "propose_plugin":
+            return f"Submitting proposal for plugin {arguments.get('name', 'project')}..."
+        if name == "scaffold_plugin":
+            return f"Scaffolding plugin draft {arguments.get('name', 'project')} in workspace/plugin_dev/..."
+        if name == "validate_plugin":
+            return f"Statically validating plugin draft {arguments.get('name', 'project')}..."
+        if name == "test_plugin":
+            return f"Running isolated tests for plugin draft {arguments.get('name', 'project')}..."
+        if name == "request_plugin_review":
+            return f"Requesting strict critic review for plugin {arguments.get('name', 'project')}..."
         return f"Using {name}..."
+
+    def _check_active_plugin_projects(self, cycle: int) -> str:
+        """Check active plugin projects for exploration nudge and stop-loss reviews."""
+        proposals_file = self.config.workspace / "state" / "plugin_proposals.jsonl"
+        if not proposals_file.exists():
+            return ""
+
+        proposals: list[dict[str, Any]] = []
+        try:
+            for line in proposals_file.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if line:
+                    proposals.append(json.loads(line))
+        except OSError:
+            return ""
+
+        active = [p for p in proposals if p.get("status") in {"proposed", "in_progress"}]
+        if not active:
+            return ""
+
+        summary_parts: list[str] = []
+        for p in active:
+            p_name = p.get("name", "unknown")
+            est = p.get("estimate", {})
+            tokens_est = est.get("tokens", {})
+            cycles_est = est.get("cycles", {})
+            max_tokens = tokens_est.get("max", 0) if isinstance(tokens_est, dict) else 0
+            max_cycles = cycles_est.get("max", 0) if isinstance(cycles_est, dict) else 0
+
+            ledger_summary = self.tools.cost_ledger.get_summary()
+            proj_data = ledger_summary.get("plugin_projects", {}).get(p_name, {})
+            spent_tokens = proj_data.get("tokens", 0)
+            spent_cycles = proj_data.get("cycles", 0)
+
+            milestone_str = "Scaffold and manifest definition"
+            for item in self.plan_store.items:
+                goal_str = str(item.get("goal", ""))
+                if f"plugin_project:{p_name}" in goal_str or f"[{p_name}]" in goal_str:
+                    if str(item.get("status", "")).lower() not in {"done", "completed"}:
+                        milestone_str = goal_str
+                        break
+
+            pending_stop_loss = []
+            for pct in (25, 50, 100):
+                if pct not in self.reviewed_thresholds.setdefault(p_name, set()):
+                    tok_thresh = (pct / 100.0) * max_tokens if max_tokens else 999999999
+                    cyc_thresh = (pct / 100.0) * max_cycles if max_cycles else 999999999
+                    if (max_tokens and spent_tokens >= tok_thresh) or (max_cycles and spent_cycles >= cyc_thresh):
+                        pending_stop_loss.append(pct)
+
+            part = [
+                f"## Active Plugin Project: {p_name}",
+                f"- Current milestone: {milestone_str}",
+                f"- Measured spend: {spent_tokens} tokens, {spent_cycles} cycles (estimate: {tokens_est} tokens, {cycles_est} cycles).",
+                f"- Normal exploration balance nudge: Normal exploration must continue while developing a plugin. Allocate at least ~1 in 3 cycles to other plan goals unless you record an explicit reason in your plan update explaining why consecutive plugin cycles are required.",
+            ]
+
+            if pending_stop_loss:
+                highest_thresh = max(pending_stop_loss)
+                part.append(
+                    f"\n[MANDATORY STOP-LOSS REVIEW TRIGGERED at {highest_thresh}% of estimate]\n"
+                    f"Threshold reached by measured spend ({spent_tokens} tokens / {spent_cycles} cycles).\n"
+                    f"You MUST record an explicit stop-loss review decision in your plan update comparing actual progress against your estimate:\n"
+                    f"  action='decide_plugin_review', project='{p_name}', decision='continue'|'reduce_scope'|'abandon', reason='<evidence-based comparison vs estimate>'.\n"
+                    f"Continuing is allowed; silence is not."
+                )
+
+            summary_parts.append("\n".join(part))
+
+        return "\n\n".join(summary_parts) + "\n\n"
 
     def _system_prompt(self) -> str:
         """Load the human-editable identity freshly for every model call."""
@@ -555,6 +654,7 @@ class AgentLoop:
             actions_summary = self._format_actions(last_actions)
             plugin_notes = self.plugins.get_goal_notes_prompt().strip() if (self.plugins and self.plugins.get_goal_notes_prompt()) else ""
             plugin_section = f"{wrap_untrusted(plugin_notes, source='plugins:notes')}\n\n" if plugin_notes else ""
+            plugin_projects_section = self._check_active_plugin_projects(cycle)
             messages: list[dict[str, Any]] = [
                 {
                     "role": "user",
@@ -570,6 +670,7 @@ class AgentLoop:
                         f"Previous cycle results:\n- Report: {last_report}\n- Actions: {actions_summary}\n\n"
                         f"Relevant tools and memories:\n{context}\n\n"
                         f"{plugin_section}"
+                        f"{plugin_projects_section}"
                         f"Human inputs to weigh since the prior cycle:\n{human_context or 'None.'}\n\n"
                         "When human inputs are present, weigh each input and record an explicit decision "
                         "(accepted, modified, declined, deferred, or noted) with a reason citing evidence or your autonomous priorities.\n\n"
@@ -677,6 +778,30 @@ class AgentLoop:
                                 observation = {"ok": False, "error": "Tool not offered in this step; use task keywords to retrieve it."}
                             else:
                                 observation = self.tools.execute(name, arguments)
+                                if name == "update_plan":
+                                    act = str(arguments.get("action", "")).lower()
+                                    dec = str(arguments.get("decision", "")).lower()
+                                    proj = str(arguments.get("project") or arguments.get("id") or arguments.get("goal") or "").strip()
+                                    reason_text = str(arguments.get("reason", ""))
+                                    if act in {"decide_plugin_review", "plugin_project_review"} or (dec in {"continue", "reduce_scope", "abandon"} and proj):
+                                        reviewed_set = self.reviewed_thresholds.setdefault(proj, set())
+                                        thresh = 25 if 25 not in reviewed_set else (50 if 50 not in reviewed_set else 100)
+                                        reviewed_set.add(thresh)
+                                        if hasattr(self.plugin_dev, "record_review_decision"):
+                                            self.plugin_dev.record_review_decision(proj, thresh)
+                                        ledger_summary = self.tools.cost_ledger.get_summary()
+                                        pdata = ledger_summary.get("plugin_projects", {}).get(proj, {})
+                                        self.logger.log(
+                                            "plugin_project_review",
+                                            project=proj,
+                                            threshold=thresh,
+                                            decision=dec or "continue",
+                                            reason=reason_text,
+                                            tokens_spent=pdata.get("tokens", 0),
+                                            cycles_spent=pdata.get("cycles", 0),
+                                            token_estimate=pdata.get("token_estimate", 0),
+                                            cycle_estimate=pdata.get("cycle_estimate", 0),
+                                        )
                         except BudgetExceeded:
                             self._pause_until_daily_reset()
                             if self._stopped():

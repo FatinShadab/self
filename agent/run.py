@@ -32,6 +32,9 @@ def main() -> int:
         if cmd.startswith("/plugins"):
             print(coordinator.handle_plugins_command(cmd))
             return 0
+        if cmd.startswith("/proposals"):
+            print(coordinator.handle_proposals_command(cmd))
+            return 0
         print(f"Unknown headless command: {cmd}")
         return 1
 

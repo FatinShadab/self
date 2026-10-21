@@ -8,7 +8,7 @@
 
 ## 1. Full Tool Inventory
 
-The harness defines 23 tools (22 base tools in `agent/tools/base_tools.py` plus `create_tool` in `agent/tools/tool_registry.py`).
+The harness defines 29 tools (28 base tools in `agent/tools/base_tools.py` plus `create_tool` in `agent/tools/tool_registry.py`).
 
 `ToolRunner` (`agent/tools/base_tools.py:270`) accepts an optional `Body` instance (defaulting to `ContainerBody` from `agent/body/container.py`). All 6 body-specific actions (`run_shell`, `read_file`, `write_file`, `list_dir`, `http_get`, `probe_local_ollama`) and core path enforcement are delegated directly to `self.body`. The tool names, argument schemas, and return formats remain strictly identical for backward compatibility with existing agent cognition and custom tools.
 
@@ -37,6 +37,12 @@ The harness defines 23 tools (22 base tools in `agent/tools/base_tools.py` plus 
 | `request_capability` | `kind: str (enum), summary: str, reason: str, provider?: str, env_names?: list[str], signup_url?: str` | `{"ok": bool, "request_file": str, "kind": str}` | `agent/tools/base_tools.py:253` | **Core** (human boundary) | Writes |
 | `propose_core_patch` | `name: str, diff: str, reasoning: str` | `{"ok": bool, "patch_file": str, "name": str}` | `agent/tools/base_tools.py:262` | **Core** (human boundary) | Writes |
 | `create_tool` | `name: str, description: str, code: str, test_code: str` | `{"ok": bool, "name": str, "version": int, "path": str, "input_schema": dict, "message"?: str, "error"?: str, "attempts_remaining"?: int}` | `agent/tools/tool_registry.py:22` | **Core** (capability synthesis) | Executes / Writes / Network |
+| `read_cost_ledger` | None `{}` | `{"ok": bool, "baselines": dict, "plugin_projects": dict}` | `agent/tools/base_tools.py:311` | **Core** (cost accounting) | Reads |
+| `propose_plugin` | `name, need, evidence, alternatives_considered, estimate, expected_benefit, actions_needed_with_risk_levels, maintenance_burden, stop_loss, rollback` | `{"ok": bool, "name": str, "status": str, "proposal_file": str, "milestones": list}` | `agent/tools/base_tools.py:316` | **Core** (self-dev proposal) | Writes |
+| `scaffold_plugin` | `name: str, kind?: str (default skill), description?: str` | `{"ok": bool, "name": str, "path": str, "message": str}` | `agent/tools/base_tools.py:356` | **Core** (self-dev scaffold) | Writes |
+| `validate_plugin` | `name: str` | `{"ok": bool, "valid": bool, "errors": list, "warnings": list, "permission_summary": dict}` | `agent/tools/base_tools.py:368` | **Core** (self-dev validation) | Reads |
+| `test_plugin` | `name: str, test_type?: str (default unit)` | `{"ok": bool, "passed": bool, "tests_run": int, "output": str}` | `agent/tools/base_tools.py:378` | **Core** (self-dev testing) | Executes |
+| `request_plugin_review`| `name: str` | `{"ok": bool, "approved": bool, "critic_verdict": dict, "diff": str, "permission_summary": dict}` | `agent/tools/base_tools.py:389` | **Core** (self-dev review) | Executes / Network |
 
 ---
 

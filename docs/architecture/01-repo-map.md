@@ -55,6 +55,7 @@ self/
 │   │
 │   ├── infra/                        # Low-level primitives: logging, locks, process runner (Layer 0)
 │   │   ├── __init__.py               # Exports EventLogger, run_process, DailyTokenLedger [read] agent/infra/__init__.py:1-15
+│   │   ├── cost_ledger.py            # Event aggregation, medians/p90 baselines, cost ledger storage [read] agent/infra/cost_ledger.py:1-260
 │   │   ├── event_log.py              # Structured JSONL event logging with secret redaction [read] agent/infra/event_log.py:1-120
 │   │   ├── file_lock.py              # Cross-platform file locking (fcntl / msvcrt) [read] agent/infra/file_lock.py:1-40
 │   │   ├── hardening.py              # DailyTokenLedger, RunCheckpoint, CapabilityRequests [read] agent/infra/hardening.py:1-140
@@ -87,7 +88,8 @@ self/
 │   │   │   └── pet_companion/        # Demo virtual pet companion in simulated habitat [read] agent/plugins/examples/pet_companion/plugin.json:1-60
 │   │   ├── hello/                    # Shipped sample hello plugin fixture [read] agent/plugins/hello/plugin.json:1-54
 │   │   ├── manager.py                # PluginManager: discovery, lifecycle, sync, hash checks [read] agent/plugins/manager.py:1-660
-│   │   └── manifest.py               # PluginManifest schema validation, commands, version checks [read] agent/plugins/manifest.py:1-326
+│   │   ├── manifest.py               # PluginManifest schema validation, commands, version checks [read] agent/plugins/manifest.py:1-326
+│   │   └── self_dev.py               # Self-development pipeline: proposals, scaffolding, testing, review [read] agent/plugins/self_dev.py:1-550
 │   │
 │   ├── reporting/                    # Activity reporting and statistics aggregation (Layer 4)
 │   │   ├── __init__.py               # Exports generate_report [read] agent/reporting/__init__.py:1-5
@@ -107,7 +109,7 @@ self/
 │   │
 │   ├── tools/                        # Built-in base tools and dynamic tool creation (Layer 2)
 │   │   ├── __init__.py               # Exports ToolRunner, ToolRegistry, TOOL_DEFINITIONS [read] agent/tools/__init__.py:1-8
-│   │   ├── base_tools.py             # 22 built-in tools (shell, files, HTTP, plan, models, brain) delegating to body [read] agent/tools/base_tools.py:1-624
+│   │   ├── base_tools.py             # 28 built-in tools (shell, files, HTTP, plan, models, brain, self-dev) delegating to body [read] agent/tools/base_tools.py:1-624
 │   │   ├── benchmark.py              # Provider benchmark runner [read] agent/tools/benchmark.py:1-40
 │   │   ├── tool_registry.py          # Dynamic tool creation pipeline, critic review, test runner [read] agent/tools/tool_registry.py:1-448
 │   │   └── tool_worker.py            # Subprocess entry point executing custom tools via stdin JSON [read] agent/tools/tool_worker.py:1-28
@@ -121,7 +123,7 @@ self/
 │   │   └── wake.py                   # Textual UI front-end (SelfApp), cardiac trace, delegating to coordinator [read] agent/ui/wake.py:1-1390
 
 │   │
-│   └── tests/                        # 221 unit tests across all agent subsystems [ran]
+│   └── tests/                        # 228 unit tests across all agent subsystems [ran]
 │
 ├── eval/                             # Host-only hidden evaluation and A/B campaign framework [read] docker-compose.yml:25-50
 │   ├── __init__.py                   # Package root
@@ -160,9 +162,10 @@ self/
 └── workspace/                        # Runtime persistent volume mounted to /home/entity [read] docker-compose.yml:17-18
     ├── logs/                         # actions.jsonl event log [read]
     ├── memory/                       # lessons.jsonl [read]
+    ├── plugin_dev/                   # Isolated draft area for self-developed plugins [read]
     ├── plugins/                      # Human-installed plugins (<name>/plugin.json, tools/, state/) [read]
     ├── self/                         # Writable extension layer (prompts, heuristics, themes) [read]
-    ├── state/                        # Durable state files (plan.json, identity.json, models.json, etc.) [read]
+    ├── state/                        # Durable state files (plan.json, identity.json, models.json, cost_ledger.jsonl, plugin_proposals.jsonl, etc.) [read]
     └── tools/                        # Registered agent-created tools with history/ and attempts/ [read]
 ```
 

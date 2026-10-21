@@ -1388,6 +1388,10 @@ def run_tui(coordinator: WakeCoordinator) -> int:
                 self._write_command(text)
                 self._command_response(coordinator.handle_plugins_command(text), "input")
                 return
+            if text.startswith("/proposals"):
+                self._write_command(text)
+                self._command_response(coordinator.handle_proposals_command(text), "input")
+                return
             if text in {"/requests", "/inputs"}: self._write_command(text); self._command_response(_requests_text(coordinator.workspace), "input"); return
             if text.startswith("/memory "):
                 self._write_command(text)

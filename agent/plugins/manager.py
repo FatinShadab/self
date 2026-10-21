@@ -249,6 +249,8 @@ class PluginManager:
         return discovered
 
     def _discover_plugin_dir(self, plugin_dir: Path, is_shipped: bool) -> Plugin | None:
+        if "plugin_dev" in plugin_dir.parts:
+            return None
         manifest_file = plugin_dir / "plugin.json"
         try:
             manifest = parse_manifest(manifest_file)
