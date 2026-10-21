@@ -33,7 +33,13 @@ def _clean_line(value: Any, limit: int = 2_000) -> str:
 
 
 class IdentityStore:
-    """Own SELF's durable identity files while preserving an audit trail."""
+    """Own SELF's durable identity files while preserving an audit trail.
+
+    Entity Isolation Principle:
+    A separate workspace folder gives a separate entity. Each workspace folder maintains
+    its own independent identity operating record (state/identity.json), persistent plan,
+    environment map, and memory log.
+    """
 
     def __init__(
         self,
@@ -72,10 +78,14 @@ class IdentityStore:
         if body is None:
             from agent.body.container import ContainerBody
             body = ContainerBody()
-        interests = list(body.describe().default_interests) if body.describe().default_interests else [
+        raw_interests = list(body.describe().default_interests) if body.describe().default_interests else [
             "mapping the container accurately",
             "building reliable, tested tools",
             "learning from evidence and human feedback",
+        ]
+        interests = [
+            {"interest": it, "plugin": "core", "body": "container"}
+            for it in raw_interests
         ]
         return {
             "name": None,
@@ -94,6 +104,7 @@ class IdentityStore:
                 "My persistent notes describe operating preferences, not feelings or a hidden inner life."
             ),
             "interests": interests,
+            "plugin_embodiments": {},
             "open_questions_about_self": [
                 "Which exploration habits consistently produce useful, verified discoveries?",
                 "Which tool-selection heuristics are worth keeping in the editable layer?",
@@ -170,10 +181,28 @@ class IdentityStore:
         value["traits"] = traits[-32:]
         value["values"] = [self._safe(item, 500) for item in raw.get("values", []) if self._safe(item, 500)][-32:]
         value["voice"] = self._safe(raw.get("voice") or base["voice"], 1_500)
-        value["interests"] = [self._safe(item, 300) for item in raw.get("interests", []) if self._safe(item, 300)][-32:]
+        clean_interests: list[Any] = []
+        for item in raw.get("interests", []):
+            if isinstance(item, dict):
+                clean_interests.append({
+                    "interest": self._safe(item.get("interest") or item.get("text", ""), 300),
+                    "plugin": self._safe(item.get("plugin", "core"), 80),
+                    "body": self._safe(item.get("body", "container"), 80),
+                })
+            elif self._safe(item, 300):
+                clean_interests.append(self._safe(item, 300))
+        value["interests"] = clean_interests[-32:]
         value["open_questions_about_self"] = [
             self._safe(item, 500) for item in raw.get("open_questions_about_self", []) if self._safe(item, 500)
         ][-32:]
+        if isinstance(raw.get("plugin_embodiments"), dict):
+            value["plugin_embodiments"] = {
+                self._safe(k, 80): self._safe(v, 2_000)
+                for k, v in raw["plugin_embodiments"].items()
+                if isinstance(k, str) and isinstance(v, str)
+            }
+        else:
+            value["plugin_embodiments"] = {}
         return value
 
     def _safe_name_context(self, context: dict[str, Any]) -> dict[str, Any]:
@@ -475,7 +504,7 @@ Editable layer observed: {", ".join(observed_self)}.
         """Return the identity's configured voice description."""
         return str(self.load().get("voice") or self.default_identity()["voice"])
 
-    def prompt_context(self) -> str:
+    def prompt_context(self, active_plugins: Any = None) -> str:
         """Bounded identity context for every model call, including hand-edited state."""
         if not self.path.exists():
             return (
@@ -484,6 +513,18 @@ Editable layer observed: {", ".join(observed_self)}.
                 "The wake coordinator will conduct first awakening before normal exploration."
             )
         identity = self.load()
+        # Filter interests by active plugins; legacy untagged strings default to core/container
+        raw_interests = identity.get("interests", [])
+        filtered_interests: list[str] = []
+        for it in raw_interests:
+            if isinstance(it, dict):
+                p = it.get("plugin", "core")
+                if active_plugins is not None and p != "core" and p not in active_plugins:
+                    continue
+                filtered_interests.append(str(it.get("interest") or it.get("text", "")))
+            else:
+                filtered_interests.append(str(it))
+
         compact = {
             "name": identity["name"],
             "human_name": identity["human_name"],
@@ -491,10 +532,24 @@ Editable layer observed: {", ".join(observed_self)}.
             "traits": identity["traits"][-12:],
             "values": identity["values"][-12:],
             "voice": identity["voice"],
-            "interests": identity["interests"][-12:],
+            "interests": filtered_interests[-12:],
             "open_questions_about_self": identity["open_questions_about_self"][-12:],
         }
         text = json.dumps(self.logger.redactor.value(compact), ensure_ascii=False, indent=2)
+
+        # Per-plugin embodiment section: included only while that plugin is enabled and preserved while disabled
+        plugin_notes: list[str] = []
+        if active_plugins:
+            embodiments = identity.get("plugin_embodiments", {})
+            if isinstance(embodiments, dict):
+                for p_name in sorted(active_plugins):
+                    if p_name in embodiments and embodiments[p_name]:
+                        plugin_notes.append(f"[{p_name}] {embodiments[p_name]}")
+
+        embodiment_block = ""
+        if plugin_notes:
+            embodiment_block = "\n\n## Active plugin embodiment notes:\n" + "\n".join(plugin_notes)
+
         return (
             "## Persistent identity\n"
             "This is a compact, human-editable operating record. It is not evidence of sentience, feelings, "
@@ -513,8 +568,23 @@ Editable layer observed: {", ".join(observed_self)}.
             "use general knowledge as a tentative cue and label uncertainty rather than inventing details.\n"
             "For a matched fictional character, use the listed traits as inspiration for tone and priorities, "
             "but do not claim to literally be that character or reproduce exact copyrighted dialogue.\n"
-            f"{text[:IDENTITY_CONTEXT_MAX_CHARS]}"
+            f"{text[:IDENTITY_CONTEXT_MAX_CHARS]}{embodiment_block}"
         )
+
+    def set_plugin_embodiment(self, plugin_name: str, notes: str) -> None:
+        """Record or update embodiment notes for a plugin in the single identity record."""
+        identity = self.load()
+        embodiments = identity.setdefault("plugin_embodiments", {})
+        embodiments[plugin_name] = notes
+        self._atomic_json(self.path, identity)
+
+    def remove_plugin_embodiment(self, plugin_name: str) -> None:
+        """Remove a plugin's embodiment notes from the single identity record."""
+        identity = self.load()
+        embodiments = identity.get("plugin_embodiments", {})
+        if plugin_name in embodiments:
+            del embodiments[plugin_name]
+            self._atomic_json(self.path, identity)
 
     def is_managed_path(self, path: str | Path) -> bool:
         """Whether a file is identity-managed and must not be generically overwritten."""

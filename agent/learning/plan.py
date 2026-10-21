@@ -19,6 +19,9 @@ ACTIVE_PLAN_STATUSES = frozenset({
     "todo", "in_progress", "in-progress", "blocked", "stale",
 })
 
+SUSPENDED_PLAN_STATUS_PREFIX = "suspended"
+SUSPENDED_PLUGIN_STATUS = "suspended: plugin disabled"
+
 WORD = re.compile(r"[a-zA-Z0-9_.-]{2,}")
 
 SEED_STANDING_GOAL = (
@@ -39,52 +42,67 @@ def visible_plan_items(plan: list[dict[str, Any]]) -> list[dict[str, Any]]:
         item for item in plan
         if isinstance(item, dict)
         and str(item.get("status", "todo")).strip().lower() not in COMPLETED_PLAN_STATUSES
+        and not str(item.get("status", "")).strip().lower().startswith(SUSPENDED_PLAN_STATUS_PREFIX)
     ]
 
 
 def consolidate_plan_items(plan: list[dict[str, Any]], max_items: int = 8) -> list[dict[str, Any]]:
-    """Cap plan size by consolidating older or lower-priority items rather than truncating."""
-    if len(plan) <= max_items:
-        return plan
-
-    active: list[dict[str, Any]] = []
-    completed: list[dict[str, Any]] = []
-
+    """Cap plan size by consolidating older or lower-priority items rather than truncating.
+    
+    Suspended goals are exempt from consolidation over max_items.
+    """
+    suspended: list[dict[str, Any]] = []
+    non_suspended: list[dict[str, Any]] = []
     for item in plan:
         if not isinstance(item, dict):
             continue
-        status = str(item.get("status", "todo")).strip().lower()
-        if status in COMPLETED_PLAN_STATUSES:
-            completed.append(item)
+        status = str(item.get("status", "")).strip().lower()
+        if status.startswith(SUSPENDED_PLAN_STATUS_PREFIX):
+            suspended.append(item)
         else:
-            active.append(item)
+            non_suspended.append(item)
 
-    # If active items alone fit, keep all active items and consolidate completed items
-    if len(active) <= max_items:
-        if completed:
-            consolidated_goal = "Completed milestones: " + "; ".join(
-                str(item.get("goal") or item.get("step", "")).strip() for item in completed
-            )
-            consolidated_item = {
-                "id": "milestones-consolidated",
-                "goal": consolidated_goal[:500],
-                "step": consolidated_goal[:500],
-                "status": "done",
-                "priority": 3,
-                "why": "Consolidated completed milestones for plan hygiene",
-                "evidence": f"Consolidated from {len(completed)} completed goals",
-                "next_steps": "Milestones achieved.",
-                "created_cycle": 1,
-                "updated_cycle": 1,
-            }
-            return active + [consolidated_item]
-        return active
+    if len(non_suspended) <= max_items:
+        active: list[dict[str, Any]] = []
+        completed: list[dict[str, Any]] = []
+        for item in non_suspended:
+            status = str(item.get("status", "todo")).strip().lower()
+            if status in COMPLETED_PLAN_STATUSES:
+                completed.append(item)
+            else:
+                active.append(item)
+
+        if len(active) <= max_items:
+            if completed:
+                consolidated_goal = "Completed milestones: " + "; ".join(
+                    str(item.get("goal") or item.get("step", "")).strip() for item in completed
+                )
+                consolidated_item = {
+                    "id": "milestones-consolidated",
+                    "goal": consolidated_goal[:500],
+                    "step": consolidated_goal[:500],
+                    "status": "done",
+                    "priority": 3,
+                    "why": "Consolidated completed milestones for plan hygiene",
+                    "evidence": f"Consolidated from {len(completed)} completed goals",
+                    "next_steps": "Milestones achieved.",
+                    "created_cycle": 1,
+                    "updated_cycle": 1,
+                    "plugin": "core",
+                    "body": "container",
+                }
+                return active + [consolidated_item] + suspended
+            return active + suspended
 
     # If active items alone exceed max_items, preserve top priority/early active items
     # and consolidate remaining lower-priority active items into a background objective
+    active_items = [
+        it for it in non_suspended
+        if str(it.get("status", "todo")).strip().lower() not in COMPLETED_PLAN_STATUSES
+    ]
     keep_count = max_items - 1
-    preserved = active[:keep_count]
-    consolidated_active = active[keep_count:]
+    preserved = active_items[:keep_count]
+    consolidated_active = active_items[keep_count:]
 
     combined_goals = "; ".join(
         str(item.get("goal") or item.get("step", "")).strip() for item in consolidated_active
@@ -101,11 +119,13 @@ def consolidate_plan_items(plan: list[dict[str, Any]], max_items: int = 8) -> li
         "why": "Consolidated secondary goals to preserve plan bounds without truncation",
         "evidence": f"Consolidated from {len(consolidated_active)} active goals",
         "next_steps": combined_steps[:500] or "Address consolidated objectives after primary goals.",
-        "created_cycle": active[0].get("created_cycle", 1),
-        "updated_cycle": active[0].get("updated_cycle", 1),
+        "created_cycle": active_items[0].get("created_cycle", 1) if active_items else 1,
+        "updated_cycle": active_items[0].get("updated_cycle", 1) if active_items else 1,
+        "plugin": "core",
+        "body": "container",
     }
 
-    return preserved + [consolidated_item]
+    return preserved + [consolidated_item] + suspended
 
 
 class PlanStore:
@@ -179,6 +199,8 @@ class PlanStore:
             "next_steps": "Inspect environment facts and proceed with verified discoveries.",
             "created_cycle": 1,
             "updated_cycle": 1,
+            "plugin": "core",
+            "body": "container",
         }
         self.items = [initial_goal]
         self.human_input_decisions = []
@@ -207,6 +229,8 @@ class PlanStore:
                 goal_text = str(normalized.get("goal") or normalized.get("step", "")).strip()
                 normalized["goal"] = goal_text
                 normalized["step"] = goal_text
+                normalized.setdefault("plugin", "core")
+                normalized.setdefault("body", "container")
                 # Track max id number
                 item_id = str(normalized.get("id", ""))
                 match = re.search(r"(\d+)", item_id)
@@ -221,7 +245,7 @@ class PlanStore:
     def _save_atomic(self, diff: str, reason: str, cycle: int = 0) -> None:
         """Atomically persist plan to disk."""
         data = {
-            "schema_version": 1,
+            "schema_version": 2,
             "plan_version": self.plan_version,
             "updated_at": now_utc(),
             "cycle": cycle,
@@ -323,25 +347,35 @@ class PlanStore:
                 return {"ok": False, "error": "Goal text is required for action 'add'."}
             new_id = f"goal-{self._next_id}"
             self._next_id += 1
+            src_str = str(extra.get("source", "agent"))
+            p_tag = str(extra.get("plugin") or "").strip()
+            if not p_tag:
+                if src_str.startswith("plugin:"):
+                    p_tag = src_str.split(":", 1)[1]
+                else:
+                    p_tag = "core"
+            b_tag = str(extra.get("body") or "container").strip() or "container"
             item = {
                 "id": new_id,
                 "goal": goal_text,
                 "step": goal_text,
-                "status": status if status in ACTIVE_PLAN_STATUSES else "todo",
+                "status": status if (status in ACTIVE_PLAN_STATUSES or status.startswith(SUSPENDED_PLAN_STATUS_PREFIX)) else "todo",
                 "priority": int(priority) if isinstance(priority, (int, float)) else 2,
-                "source": str(extra.get("source", "agent")),
+                "source": src_str,
                 "why": extra.get("why") or clean_reason,
                 "evidence": evidence_ref,
                 "next_steps": next_steps.strip() or f"Execute investigation for {goal_text}",
                 "created_cycle": cycle or 1,
                 "updated_cycle": cycle or 1,
+                "plugin": p_tag,
+                "body": b_tag,
             }
             # Add to top if high priority (priority 1), else append
             if item["priority"] == 1:
                 self.items.insert(0, item)
             else:
                 self.items.append(item)
-            diff = f"Added {new_id}: '{goal_text}' (priority={item['priority']}, status={item['status']}, source={item['source']})"
+            diff = f"Added {new_id}: '{goal_text}' (priority={item['priority']}, status={item['status']}, source={item['source']}, plugin={item['plugin']})"
 
         elif action in {"decide_human_input", "human_input"}:
             input_text = str(extra.get("input") or goal or extra.get("text", "")).strip()
@@ -378,6 +412,12 @@ class PlanStore:
             if "priority" in extra or priority != 2:
                 item["priority"] = int(priority)
                 changes.append(f"priority={item['priority']}")
+            if "plugin" in extra:
+                item["plugin"] = str(extra["plugin"])
+                changes.append(f"plugin='{item['plugin']}'")
+            if "body" in extra:
+                item["body"] = str(extra["body"])
+                changes.append(f"body='{item['body']}'")
             item["updated_cycle"] = cycle or item.get("updated_cycle", 1)
             diff = f"Edited {item.get('id', idx)}: {', '.join(changes) or 'updated details'}"
 
@@ -537,12 +577,17 @@ class PlanStore:
             "plan": list(self.items),
         }
 
-    def top_items(self, limit: int = 3) -> list[dict[str, Any]]:
+    def top_items(self, limit: int = 3, active_plugins: Any = None) -> list[dict[str, Any]]:
         """Return active plan items sorted by priority and position."""
-        active = [
-            item for item in self.items
-            if str(item.get("status", "todo")).strip().lower() not in COMPLETED_PLAN_STATUSES
-        ]
+        active = []
+        for item in self.items:
+            status = str(item.get("status", "todo")).strip().lower()
+            if status in COMPLETED_PLAN_STATUSES or status.startswith(SUSPENDED_PLAN_STATUS_PREFIX):
+                continue
+            plugin = item.get("plugin", "core")
+            if active_plugins is not None and plugin != "core" and plugin not in active_plugins:
+                continue
+            active.append(item)
         # Sort by priority (1 is highest), preserving relative order within priority
         return sorted(active, key=lambda it: int(it.get("priority", 2)))[:limit]
 
@@ -558,9 +603,9 @@ class PlanStore:
             parts.append(f"{goal} {next_steps}".strip())
         return "\n".join(parts)
 
-    def prompt_summary(self) -> str:
+    def prompt_summary(self, active_plugins: Any = None) -> str:
         """Format the active plan items for inclusion in cycle prompts."""
-        active = self.top_items(limit=10)
+        active = self.top_items(limit=10, active_plugins=active_plugins)
         lines: list[str] = []
         if not active:
             lines.append("No active plan goals. Use update_plan to add a new exploration or self-improvement goal.")
@@ -602,10 +647,14 @@ class PlanStore:
         changed = False
 
         # 1. Purge completed and dropped goals to plan_archive.jsonl
+        # Suspended goals are exempt from archive purging.
         purged_records: list[dict[str, Any]] = []
         retained_items: list[dict[str, Any]] = []
         for item in self.items:
             status = str(item.get("status", "todo")).strip().lower()
+            if status.startswith(SUSPENDED_PLAN_STATUS_PREFIX):
+                retained_items.append(item)
+                continue
             if status in COMPLETED_PLAN_STATUSES:
                 purged_records.append({
                     "goal": str(item.get("goal") or item.get("step", "")).strip(),
@@ -614,6 +663,8 @@ class PlanStore:
                     "evidence": str(item.get("evidence", "")).strip(),
                     "cycle": cycle,
                     "timestamp": now_utc(),
+                    "plugin": item.get("plugin", "core"),
+                    "body": item.get("body", "container"),
                 })
             else:
                 retained_items.append(item)
@@ -624,8 +675,11 @@ class PlanStore:
             actions.append(f"Archived and purged {len(purged_records)} completed/dropped goal(s) to plan_archive.jsonl")
             changed = True
 
+        # 2. Mark stale items (suspended goals are exempt from stale-item pruning)
         for item in self.items:
             status = str(item.get("status", "todo")).strip().lower()
+            if status.startswith(SUSPENDED_PLAN_STATUS_PREFIX):
+                continue
             if status in COMPLETED_PLAN_STATUSES:
                 continue
             updated = int(item.get("updated_cycle") or item.get("created_cycle") or 1)
@@ -636,7 +690,12 @@ class PlanStore:
                     actions.append(f"Marked stale {item.get('id')}: '{item.get('goal', '')}' (no progress for {cycle - updated} cycles)")
                     changed = True
 
-        if len(self.items) > self.max_items:
+        # 3. Consolidation over max_items (suspended goals are exempt)
+        non_suspended_count = sum(
+            1 for it in self.items
+            if not str(it.get("status", "")).strip().lower().startswith(SUSPENDED_PLAN_STATUS_PREFIX)
+        )
+        if non_suspended_count > self.max_items or len(self.items) > self.max_items:
             self.items = consolidate_plan_items(self.items, max_items=self.max_items)
             actions.append("Consolidated excess plan items to maintain size bound")
             changed = True
@@ -652,3 +711,57 @@ class PlanStore:
                 diff=diff_text,
             )
         return actions
+
+    def suspend_plugin_goals(self, plugin_name: str, cycle: int = 0) -> list[str]:
+        """Suspend all active goals associated with a disabled plugin.
+        
+        Suspended goals get status 'suspended: plugin disabled' and are kept, never deleted.
+        """
+        suspended_ids: list[str] = []
+        for item in self.items:
+            status = str(item.get("status", "todo")).strip().lower()
+            p = item.get("plugin", "core")
+            src = str(item.get("source", ""))
+            is_match = (p == plugin_name) or src == f"plugin:{plugin_name}"
+            if is_match and status not in COMPLETED_PLAN_STATUSES and not status.startswith(SUSPENDED_PLAN_STATUS_PREFIX):
+                item["_prev_status"] = item.get("status", "todo")
+                item["status"] = SUSPENDED_PLUGIN_STATUS
+                if cycle:
+                    item["updated_cycle"] = cycle
+                suspended_ids.append(str(item.get("id")))
+
+        if suspended_ids:
+            self.plan_version += 1
+            diff = f"Suspended goals for disabled plugin '{plugin_name}': {', '.join(suspended_ids)}"
+            self._save_atomic(diff=diff, reason=f"Plugin '{plugin_name}' disabled", cycle=cycle)
+            self.logger.log("plan_goals_suspended", plugin=plugin_name, goal_ids=suspended_ids)
+        return suspended_ids
+
+    def resume_plugin_goals(self, plugin_name: str, cycle: int = 0) -> list[str]:
+        """Resume suspended goals when a plugin is re-enabled successfully.
+        
+        Suspended goals return with a note 're-verify: plugin was disabled'.
+        """
+        resumed_ids: list[str] = []
+        for item in self.items:
+            status = str(item.get("status", "")).strip().lower()
+            p = item.get("plugin", "core")
+            src = str(item.get("source", ""))
+            is_match = (p == plugin_name) or src == f"plugin:{plugin_name}"
+            if is_match and status.startswith(SUSPENDED_PLAN_STATUS_PREFIX):
+                prev = item.pop("_prev_status", "todo")
+                item["status"] = prev if prev not in COMPLETED_PLAN_STATUSES else "todo"
+                item["note"] = "re-verify: plugin was disabled"
+                why = str(item.get("why", "")).strip()
+                if "re-verify: plugin was disabled" not in why:
+                    item["why"] = f"{why} (re-verify: plugin was disabled)".strip()
+                if cycle:
+                    item["updated_cycle"] = cycle
+                resumed_ids.append(str(item.get("id")))
+
+        if resumed_ids:
+            self.plan_version += 1
+            diff = f"Resumed goals for re-enabled plugin '{plugin_name}': {', '.join(resumed_ids)}"
+            self._save_atomic(diff=diff, reason=f"Plugin '{plugin_name}' re-enabled", cycle=cycle)
+            self.logger.log("plan_goals_resumed", plugin=plugin_name, goal_ids=resumed_ids)
+        return resumed_ids

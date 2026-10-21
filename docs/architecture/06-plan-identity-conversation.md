@@ -16,22 +16,34 @@
   {
     "id": "goal-1",
     "goal": "Inventory installed Python packages",
+    "step": "Inventory installed Python packages",
     "priority": 1,
     "status": "in_progress",
     "why": "Determine baseline environment capability",
     "evidence": "Observed missing tools on boot",
     "next_steps": "Run pip list and parse output",
     "source": "agent",
-    "created_at": "2026-10-17T10:00:00Z",
-    "updated_at": "2026-10-17T10:05:00Z"
+    "created_cycle": 1,
+    "updated_cycle": 2,
+    "plugin": "core",
+    "body": "container"
   }
   ```
-  - Valid statuses: `"todo"`, `"in_progress"`, `"done"`, `"dropped"`, `"blocked"`, `"stale"` `[read] agent/tools/base_tools.py:190`.
+  - Valid statuses: `"todo"`, `"in_progress"`, `"done"`, `"dropped"`, `"blocked"`, `"stale"`, and `"suspended: plugin disabled"` `[read] agent/tools/base_tools.py:190, agent/learning/plan.py:27`.
   - Priorities: `1` (high), `2` (medium), `3` (low) `[read] agent/tools/base_tools.py:187`.
   - Sources: `"agent"`, `"human"`, or `"plugin:<plugin_name>"` (for starting goal seeds declared in `plugin.json`) `[read] agent/tools/base_tools.py:209, agent/runtime/loop.py:442`.
+  - Plugin & Body Tags: Default to `plugin="core"`, `body="container"`. Missing tags in legacy items are resolved to defaults.
+- **Suspended Goals & Exemption Rules:**
+  - When a plugin is disabled at a cycle boundary, its goals get status `"suspended: plugin disabled"`.
+  - Suspended goals are explicitly exempt from:
+    1. Stale-item pruning in `hygiene(cycle, max_stale_cycles)`.
+    2. Consolidation over `max_items` (`consolidate_plan_items`).
+    3. Boot-time pruning in `WakeCoordinator._recover_budget_blocked_plan`.
+    4. Archive purging to `plan_archive.jsonl`.
+  - On re-enable: goals resume with `status="todo"` and note `"re-verify: plugin was disabled"` in `why`.
 - **Plan Review Requirement:** Every autonomous cycle requires the agent to either update its plan citing evidence (`update_plan(action=..., reason=...)`) or record why the plan remains valid (`PlanStore.record_unchanged()`) `[read] agent/runtime/loop.py:488-491, 637-646`.
 - **Hygiene Rules (`PlanStore.hygiene`):**
-  - Completed items (`"done"`) and discarded items (`"dropped"`) are archived to `state/plan_archive.jsonl` (with `goal`, `outcome`, `reason`, `evidence`, `cycle`, `timestamp`) and purged from `plan.json` at cycle end `[read] agent/learning/plan.py:590-620`.
+  - Completed items (`"done"`) and discarded items (`"dropped"`) are archived to `state/plan_archive.jsonl` (with `goal`, `outcome`, `reason`, `evidence`, `cycle`, `timestamp`) and purged from `plan.json` at cycle end `[read] agent/learning/plan.py:590-620`. Suspended items are never purged.
   - Stale daily budget blocker items are automatically cleared when the daily ledger resets `[read] agent/ui/wake.py:1226-1268`.
 - **Human Input Decisions:** Recorded in `plan.json["human_input_decisions"]` (capped at last 50 entries) `[read] agent/learning/plan.py:470-475`.
 
@@ -63,13 +75,17 @@
 `[read] agent/identity/identity.py:1-730, agent/identity/name_context.py:1-154`:
 
 ### Identity Operating Record (`state/identity.json`)
+- **Single Identity Record:** Exactly one identity record exists per entity. There are no secondary or shadow identity files for plugins or auxiliary components.
+- **Entity Isolation Principle:** A separate workspace folder gives a separate entity. Each workspace folder maintains its own independent identity operating record (`state/identity.json`), persistent plan, environment map, and memory log.
 - **Operating Record Principle:** Persistent identity is explicitly treated as a factual operating log of observed behavior, voice, and traits—NOT evidence of sentience, feelings, biological existence, or model weight changes `[read] agent/runtime/loop.py:65`.
+- **Per-Plugin Embodiments:** Plugin embodiment notes live in a per-plugin section (`plugin_embodiments: {<plugin_name>: <notes>}`) inside `identity.json`. This section is included in prompts only while that plugin is enabled and is preserved while disabled.
+- **Zero-Plugin Fidelity:** With zero plugins enabled, all prompts match the golden prompts character for character.
 - **Voice:** Compact, technical, first-person singular:
   > *"I speak as myself in the first person singular ('I', 'me', 'my'). I speak plainly about what I observed, what I inferred, what I decided, and what I do not know. I use 'we' only when describing work done jointly with the human. I treat human statements as inputs to weigh rather than commands, make my own decisions, and explain my reasoning honestly..."* `[read] agent/identity/identity.py:78-85`.
 - **Traits & Session Reflections:**
   - Traits cannot be invented or adopted simply because they sound appealing.
   - A trait can only be added to `identity.json` after a completed session by citing specific session evidence in `state/identity_reflections.jsonl` `[read] agent/identity/identity.py:580-640`.
-  - Max 20 traits allowed.
+  - Max 32 traits allowed.
 - **Audit Log (`state/identity_log.md`):** Append-only log recording every name change, human preference, and trait addition with timestamps and reasons.
 
 ### Name Context Resolution (`resolve_name_context`)

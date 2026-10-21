@@ -15,10 +15,11 @@ from pathlib import Path
 from typing import Any
 
 from agent.infra.event_log import EventLogger
+from agent.infra.migration import deterministic_summary
 
 
 WORD = re.compile(r"[a-zA-Z0-9_.-]{2,}")
-VALID_CONFIDENCE = {"unknown", "low", "medium", "high"}
+VALID_CONFIDENCE = {"unknown", "low", "medium", "high", "stale"}
 
 
 def utc_now() -> str:
@@ -108,13 +109,32 @@ class LearningStore:
         }
 
     @staticmethod
-    def _entry(value: Any, confidence: str, verified: str, evidence: str) -> dict[str, Any]:
-        return {"value": value, "confidence": confidence, "last_verified": verified, "evidence": evidence}
+    def _entry(
+        value: Any,
+        confidence: str,
+        verified: str,
+        evidence: str,
+        plugin: str = "core",
+        body: str = "container",
+    ) -> dict[str, Any]:
+        return {
+            "value": value,
+            "confidence": confidence,
+            "last_verified": verified,
+            "evidence": evidence,
+            "plugin": plugin,
+            "body": body,
+        }
 
     def _load_map(self) -> dict[str, Any]:
         try:
             data = json.loads(self.map_path.read_text(encoding="utf-8"))
             if isinstance(data, dict) and isinstance(data.get("entries", {}), dict):
+                # Ensure missing plugin and body tags default to core and container
+                for ent in data.get("entries", {}).values():
+                    if isinstance(ent, dict):
+                        ent.setdefault("plugin", "core")
+                        ent.setdefault("body", "container")
                 return data
         except (OSError, json.JSONDecodeError):
             pass
@@ -126,7 +146,32 @@ class LearningStore:
         temp.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
         os.replace(temp, self.map_path)
 
-    def update_map(self, entries: list[dict[str, Any]], source: str = "agent observation") -> dict[str, Any]:
+    def mark_facts_stale_for_body(self, body_or_plugin: str) -> list[str]:
+        """Mark map facts originating from a body or plugin as confidence='stale'."""
+        data = self._load_map()
+        stored = data.setdefault("entries", {})
+        marked: list[str] = []
+        for key, entry in stored.items():
+            if not isinstance(entry, dict):
+                continue
+            p = entry.get("plugin", "core")
+            b = entry.get("body", "container")
+            if p == body_or_plugin or b == body_or_plugin:
+                entry["confidence"] = "stale"
+                marked.append(key)
+        if marked:
+            data["updated_at"] = utc_now()
+            self._write_map(data)
+            self.logger.log("environment_facts_staled", body_or_plugin=body_or_plugin, keys=marked)
+        return marked
+
+    def update_map(
+        self,
+        entries: list[dict[str, Any]],
+        source: str = "agent observation",
+        plugin: str = "core",
+        body: str = "container",
+    ) -> dict[str, Any]:
         """Replace verified entries. Agent supplied timestamps are intentionally ignored."""
         if not isinstance(entries, list) or not entries:
             raise ValueError("entries must be a non-empty list")
@@ -146,13 +191,22 @@ class LearningStore:
             if not re.fullmatch(r"[a-z][a-z0-9_]{0,63}", key):
                 raise ValueError("environment entry key must use lowercase letters, digits, and underscores")
             if confidence not in VALID_CONFIDENCE:
-                raise ValueError("confidence must be unknown, low, medium, or high")
+                raise ValueError("confidence must be unknown, low, medium, high, or stale")
             if "value" not in item:
                 raise ValueError("environment entries require a value")
             evidence = self.logger.redactor.text(item.get("evidence", source))[:2_000]
-            stored[key] = self._entry(self.logger.redactor.value(item["value"]), confidence, now, evidence)
+            item_plugin = str(item.get("plugin") or plugin).strip() or "core"
+            item_body = str(item.get("body") or body).strip() or "container"
+            stored[key] = self._entry(
+                self.logger.redactor.value(item["value"]),
+                confidence,
+                now,
+                evidence,
+                plugin=item_plugin,
+                body=item_body,
+            )
             updated.append(key)
-        data["schema_version"] = 1
+        data["schema_version"] = 2
         data["updated_at"] = now
         self._write_map(data)
         self.logger.log("environment_map_updated", keys=updated, source=source)
@@ -168,18 +222,30 @@ class LearningStore:
             source="harness",
         )
 
-    def append_memory(self, what_was_tried: str, outcome: str, lesson: str, tags: list[str]) -> dict[str, Any]:
+    def append_memory(
+        self,
+        what_was_tried: str,
+        outcome: str,
+        lesson: str,
+        tags: list[str],
+        plugin: str = "core",
+        body: str = "container",
+        report_path: str | None = None,
+    ) -> dict[str, Any]:
         """Append one redacted learning record to persistent memory."""
         self.state_dir.mkdir(parents=True, exist_ok=True)
-        record = self.logger.redactor.value(
-            {
-                "timestamp": utc_now(),
-                "what_was_tried": what_was_tried[:4_000],
-                "outcome": outcome[:1_000],
-                "lesson": lesson[:4_000],
-                "tags": sorted({tag.lower() for tag in tags if tag})[:30],
-            }
-        )
+        rec: dict[str, Any] = {
+            "timestamp": utc_now(),
+            "what_was_tried": what_was_tried[:4_000],
+            "outcome": outcome[:1_000],
+            "lesson": lesson[:4_000],
+            "tags": sorted({tag.lower() for tag in tags if tag})[:30],
+            "plugin": plugin,
+            "body": body,
+        }
+        if report_path:
+            rec["report_path"] = report_path
+        record = self.logger.redactor.value(rec)
         line = json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n"
         fd = os.open(self.memory_path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
         try:
@@ -200,17 +266,22 @@ class LearningStore:
                     except json.JSONDecodeError:
                         continue
                     if isinstance(record, dict):
+                        record.setdefault("plugin", "core")
+                        record.setdefault("body", "container")
                         records.append(record)
         except OSError:
             pass
         return records
 
-    def retrieve_memories(self, query: str, limit: int = 6) -> str:
+    def retrieve_memories(self, query: str, limit: int = 6, active_plugins: Any = None) -> str:
         """Rank persistent memories against a query and return a bounded excerpt."""
         terms = _words(query)
         ranked: list[tuple[int, int, dict[str, Any]]] = []
         entries = self.memory_entries()
         for index, entry in enumerate(entries):
+            p = entry.get("plugin", "core")
+            if active_plugins is not None and p != "core" and p not in active_plugins:
+                continue
             tags = {str(tag).lower() for tag in entry.get("tags", [])}
             body = " ".join(str(entry.get(key, "")) for key in ("what_was_tried", "outcome", "lesson"))
             score = len(terms & tags) * 4 + len(terms & _words(body))
@@ -227,7 +298,7 @@ class LearningStore:
             for entry in selected
         )[:12_000]
 
-    def map_context(self) -> str:
+    def map_context(self, active_plugins: Any = None) -> str:
         """Return verified environment-map context for a prompt."""
         entries = self._load_map().get("entries", {})
         if not entries:
@@ -235,17 +306,36 @@ class LearningStore:
         lines = []
         for key in sorted(entries):
             entry = entries[key]
+            p = entry.get("plugin", "core")
+            if active_plugins is not None and p != "core" and p not in active_plugins:
+                continue
             value = json.dumps(entry.get("value"), ensure_ascii=False)[:800]
             lines.append(f"- {key}: {value} (confidence={entry.get('confidence')}, verified={entry.get('last_verified')})")
-        return "\n".join(lines)
+        return "\n".join(lines) if lines else "Environment map is empty."
 
-    def load_notes(self) -> str:
+    def load_notes(self, active_plugins: Any = None) -> str:
         """Load persistent self notes from the workspace."""
         try:
             notes = self.notes_path.read_text(encoding="utf-8", errors="replace")
         except OSError:
             self.rewrite_notes()
             notes = self.notes_path.read_text(encoding="utf-8", errors="replace")
+
+        if active_plugins is not None:
+            lines = notes.splitlines()
+            filtered_lines: list[str] = []
+            current_section_enabled = True
+            for line in lines:
+                m = re.search(r"\[plugin:\s*([a-zA-Z0-9_-]+)\]", line) or re.search(r"<!--\s*plugin:\s*([a-zA-Z0-9_-]+)", line)
+                if m:
+                    p = m.group(1).strip()
+                    current_section_enabled = (p == "core" or p in active_plugins)
+                elif line.startswith("#"):
+                    current_section_enabled = True
+                if current_section_enabled:
+                    filtered_lines.append(line)
+            notes = "\n".join(filtered_lines)
+
         return self.logger.redactor.text(notes[:self.notes_cap])
 
     def rewrite_notes(self) -> None:
@@ -275,15 +365,41 @@ class LearningStore:
         self.notes_path.write_text(notes.rstrip() + "\n", encoding="utf-8")
         self.logger.log("self_notes_rewritten", chars=len(notes))
 
-    def record_cycle(self, task: str, cycle: int, actions: list[dict[str, Any]], report: str) -> None:
+    def record_cycle(
+        self,
+        task: str,
+        cycle: int,
+        actions: list[dict[str, Any]],
+        report: str,
+        plugin: str = "core",
+        body: str = "container",
+    ) -> None:
         """Summarize one cycle as a memory and refresh notes when needed."""
         action_names = [str(action.get("name", "tool")) for action in actions]
         failures = [name for name, action in zip(action_names, actions) if not action.get("ok", False)]
         outcome = "completed" if not failures else f"completed with tool failures: {', '.join(failures)}"
         tried = f"Cycle {cycle}: {task or 'standing exploration goal'}; tools: {', '.join(action_names) or 'none'}"
-        lesson = report or "Cycle completed without a textual report."
+
+        # Write full report to workspace/state/reports/
+        reports_dir = self.state_dir / "reports"
+        reports_dir.mkdir(parents=True, exist_ok=True)
+        report_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+        report_filename = f"cycle_{cycle}_{report_ts}.txt"
+        report_rel_path = f"state/reports/{report_filename}"
+        (self.workspace / report_rel_path).write_text(report or "Cycle completed without a textual report.", encoding="utf-8")
+
+        # Deterministic bounded summary for lesson field
+        bounded_lesson = deterministic_summary(report)
         tags = list(_words(f"{task} {report} {' '.join(action_names)}"))[:30]
-        self.append_memory(tried, outcome, lesson, tags)
+        self.append_memory(
+            what_was_tried=tried,
+            outcome=outcome,
+            lesson=bounded_lesson,
+            tags=tags,
+            plugin=plugin,
+            body=body,
+            report_path=report_rel_path,
+        )
         if cycle % 3 == 0 or len(self.load_notes()) >= self.notes_cap:
             self.rewrite_notes()
 

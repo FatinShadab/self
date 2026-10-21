@@ -779,6 +779,9 @@ class WakeCoordinator:
         for item in self.plan:
             if not isinstance(item, dict):
                 continue
+            if str(item.get("status", "")).strip().lower().startswith("suspended"):
+                retained.append(item)
+                continue
             details = f"{item.get('step', '')} {item.get('why', '')}".lower()
             token_item = any(marker in details for marker in ("token", "budget", "limit"))
             package_item = "installed python packages" in details or "python package inventory" in details

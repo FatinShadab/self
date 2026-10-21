@@ -44,8 +44,10 @@ def compute_plugin_hash(plugin_dir: Path) -> str:
             continue
         rel = path.relative_to(plugin_dir)
         parts = rel.parts
-        # Exclude runtime state/ directory
-        if len(parts) > 0 and parts[0] == "state":
+        # Exclude runtime state/ directory and _archive directory
+        if len(parts) > 0 and (parts[0] == "state" or parts[0] == "_archive"):
+            continue
+        if "_archive" in parts:
             continue
         # Exclude __pycache__ and bytecode
         if "__pycache__" in parts or path.suffix in {".pyc", ".pyo", ".pyd"}:
@@ -212,6 +214,8 @@ class PluginManager:
         # 2. Workspace plugins (human-installed under workspace/plugins/<name>)
         if self.workspace_plugins_dir.exists() and self.workspace_plugins_dir.is_dir():
             for entry in self.workspace_plugins_dir.iterdir():
+                if entry.name == "_archive" or entry.name.startswith("_") or entry.name.startswith("."):
+                    continue
                 if entry.is_dir() and (entry / "plugin.json").exists():
                     p = self._discover_plugin_dir(entry, is_shipped=False)
                     if p:
@@ -402,14 +406,67 @@ class PluginManager:
             self.logger.log("plugin_disabled", plugin=name)
         return True
 
-    def remove_plugin(self, name: str) -> bool:
-        """Disable and remove human-installed plugin folder."""
+    def remove_plugin(
+        self,
+        name: str,
+        purge: bool = False,
+        confirmed: bool = False,
+    ) -> bool:
+        """Disable and remove plugin folder.
+
+        Archives the plugin's folder and state to workspace/plugins/_archive/<name>-<timestamp>/
+        unless purge=True and confirmed=True.
+        """
         self.disable_plugin(name)
         plugin = self.discovered.pop(name, None)
-        if plugin and not plugin.is_shipped and plugin.plugin_dir.exists():
-            shutil.rmtree(plugin.plugin_dir, ignore_errors=True)
+        plugin_dir = plugin.plugin_dir if plugin else (self.workspace_plugins_dir / name)
+        state_dir = plugin.state_dir if plugin else (self.workspace_plugins_dir / name / "state")
+
+        if plugin and plugin.is_shipped:
+            return False
+
+        if not plugin_dir.exists() and not (state_dir and state_dir.exists()):
+            return False
+
+        if purge and confirmed:
+            if plugin_dir.exists():
+                shutil.rmtree(plugin_dir, ignore_errors=True)
+            if state_dir and state_dir.exists():
+                shutil.rmtree(state_dir, ignore_errors=True)
+            self._cleanup_removed_pointers(name)
+            self.logger.log("plugin_removed", plugin=name, mode="purged")
             return True
-        return False
+        else:
+            # Default: Archive
+            archive_base = self.workspace_plugins_dir / "_archive"
+            archive_base.mkdir(parents=True, exist_ok=True)
+            ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+            target = archive_base / f"{name}-{ts}"
+            target.mkdir(parents=True, exist_ok=True)
+            if plugin_dir.exists():
+                shutil.copytree(plugin_dir, target / "plugin", dirs_exist_ok=True)
+                shutil.rmtree(plugin_dir, ignore_errors=True)
+            if state_dir and state_dir.exists() and state_dir != (plugin_dir / "state"):
+                shutil.copytree(state_dir, target / "state", dirs_exist_ok=True)
+                shutil.rmtree(state_dir, ignore_errors=True)
+            self._cleanup_removed_pointers(name)
+            self.logger.log("plugin_removed", plugin=name, mode="archived", archive_path=str(target))
+            return True
+
+    def _cleanup_removed_pointers(self, name: str) -> None:
+        """Ensure core no longer references paths that no longer exist for removed plugin."""
+        self.active_plugins.pop(name, None)
+        self.vanished_plugins.discard(name)
+        self.refused_plugins.discard(name)
+        cfg = self.read_config()
+        plugins_cfg = cfg.get("plugins", {})
+        if name in plugins_cfg:
+            plugins_cfg[name]["enabled"] = False
+            plugins_cfg[name]["removed"] = True
+            try:
+                self.write_config(cfg)
+            except OSError:
+                pass
 
     def _build_plugin_context(self, plugin: Plugin) -> dict[str, Any]:
         return {
@@ -424,7 +481,7 @@ class PluginManager:
     # Cycle Boundary Synchronization & Hash Pinning
     # -------------------------------------------------------------------------
 
-    def sync_at_cycle_boundary(self) -> None:
+    def sync_at_cycle_boundary(self, plan_store: Any = None, learning_store: Any = None) -> None:
         """Sync discovered plugins against ./config/plugins.json and verify SHA-256 hashes.
 
         Called strictly at cycle boundaries.
@@ -432,6 +489,8 @@ class PluginManager:
         self.discover()
         cfg = self.read_config()
         plugins_cfg = cfg.get("plugins", {})
+        ps = plan_store if plan_store is not None else getattr(self, "plan_store", None)
+        ls = learning_store if learning_store is not None else getattr(self, "learning_store", None)
 
         for name, plugin in list(self.discovered.items()):
             entry = plugins_cfg.get(name, {})
@@ -459,17 +518,29 @@ class PluginManager:
 
                 # Valid hash -> enable
                 if not plugin.is_enabled:
-                    self.enable_plugin(plugin)
+                    ok = self.enable_plugin(plugin)
+                    if ok:
+                        if ps is not None:
+                            ps.resume_plugin_goals(name)
+                        if ls is not None:
+                            ls.mark_facts_stale_for_body(name)
+                    else:
+                        # Enable failed; goals stay suspended and plugin_load_failed logged
+                        pass
 
             else:
                 # Disabled in config
                 if name in self.active_plugins or plugin.is_enabled:
                     self.disable_plugin(name)
+                    if ps is not None:
+                        ps.suspend_plugin_goals(name)
 
         # Check for vanished plugins whose directories were removed
         for active_name in list(self.active_plugins):
             if active_name not in self.discovered:
                 self.disable_plugin(active_name)
+                if ps is not None:
+                    ps.suspend_plugin_goals(active_name)
 
     # -------------------------------------------------------------------------
     # Dynamic Tools and Structured Vanished Tool Observations
