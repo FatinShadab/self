@@ -1,6 +1,7 @@
 [CmdletBinding()]
 param(
     [string]$Workspace = 'workspace',
+    [string]$ConfigDir = '',
     [switch]$DryRun,
     [switch]$FailOnWarn,
     [switch]$FailOnError
@@ -15,6 +16,20 @@ if (-not $resolvedWs) {
     $resolvedWs = Join-Path $repo $Workspace
 } else {
     $resolvedWs = $resolvedWs.Path
+}
+
+# Locate config directory
+if (-not $ConfigDir) {
+    if (Test-Path -LiteralPath (Join-Path $resolvedWs 'config')) {
+        $resolvedCfg = (Join-Path $resolvedWs 'config')
+    } elseif (Test-Path -LiteralPath (Join-Path (Split-Path $resolvedWs -Parent) 'config')) {
+        $resolvedCfg = (Join-Path (Split-Path $resolvedWs -Parent) 'config')
+    } else {
+        $resolvedCfg = Join-Path $repo 'config'
+    }
+} else {
+    $resolvedCfg = (Resolve-Path $ConfigDir -ErrorAction SilentlyContinue).Path
+    if (-not $resolvedCfg) { $resolvedCfg = $ConfigDir }
 }
 
 $passCount = 0
@@ -32,6 +47,35 @@ function Report-Item([string]$Status, [string]$CheckName, [string]$Detail) {
     if ($Status -eq 'PASS') { $script:passCount++ }
     elseif ($Status -eq 'WARN') { $script:warnCount++ }
     elseif ($Status -eq 'FAIL') { $script:failCount++ }
+}
+
+function Get-PluginDirHash([string]$Dir) {
+    if (-not (Test-Path -LiteralPath $Dir)) { return "" }
+    $resolvedDir = (Resolve-Path $Dir).Path
+    $files = Get-ChildItem -LiteralPath $resolvedDir -Recurse -File | Where-Object {
+        $rel = $_.FullName.Substring($resolvedDir.Length).TrimStart('\', '/')
+        $parts = $rel -split '[\\/]'
+        if ($parts.Count -gt 0 -and $parts[0] -in @('state', '_archive', '_template')) { return $false }
+        if ('_archive' -in $parts -or '_template' -in $parts) { return $false }
+        if ('__pycache__' -in $parts -or $_.Extension -in @('.pyc', '.pyo', '.pyd')) { return $false }
+        if ($parts | Where-Object { $_.StartsWith('.') }) { return $false }
+        return $true
+    } | Sort-Object { $_.FullName.Substring($resolvedDir.Length).TrimStart('\', '/').Replace('\', '/') }
+
+    $sha = [System.Security.Cryptography.SHA256]::Create()
+    $stream = New-Object System.IO.MemoryStream
+    foreach ($f in $files) {
+        $relPosix = $f.FullName.Substring($resolvedDir.Length).TrimStart('\', '/').Replace('\', '/')
+        $nameBytes = [System.Text.Encoding]::UTF8.GetBytes($relPosix + [char]0)
+        $stream.Write($nameBytes, 0, $nameBytes.Length)
+        $contentBytes = [System.IO.File]::ReadAllBytes($f.FullName)
+        $stream.Write($contentBytes, 0, $contentBytes.Length)
+    }
+    $stream.Position = 0
+    $hashBytes = $sha.ComputeHash($stream)
+    $stream.Dispose()
+    $sha.Dispose()
+    return (-join ($hashBytes | ForEach-Object { $_.ToString('x2') }))
 }
 
 Write-Host "================================================================================" -ForegroundColor Cyan
@@ -404,6 +448,221 @@ if ($hasProviderKey -and $hasModel) {
     Report-Item 'PASS' '10. Required env vars presence' "Present: $($presentNames -join ', ') | Missing/Unset: $($missingNames -join ', ') [names only]"
 } else {
     Report-Item 'FAIL' '10. Required env vars presence' "Missing required LLM credentials or model. Present: $($presentNames -join ', ') | Missing/Unset: $($missingNames -join ', ') [names only]"
+}
+
+# -----------------------------------------------------------------------------
+# 11. Plugin Inventory & Hash State (with plugin_hash_mismatch warnings)
+# -----------------------------------------------------------------------------
+$cfgPluginsFile = Join-Path $resolvedCfg 'plugins.json'
+$pluginsConfig = @{}
+if (Test-Path -LiteralPath $cfgPluginsFile) {
+    try {
+        $cfgJson = (Get-Content -LiteralPath $cfgPluginsFile -Raw -Encoding UTF8) | ConvertFrom-Json
+        if ($cfgJson.plugins) {
+            foreach ($prop in $cfgJson.plugins.PSObject.Properties) {
+                $pluginsConfig[$prop.Name] = $prop.Value
+            }
+        }
+    } catch { }
+}
+
+# Scan for plugin directories
+$scannedPlugins = @{}
+$pluginSearchPaths = @(
+    (Join-Path $repo 'agent\plugins\examples'),
+    (Join-Path $repo 'plugins'),
+    (Join-Path $resolvedWs 'plugins')
+)
+
+foreach ($sp in $pluginSearchPaths) {
+    if (Test-Path -LiteralPath $sp) {
+        Get-ChildItem -LiteralPath $sp -Directory | ForEach-Object {
+            $pName = $_.Name
+            if ($pName -notin @('__pycache__', '_template', '_archive') -and (Test-Path -LiteralPath (Join-Path $_.FullName 'plugin.json'))) {
+                $scannedPlugins[$pName] = $_.FullName
+            }
+        }
+    }
+}
+
+# Also include any plugins listed in config even if not found in search paths
+foreach ($pName in $pluginsConfig.Keys) {
+    if (-not $scannedPlugins.ContainsKey($pName)) {
+        $scannedPlugins[$pName] = $null
+    }
+}
+
+# Scan logs/actions.jsonl for any plugin_hash_mismatch events
+$mismatchLogEvents = @()
+if ($logFile -and (Test-Path -LiteralPath $logFile)) {
+    $logLines = Get-Content -LiteralPath $logFile -Encoding UTF8
+    foreach ($line in $logLines) {
+        if ($line -match '"event"\s*:\s*"plugin_hash_mismatch"') {
+            try {
+                $mismatchLogEvents += ($line | ConvertFrom-Json)
+            } catch { }
+        }
+    }
+}
+
+$pluginRows = @()
+$hasActiveMismatch = $false
+
+foreach ($pName in ($scannedPlugins.Keys | Sort-Object)) {
+    $pDir = $scannedPlugins[$pName]
+    $cfgEntry = $pluginsConfig[$pName]
+    $isEnabled = $false
+    $pinnedHash = $null
+
+    if ($cfgEntry) {
+        $isEnabled = [bool]$cfgEntry.enabled
+        $pinnedHash = $cfgEntry.hash
+    }
+
+    $computedHash = $null
+    $hashState = "UNPINNED"
+    $coreApi = "unknown"
+
+    if ($pDir -and (Test-Path -LiteralPath (Join-Path $pDir 'plugin.json'))) {
+        try {
+            $pManifest = (Get-Content -LiteralPath (Join-Path $pDir 'plugin.json') -Raw -Encoding UTF8) | ConvertFrom-Json
+            if ($pManifest.core_api) { $coreApi = $pManifest.core_api }
+        } catch { }
+
+        if (-not $DryRun) {
+            $computedHash = Get-PluginDirHash $pDir
+        } else {
+            # In DryRun mode, check if a mock mismatch was requested
+            $mockMismatch = $false
+            if ($logMismatchCount -gt 0 -or (Test-Path -LiteralPath (Join-Path $resolvedWs 'state\.mock_hash_mismatch'))) {
+                $mockMismatch = $true
+            }
+            $computedHash = if ($mockMismatch) { "tampered_hash_value" } elseif ($pinnedHash) { $pinnedHash } else { "mock_computed_hash" }
+        }
+
+        if ($pinnedHash) {
+            if ($computedHash -eq $pinnedHash) {
+                $hashState = "MATCH"
+            } else {
+                $hashState = "MISMATCH"
+                if ($isEnabled) { $hasActiveMismatch = $true }
+            }
+        }
+    } else {
+        $hashState = "DIR_NOT_FOUND"
+        if ($isEnabled) { $hasActiveMismatch = $true }
+    }
+
+    $pluginRows += [PSCustomObject]@{
+        Name = $pName
+        Status = if ($isEnabled) { "Enabled" } else { "Disabled" }
+        HashState = $hashState
+        CoreAPI = $coreApi
+    }
+}
+
+$mismatchCount = ($pluginRows | Where-Object { $_.HashState -eq 'MISMATCH' }).Count
+$logMismatchCount = $mismatchLogEvents.Count
+
+$item11Status = 'PASS'
+$item11Detail = "$($pluginRows.Count) plugin(s) discovered ($(@($pluginRows | Where-Object { $_.Status -eq 'Enabled' }).Count) enabled, $(@($pluginRows | Where-Object { $_.Status -eq 'Disabled' }).Count) disabled)."
+
+if ($hasActiveMismatch -or $mismatchCount -gt 0 -or $logMismatchCount -gt 0) {
+    $item11Status = 'WARN'
+    $item11Detail += " WARNING: plugin_hash_mismatch detected (active mismatches: $mismatchCount, logged events: $logMismatchCount)!"
+}
+
+Report-Item $item11Status '11. Plugin inventory & hash state' $item11Detail
+
+if ($pluginRows.Count -gt 0) {
+    Write-Host "       ----------------------------------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host ("       {0,-24} | {1,-10} | {2,-16} | {3,-16}" -f "Plugin Name", "Status", "Hash State", "Core API") -ForegroundColor DarkCyan
+    Write-Host "       ----------------------------------------------------------------------------" -ForegroundColor DarkGray
+    foreach ($row in $pluginRows) {
+        $rowColor = if ($row.HashState -eq 'MISMATCH') { 'Yellow' } elseif ($row.Status -eq 'Enabled') { 'Green' } else { 'Gray' }
+        Write-Host ("       {0,-24} | {1,-10} | {2,-16} | {3,-16}" -f $row.Name, $row.Status, $row.HashState, $row.CoreAPI) -ForegroundColor $rowColor
+    }
+    Write-Host "       ----------------------------------------------------------------------------" -ForegroundColor DarkGray
+}
+
+# -----------------------------------------------------------------------------
+# 12. Proposals and Project Reviews
+# -----------------------------------------------------------------------------
+$proposalsFile = Join-Path $resolvedWs 'state\plugin_proposals.jsonl'
+$proposals = @()
+if (Test-Path -LiteralPath $proposalsFile) {
+    $pLines = Get-Content -LiteralPath $proposalsFile -Encoding UTF8
+    foreach ($pl in $pLines) {
+        if (-not $pl.Trim()) { continue }
+        try { $proposals += ($pl | ConvertFrom-Json) } catch { }
+    }
+}
+
+$planProjectDecisions = @()
+if (Test-Path -LiteralPath $planFile) {
+    try {
+        $pObj = (Get-Content -LiteralPath $planFile -Raw -Encoding UTF8) | ConvertFrom-Json
+        if ($pObj.plugin_project_decisions) {
+            $planProjectDecisions = @($pObj.plugin_project_decisions)
+        }
+    } catch { }
+}
+
+$reviewPackets = @()
+$pluginDevDir = Join-Path $resolvedWs 'plugin_dev'
+if (Test-Path -LiteralPath $pluginDevDir) {
+    Get-ChildItem -LiteralPath $pluginDevDir -Directory | ForEach-Object {
+        $rf = Join-Path $_.FullName 'review_packet.json'
+        if (Test-Path -LiteralPath $rf) {
+            try { $reviewPackets += (Get-Content -LiteralPath $rf -Raw -Encoding UTF8 | ConvertFrom-Json) } catch { }
+        }
+    }
+}
+
+$activeProposals = $proposals | Where-Object { $_.status -in @('proposed', 'in_progress') }
+$decSummary = if ($planProjectDecisions.Count -gt 0) {
+    $groupedDecs = $planProjectDecisions | Group-Object -Property decision
+    ($groupedDecs | ForEach-Object { "$($_.Name): $($_.Count)" }) -join ', '
+} else { "none" }
+
+Report-Item 'PASS' '12. Proposals and project reviews' "Proposals: $($proposals.Count) total ($($activeProposals.Count) active), stop-loss reviews: $($planProjectDecisions.Count) ($decSummary), review packets: $($reviewPackets.Count)."
+
+if ($activeProposals.Count -gt 0) {
+    Write-Host "       ----------------------------------------------------------------------------" -ForegroundColor DarkGray
+    Write-Host ("       {0,-20} | {1,-12} | {2,-16} | {3,-20}" -f "Proposal Name", "Status", "Estimated Spend", "Need") -ForegroundColor DarkCyan
+    Write-Host "       ----------------------------------------------------------------------------" -ForegroundColor DarkGray
+    foreach ($ap in $activeProposals) {
+        $tokEst = if ($ap.estimate -and $ap.estimate.tokens) { "$($ap.estimate.tokens.min)-$($ap.estimate.tokens.max) tok" } else { "n/a" }
+        $needSnippet = if ($ap.need) { ($ap.need.ToString().Trim().Substring(0, [Math]::Min(20, $ap.need.Length))) } else { "n/a" }
+        Write-Host ("       {0,-20} | {1,-12} | {2,-16} | {3,-20}" -f $ap.name, $ap.status, $tokEst, $needSnippet) -ForegroundColor Gray
+    }
+    Write-Host "       ----------------------------------------------------------------------------" -ForegroundColor DarkGray
+}
+
+# -----------------------------------------------------------------------------
+# 13. Cost Ledger Summary
+# -----------------------------------------------------------------------------
+$costLedgerFile = Join-Path $resolvedWs 'state\cost_ledger.jsonl'
+$ledgerEntries = @()
+if (Test-Path -LiteralPath $costLedgerFile) {
+    $clLines = Get-Content -LiteralPath $costLedgerFile -Encoding UTF8
+    foreach ($cl in $clLines) {
+        if (-not $cl.Trim()) { continue }
+        try { $ledgerEntries += ($cl | ConvertFrom-Json) } catch { }
+    }
+}
+
+if ($ledgerEntries.Count -gt 0) {
+    $toolEntries = $ledgerEntries | Where-Object { $_.kind -eq 'tool' }
+    $pluginEntries = $ledgerEntries | Where-Object { $_.kind -eq 'plugin' }
+
+    $totalToolTokens = if ($toolEntries) { ($toolEntries | Measure-Object -Property tokens -Sum).Sum } else { 0 }
+    $totalPluginTokens = if ($pluginEntries) { ($pluginEntries | Measure-Object -Property tokens -Sum).Sum } else { 0 }
+    $totalLedgerTokens = ($ledgerEntries | Measure-Object -Property tokens -Sum).Sum
+
+    Report-Item 'PASS' '13. Cost ledger summary' "$($ledgerEntries.Count) records ($($toolEntries.Count) tools: $($totalToolTokens) tok, $($pluginEntries.Count) plugins: $($totalPluginTokens) tok, total: $($totalLedgerTokens) tok)."
+} else {
+    Report-Item 'PASS' '13. Cost ledger summary' "No cost ledger entries recorded yet (state/cost_ledger.jsonl empty or uninitialized)."
 }
 
 Write-Host "================================================================================" -ForegroundColor Cyan

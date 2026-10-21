@@ -123,6 +123,47 @@ try {
         throw "Failed to warn on excessive token cap: $warnStr"
     }
 
+    # Reset token cap and memory
+    Set-Content -LiteralPath (Join-Path $stateDir 'daily_token_budget.json') -Value '{"cap": 200000}' -Encoding UTF8
+    Set-Content -LiteralPath (Join-Path $stateDir 'memory.jsonl') -Value '{"task": "Mapping", "lesson": "Clean", "outcome": "completed"}' -Encoding UTF8
+
+    # Test 11, 12, 13: proposals, cost ledger, and plugin_hash_mismatch warning
+    Write-Host "Testing proposals, cost ledger, and plugin_hash_mismatch warning..." -ForegroundColor Cyan
+    $proposalsJsonl = @'
+{"name": "sensor_x", "status": "proposed", "estimate": {"tokens": {"min": 1000, "max": 2000}}, "need": "Telemetry"}
+'@
+    Set-Content -LiteralPath (Join-Path $stateDir 'plugin_proposals.jsonl') -Value $proposalsJsonl -Encoding UTF8
+
+    $costLedgerJsonl = @'
+{"kind": "tool", "target": "tool_a", "tokens": 1500, "llm_calls": 2}
+{"kind": "plugin", "target": "sensor_x", "tokens": 4000, "llm_calls": 5}
+'@
+    Set-Content -LiteralPath (Join-Path $stateDir 'cost_ledger.jsonl') -Value $costLedgerJsonl -Encoding UTF8
+
+    # Inject plugin_hash_mismatch in actions.jsonl
+    Add-Content -LiteralPath (Join-Path $logsDir 'actions.jsonl') -Value '{"event": "plugin_hash_mismatch", "plugin": "tampered_p", "expected": "hash1", "actual": "hash2"}' -Encoding UTF8
+
+    $pluginWarnOutput = & powershell -ExecutionPolicy Bypass -File $scriptPath -Workspace $tempRoot -DryRun
+    $pluginWarnStr = $pluginWarnOutput -join "`n"
+
+    if ($pluginWarnStr -match 'WARN.*11\. Plugin inventory & hash state.*plugin_hash_mismatch') {
+        Write-Host "PASS: Successfully detected plugin_hash_mismatch warning." -ForegroundColor Green
+    } else {
+        throw "Failed to warn on plugin_hash_mismatch: $pluginWarnStr"
+    }
+
+    if ($pluginWarnStr -match '12\. Proposals and project reviews.*Proposals: 1 total') {
+        Write-Host "PASS: Successfully reported plugin proposals." -ForegroundColor Green
+    } else {
+        throw "Failed to report proposals: $pluginWarnStr"
+    }
+
+    if ($pluginWarnStr -match '13\. Cost ledger summary.*2 records') {
+        Write-Host "PASS: Successfully reported cost ledger summary." -ForegroundColor Green
+    } else {
+        throw "Failed to report cost ledger summary: $pluginWarnStr"
+    }
+
     Write-Host "`nAll live-check fixture tests PASSED." -ForegroundColor Green
 }
 finally {
