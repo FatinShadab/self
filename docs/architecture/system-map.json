@@ -376,6 +376,60 @@
       ]
     },
     {
+      "name": "action_allowed",
+      "emitters": [
+        "agent/infra/permission_broker.py:367",
+        "agent/infra/permission_broker.py:285"
+      ],
+      "fields": [
+        "action",
+        "dry_run",
+        "reason",
+        "source"
+      ]
+    },
+    {
+      "name": "action_denied",
+      "emitters": [
+        "agent/infra/permission_broker.py:296",
+        "agent/infra/permission_broker.py:318",
+        "agent/infra/permission_broker.py:346"
+      ],
+      "fields": [
+        "action",
+        "level",
+        "reason",
+        "source"
+      ]
+    },
+    {
+      "name": "action_executed",
+      "emitters": [
+        "agent/infra/permission_broker.py:386"
+      ],
+      "fields": [
+        "action",
+        "error",
+        "level",
+        "reversible",
+        "source",
+        "success"
+      ]
+    },
+    {
+      "name": "action_requested",
+      "emitters": [
+        "agent/infra/permission_broker.py:268"
+      ],
+      "fields": [
+        "action",
+        "dry_run",
+        "level",
+        "reversible",
+        "source"
+      ]
+    },
+    {
       "name": "action_undo_failed",
       "emitters": [
         "agent/infra/permission_broker.py:249"
@@ -412,6 +466,15 @@
       "fields": [
         "ceiling",
         "model",
+        "reason"
+      ]
+    },
+    {
+      "name": "broker_panic",
+      "emitters": [
+        "agent/infra/permission_broker.py:407"
+      ],
+      "fields": [
         "reason"
       ]
     },
@@ -548,7 +611,9 @@
     {
       "name": "cycle_completed",
       "emitters": [
-        "agent/runtime/loop.py:842"
+        "agent/runtime/loop.py:842",
+        "agent/tests/reporting/test_analyze_run.py:218",
+        "agent/tests/reporting/test_analyze_run.py:219"
       ],
       "fields": [
         "actions",
@@ -1029,7 +1094,7 @@
     {
       "name": "plugin_command_error",
       "emitters": [
-        "agent/plugins/manager.py:569"
+        "agent/plugins/manager.py:571"
       ],
       "fields": [
         "command",
@@ -1040,7 +1105,7 @@
     {
       "name": "plugin_critic_failed",
       "emitters": [
-        "agent/plugins/self_dev.py:748"
+        "agent/plugins/self_dev.py:790"
       ],
       "fields": [
         "error",
@@ -1059,9 +1124,11 @@
     {
       "name": "plugin_enabled",
       "emitters": [
-        "agent/plugins/manager.py:429"
+        "agent/plugins/manager.py:429",
+        "agent/tests/reporting/test_analyze_run.py:217"
       ],
       "fields": [
+        "cycle",
         "hash",
         "plugin",
         "version"
@@ -1070,7 +1137,7 @@
     {
       "name": "plugin_hash_mismatch",
       "emitters": [
-        "agent/plugins/manager.py:612"
+        "agent/plugins/manager.py:614"
       ],
       "fields": [
         "actual",
@@ -1114,7 +1181,7 @@
     {
       "name": "plugin_promoted",
       "emitters": [
-        "agent/plugins/self_dev.py:852"
+        "agent/plugins/self_dev.py:894"
       ],
       "fields": [
         "name",
@@ -1124,7 +1191,7 @@
     {
       "name": "plugin_proposed",
       "emitters": [
-        "agent/plugins/self_dev.py:305"
+        "agent/plugins/self_dev.py:326"
       ],
       "fields": [
         "cycle_estimate",
@@ -1148,8 +1215,9 @@
     {
       "name": "plugin_review_completed",
       "emitters": [
-        "agent/plugins/self_dev.py:765",
-        "agent/tests/plugins/test_self_plugins.py:400"
+        "agent/plugins/self_dev.py:807",
+        "agent/tests/plugins/test_self_plugins.py:400",
+        "agent/tests/plugins/test_self_plugins.py:651"
       ],
       "fields": [
         "approved",
@@ -1163,7 +1231,7 @@
     {
       "name": "plugin_scaffolded",
       "emitters": [
-        "agent/plugins/self_dev.py:375"
+        "agent/plugins/self_dev.py:396"
       ],
       "fields": [
         "name",
@@ -1173,7 +1241,7 @@
     {
       "name": "plugin_tested",
       "emitters": [
-        "agent/plugins/self_dev.py:648"
+        "agent/plugins/self_dev.py:682"
       ],
       "fields": [
         "exit_code",
@@ -1186,7 +1254,7 @@
     {
       "name": "plugin_validated",
       "emitters": [
-        "agent/plugins/self_dev.py:569"
+        "agent/plugins/self_dev.py:590"
       ],
       "fields": [
         "error_count",
@@ -1388,9 +1456,11 @@
     {
       "name": "repeated_tool_action_blocked",
       "emitters": [
-        "agent/runtime/loop.py:770"
+        "agent/runtime/loop.py:770",
+        "agent/tests/reporting/test_analyze_run.py:214"
       ],
       "fields": [
+        "cycle",
         "tool"
       ]
     },
@@ -1635,17 +1705,21 @@
         "agent/llm/llm.py:117",
         "agent/llm/llm.py:107",
         "agent/llm/llm.py:97",
+        "agent/tests/reporting/test_analyze_run.py:215",
+        "agent/tests/reporting/test_analyze_run.py:216",
         "agent/tests/reporting/test_report.py:21"
       ],
       "fields": [
         "call_input_tokens",
         "call_output_tokens",
+        "cycle",
         "daily_token_budget",
         "max_output_tokens",
         "reason",
         "reserved_tokens",
         "tokens_released",
         "tokens_used",
+        "total_tokens",
         "usage_known"
       ]
     },
@@ -1717,6 +1791,8 @@
     {
       "name": "tool_registered",
       "emitters": [
+        "agent/tests/plugins/test_self_plugins.py:623",
+        "agent/tests/plugins/test_self_plugins.py:646",
         "agent/tests/reporting/test_report.py:22",
         "agent/tools/tool_registry.py:415"
       ],
