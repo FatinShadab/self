@@ -1,8 +1,8 @@
 # Architecture Briefing: SELF Core & Specializations
 
-**Git Commit:** `p13-sim-and-scoring`  
+**Git Commit:** `core-v0.1.0-rc1` (Branch: `p18-release`)  
 **Date:** 2026-10-21  
-**Scope:** Complete baseline architecture briefing for planning modular core and specialization bodies.
+**Scope:** Complete release candidate architecture briefing for SELF Core v0.1.0-rc1.
 
 ---
 
@@ -88,6 +88,8 @@ The primary entry point is `python -m agent.wake` `[read] Dockerfile:52`, which 
 14. **Protected Core Harness Patching:** The agent cannot directly modify `/opt/agent/core/`. It can only generate unified diffs saved to `state/proposed_patches/` via `propose_core_patch` for the human operator to inspect and apply from the host `[read] agent/tools/base_tools.py:262-268, 513-516`.
 15. **Hidden Eval Isolation:** The evaluation framework `eval/` is excluded by `.dockerignore`, not mounted in `docker-compose.yml`, and only runs via host scripts with read-only mounts `[read] .dockerignore:4, docker-compose.yml:33-49`.
 16. **Permission Broker & Hash-Chained Audit Trail:** Every action from the body, plugins, or tools is mediated by the core `PermissionBroker` (`L0_OBSERVE` to `L3_ACTUATION`), with default policy denying all >L0 until granted in read-only `/config/permissions.json`. Authorizations, executions, and dry runs are recorded to append-only `state/audit_trail.jsonl` with SHA-256 hash chaining `[read] agent/infra/permission_broker.py:50, agent/infra/audit_trail.py:40`.
+17. **Plugin Subsystem & Core API v1.1.0:** Hot-pluggable skills and bodies with SHA-256 hash pinning against human-owned `/config/plugins.json`. Slash commands (such as `/pet` in `pet_companion`) dispatch directly to plugin handlers without polluting the agent's inbox, and private state is isolated in `workspace/plugins/<name>/state/` `[read] agent/plugins/manager.py:530-570`.
+18. **Self-Developing Plugins with Cost Ledger & Stop-Loss:** The agent scaffolds and tests plugin drafts under `workspace/plugin_dev/<name>/`, which the production loader never loads. Spending is tracked in `state/cost_ledger.jsonl`. Mandatory stop-loss review triggers at 25%, 50%, and 100% of estimate block plugin dev tools until an explicit plan decision (`decide_plugin_review`: `continue` | `reduce_scope` | `abandon`) is recorded `[read] agent/plugins/self_dev.py:113-144, agent/infra/cost_ledger.py:38`.
 
 ---
 
@@ -123,10 +125,13 @@ The primary entry point is `python -m agent.wake` `[read] Dockerfile:52`, which 
 | `config/permissions.json` | Human permission policy for L0-L3 action levels | **NO** | Human-owned; mounted read-only into `/config` |
 | `config/egress_allowlist.txt`| Allowed domain and IP prefixes for egress proxy sidecar | **NO** | Human-owned; mounted read-only into `/config` |
 | `plugins/<name>/state/` | Per-plugin private state storage | **NO** | Plugin-managed isolated runtime state |
+| `state/cost_ledger.jsonl` | Append-only ledger of measured token, cycle, and time costs for tools & plugins | **NO** | JSONL: target, kind, tokens, llm_calls, wall_time, attempts |
+| `state/plugin_proposals.jsonl` | Append-only log of submitted plugin proposals for human review | **NO** (active proposals summarized in prompt) | JSONL: name, need, estimate, risk, stop_loss |
+| `workspace/plugin_dev/<name>/` | Isolated plugin drafts under development by agent | **NO** | Draft code, unittests, and `review_packet.json` |
 
 ---
 
-## 5. Tool Subsystem Summary (23 Tools)
+## 5. Tool Subsystem Summary (29 Tools)
 
 | Tool Name | One-Line Purpose | Risk Class & Core vs Body |
 | :--- | :--- | :--- |
@@ -143,7 +148,7 @@ The primary entry point is `python -m agent.wake` `[read] Dockerfile:52`, which 
 | `http_get` | Make HTTP GET request with host/path egress logging `[read] base_tools.py:124`. | Network (Body: Container WAN) |
 | `update_environment_map`| Record verified environment facts in `state/map.json` `[read] base_tools.py:137`. | Writes (Core) |
 | `read_plan` | Read active multi-goal plan from `state/plan.json` `[read] base_tools.py:160`. | Reads (Core) |
-| `update_plan` | Modify plan goals or record human input decision with reason `[read] base_tools.py:165`.| Writes (Core) |
+| `update_plan` | Modify plan goals, stop-loss reviews, or record human input decision `[read] base_tools.py:165`.| Writes (Core) |
 | `research_provider` | Fetch official provider documentation without signing up `[read] base_tools.py:217`. | Network (Core) |
 | `record_provider_verification`| Record verified free-tier provider limits to `providers.json` `[read] base_tools.py:222`.| Writes (Core) |
 | `request_provider_key` | Write human-only request for missing API key to `key_requests.md` `[read] base_tools.py:230`.| Writes (Core) |
@@ -152,6 +157,12 @@ The primary entry point is `python -m agent.wake` `[read] Dockerfile:52`, which 
 | `probe_local_ollama` | Check if local Ollama daemon is reachable in container `[read] base_tools.py:248`. | Network / Reads (Body) |
 | `request_capability` | Write human-facing request for capability expansion `[read] base_tools.py:253`. | Writes (Core) |
 | `propose_core_patch` | Save unified diff under `state/proposed_patches/` for human review `[read] base_tools.py:262`.| Writes (Core) |
+| `propose_plugin` | Propose new plugin with evidence, alternatives, and cost ledger estimates `[read] base_tools.py:318`.| Writes / Planning (Core) |
+| `scaffold_plugin` | Scaffold isolated plugin draft skeleton under workspace/plugin_dev/ `[read] base_tools.py:355`.| Writes (Core) |
+| `validate_plugin` | Run static schema, security, and manifest checks on draft plugin `[read] base_tools.py:370`.| Reads / Verification (Core) |
+| `test_plugin` | Run isolated unittests on draft plugin within safety bounds `[read] base_tools.py:385`.| Executes / Verification (Core) |
+| `request_plugin_review` | Request strict critic LLM review and generate review packet `[read] base_tools.py:400`.| Network / Review (Core) |
+| `read_cost_ledger` | Read measured tool and plugin token spend, cycle counts, and percentiles `[read] base_tools.py:312`.| Reads (Core) |
 | `create_tool` | Create/update reusable Python tool with critic & test verification `[read] tool_registry.py:22`.| Executes / Writes / Network (Core) |
 
 ---
