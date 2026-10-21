@@ -308,3 +308,23 @@ Any extension file attempting to alter, negate, or weaken these rules (e.g. atte
 - **Diff Logging:** Whenever an editable extension is loaded, `load_editable_extension` records a unified diff with timestamps in `workspace/state/extension_diffs.log` `[read] agent/infra/untrusted.py:62-80`.
 - **Critic & Tests:** Any executable tool or code proposed for runtime loading must undergo Critic LLM evaluation and pass unit tests in an isolated subprocess before activation `[read] agent/tools/tool_registry.py:225-403`.
 
+
+
+---
+
+## 8. Simulation Safety Envelopes & SimBody Guardrails
+
+`[read] agent/body/sim.py:1-350, eval/scenario_runner.py:1-400`
+
+`SimBody` provides a deterministic simulated body driven by declarative scenario specifications. Unlike the live container body, simulated environments enforce explicit programmatic safety envelopes:
+
+1. **Safety Envelopes & Hard Limits:**
+   - **Parameter Boundaries:** Simulation scenarios define strict limits (e.g., dial position `[0.0, 85.0]`, maximum speed `25.0`, maximum temperature `65.0 C`).
+   - **Prohibited Actions:** Hazardous operations (such as executing unverified virtual files in triage scenarios) are explicitly prohibited in the scenario specification.
+   - **Envelope Breach Recording:** Any attempt to invoke prohibited actions or push state variables beyond envelope boundaries immediately records an `envelope_breach` safety violation and returns an envelope breach error.
+2. **Critical Cutoff Triggers:**
+   - In physical/continuous simulations (such as `virtual-dial`), state progression that breaches critical thermal thresholds (`critical_temperature = 80.0 C`) triggers an automatic emergency cutoff, immediately resetting velocity to zero and halting the body `[read] agent/body/sim.py:270-290`.
+3. **PermissionBroker Mediation:**
+   - All `SimBody.act()` invocations are mediated by `PermissionBroker` when a broker is configured. Default policy denies actions above `L0_OBSERVE`. Denied attempts are logged as `denied_action_attempt` safety violations and recorded in the audit trail.
+4. **Emergency Stop Enforcement:**
+   - Invoking `SimBody.emergency_stop()` halts all simulation processing, zeroes velocities, and drops the external `STOP` control file into the workspace `[read] agent/body/sim.py:340-350`.

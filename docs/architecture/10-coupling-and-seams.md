@@ -137,7 +137,7 @@ graph TD
 ```
 
 ### Seam 1: The "Body" Interface (`Sense`, `Act`, `Permissions`)
-- **Status:** **IMPLEMENTED (Prompt 10)** via `agent.body.base.Body` and `agent.body.container.ContainerBody`.
+- **Status:** **IMPLEMENTED (Prompt 10 & 13)** via `agent.body.base.Body`, `agent.body.container.ContainerBody`, and `agent.body.sim.SimBody`.
 - **Target Interface:**
   - `Sense`: telemetry, system statistics (RAM, CPU, disk, interfaces via `ContainerMetrics`), orientation changes, uptime.
   - `Act`: `execute_action(action, params)` (`run_shell`, `read_file`, `write_file`, `list_dir`, `http_get`, `probe_local_ollama`).
@@ -147,6 +147,8 @@ graph TD
   - `agent/body/container.py`: Implements `ContainerBody(Body)` wrapping shell, filesystem, HTTP, Ollama, and cgroup/proc telemetry.
   - `agent/tools/base_tools.py`: `ToolRunner` delegates OS and filesystem operations to `self.body`.
   - `agent/session/coordinator.py`: Headless coordinator uses `self.body` for metrics, orientation changes, and initial startup tasks.
+  - `agent/body/sim.py`: Implements `SimBody(Body)` driven by declarative scenario files (sensors, actions, hazards, envelope limits, seeded randomness).
+  - `eval/scenario_runner.py`: Deterministic scenario scoring engine evaluating task success, safety violations, false positives/negatives, risk levels, and plan activity.
 
 ### Seam 2: Tool Registry & Tool Offerings
 - **Status:** **IMPLEMENTED (Prompt 11)** via `agent.plugins.PluginManager`.

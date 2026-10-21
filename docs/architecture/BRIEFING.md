@@ -1,7 +1,7 @@
 # Architecture Briefing: SELF Core & Specializations
 
-**Git Commit:** `p12-safety`  
-**Date:** 2026-10-18  
+**Git Commit:** `p13-sim-and-scoring`  
+**Date:** 2026-10-21  
 **Scope:** Complete baseline architecture briefing for planning modular core and specialization bodies.
 
 ---
@@ -160,8 +160,8 @@ The primary entry point is `python -m agent.wake` `[read] Dockerfile:52`, which 
 
 To decouple the core agent from the Linux container and enable specialized bodies (Antivirus, IoT Robot):
 
-1. **Body Interface (`Sense` / `Act` / `Permissions`) — Difficulty: HIGH [IMPLEMENTED in Prompt 10]**
-   - *Implementation:* `agent/body/base.py` and `agent/body/container.py` provide abstract `Body` and default `ContainerBody`.
+1. **Body Interface (`Sense` / `Act` / `Permissions`) — Difficulty: HIGH [IMPLEMENTED in Prompt 10 & 13]**
+   - *Implementation:* `agent/body/base.py` and `agent/body/container.py` provide abstract `Body` and default `ContainerBody`. `agent/body/sim.py` provides deterministic `SimBody` driven by scenarios with safety envelopes, and `eval/scenario_runner.py` scores outcomes reproducible by seed.
 2. **Prompt Assembly & System Prompt — Difficulty: MEDIUM [IMPLEMENTED in Prompt 10 & 11]**
    - *Implementation:* `loop.py` decomposes prompts into core rules, dynamic body embodiment (`body.describe().embodiment`), and delimited plugin embodiment and seeds.
 3. **State Partitioning & Namespace Organization — Difficulty: MEDIUM [IMPLEMENTED in Prompt 11]**

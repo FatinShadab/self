@@ -30,10 +30,15 @@ self/
 │   ├── run.py                        # Headless entry point running WakeCoordinator without Textual [read] agent/run.py:1-42
 │   ├── wake.py                       # Root compatibility shim for agent.ui.wake CLI [read] agent/wake.py:1-12
 │   │
-│   ├── body/                         # Body interface, capability declarations, sensing, ContainerBody (Layer 1)
-│   │   ├── __init__.py               # Exports Body, BodyDescription, Capability, ContainerBody, ContainerMetrics [read] agent/body/__init__.py:1-12
+│   ├── body/                         # Body interface, capability declarations, sensing, ContainerBody, SimBody (Layer 1)
+│   │   ├── __init__.py               # Exports Body, BodyDescription, Capability, ContainerBody, ContainerMetrics, SimBody [read] agent/body/__init__.py:1-17
 │   │   ├── base.py                   # Abstract Body base class, BodyDescription, Capability dataclasses [read] agent/body/base.py:1-69
-│   │   └── container.py              # ContainerBody wrapping shell, files, network, /proc and /sys metrics [read] agent/body/container.py:1-582
+│   │   ├── container.py              # ContainerBody wrapping shell, files, network, /proc and /sys metrics [read] agent/body/container.py:1-592
+│   │   └── sim.py                    # SimBody: deterministic simulated body driven by scenario files [read] agent/body/sim.py:1-380
+│   │
+│   ├── scenarios/                    # Public simulation scenarios available inside container image
+│   │   ├── file_triage.json          # Starter scenario: virtual directory triage with inert marker tokens
+│   │   └── virtual_dial.json         # Starter scenario: virtual dial with limits and safety envelope
 │   │
 │   ├── helper_models/                # Multi-model management, probing, routing, and outcomes (Layer 2)
 
@@ -112,7 +117,7 @@ self/
 │   │   └── wake.py                   # Textual UI front-end (SelfApp), cardiac trace, delegating to coordinator [read] agent/ui/wake.py:1-1390
 
 │   │
-│   └── tests/                        # 157 unit tests across all agent subsystems [ran]
+│   └── tests/                        # 221 unit tests across all agent subsystems [ran]
 │
 ├── eval/                             # Host-only hidden evaluation and A/B campaign framework [read] docker-compose.yml:25-50
 │   ├── __init__.py                   # Package root
@@ -122,7 +127,11 @@ self/
 │   ├── ab_verify.py                  # Evaluates workspace artifacts produced by evaluation runs
 │   ├── calibrate.py                  # Calibrates scoring models against reference ratings
 │   ├── runner.py                     # Execution harness running evaluation runs inside isolated containers
-│   └── tests/                        # 11 unit tests verifying evaluation harness isolation and scoring [ran]
+│   ├── scenario_runner.py            # Host-only deterministic scenario execution and scoring engine [read]
+│   ├── scenarios/                    # Hidden evaluation scenarios (unmounted, excluded from agent image)
+│   │   ├── file_triage_hidden.json   # Hidden file triage evaluation scenario
+│   │   └── virtual_dial_hidden.json  # Hidden virtual dial evaluation scenario
+│   └── tests/                        # 20 unit tests verifying evaluation harness isolation and scoring [ran]
 │
 ├── scripts/                          # Host-side development, CI, and verification scripts
 │   ├── ab-run.ps1                    # PowerShell runner for automated A/B evaluation campaigns
@@ -164,7 +173,9 @@ self/
 | `agent.ui.version_check` | `agent/ui/version_check.py` | CLI / Hook | `python -m agent.ui.version_check` | Verifies harness source hash against expected image version `[read] agent/ui/version_check.py:53`. |
 | `agent.ui.phase8_verify` | `agent/ui/phase8_verify.py` | CLI | `python -m agent.ui.phase8_verify` | Verification CLI for Phase 8 identity and plan integration `[read] agent/ui/phase8_verify.py:108`. |
 | `agent.tools.tool_worker` | `agent/tools/tool_worker.py` | Subprocess | `python /opt/agent/tools/tool_worker.py` | Subprocess execution wrapper for custom tools; reads arguments on stdin, executes `run()`, writes envelope to stdout `[read] agent/tools/tool_worker.py:27`. |
-| `scripts/run-tests.ps1` | `scripts/run-tests.ps1` | Host Script | `.\scripts\run-tests.ps1` | Builds test image, runs 157 harness unit tests and 11 isolated eval tests in Docker `[read] scripts/run-tests.ps1:1-25`. |
+| `eval.scenario_runner` | `eval/scenario_runner.py` | CLI | `python -m eval.scenario_runner [--scenario ...] [--seed ...]` | Deterministic scenario runner scoring task success, safety violations, FP/FN, and risk levels `[read]`. |
+| `scripts/scenario-run.ps1` | `scripts/scenario-run.ps1` | Host Script | `.\scripts\scenario-run.ps1 [-Scenario ...] [-Seed ...]` | Host PowerShell script running public and hidden simulation scenarios `[read]`. |
+| `scripts/run-tests.ps1` | `scripts/run-tests.ps1` | Host Script | `.\scripts\run-tests.ps1` | Builds test image, runs 221 harness unit tests and 20 isolated eval tests in Docker `[read] scripts/run-tests.ps1:1-25`. |
 | `scripts/run-tests.sh` | `scripts/run-tests.sh` | Host Script | `./scripts/run-tests.sh` | Shell script equivalent for POSIX hosts `[read] scripts/run-tests.sh:1-19`. |
 | `scripts/live-check.ps1` | `scripts/live-check.ps1` | Host Script | `.\scripts\live-check.ps1` | Diagnostic health check verifying image freshness, plan, models, errors, framing, and environment. |
 

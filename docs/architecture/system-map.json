@@ -1344,6 +1344,19 @@
       "fields": []
     },
     {
+      "name": "sim_body_action",
+      "emitters": [
+        "agent/body/sim.py:271"
+      ],
+      "fields": [
+        "action",
+        "level",
+        "ok",
+        "risk_class",
+        "step"
+      ]
+    },
+    {
       "name": "stale_budget_plan_recovered",
       "emitters": [
         "agent/session/coordinator.py:803"

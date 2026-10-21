@@ -3,6 +3,7 @@ from __future__ import annotations
 
 from agent.body.base import Body, BodyDescription, Capability
 from agent.body.container import ContainerBody, ContainerMetrics
+from agent.body.sim import SimBody
 
 __all__ = [
     "Body",
@@ -10,4 +11,5 @@ __all__ = [
     "Capability",
     "ContainerBody",
     "ContainerMetrics",
+    "SimBody",
 ]
