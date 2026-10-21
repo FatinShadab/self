@@ -987,7 +987,7 @@
     {
       "name": "plugin_command_error",
       "emitters": [
-        "agent/plugins/manager.py:558"
+        "agent/plugins/manager.py:567"
       ],
       "fields": [
         "command",
@@ -998,7 +998,7 @@
     {
       "name": "plugin_disabled",
       "emitters": [
-        "agent/plugins/manager.py:452"
+        "agent/plugins/manager.py:453"
       ],
       "fields": [
         "plugin"
@@ -1007,7 +1007,7 @@
     {
       "name": "plugin_enabled",
       "emitters": [
-        "agent/plugins/manager.py:426"
+        "agent/plugins/manager.py:427"
       ],
       "fields": [
         "hash",
@@ -1018,7 +1018,7 @@
     {
       "name": "plugin_hash_mismatch",
       "emitters": [
-        "agent/plugins/manager.py:601"
+        "agent/plugins/manager.py:610"
       ],
       "fields": [
         "actual",
@@ -1029,13 +1029,13 @@
     {
       "name": "plugin_load_failed",
       "emitters": [
-        "agent/plugins/manager.py:255",
-        "agent/plugins/manager.py:259",
-        "agent/plugins/manager.py:309",
-        "agent/plugins/manager.py:330",
-        "agent/plugins/manager.py:405",
-        "agent/plugins/manager.py:356",
-        "agent/plugins/manager.py:446"
+        "agent/plugins/manager.py:256",
+        "agent/plugins/manager.py:260",
+        "agent/plugins/manager.py:310",
+        "agent/plugins/manager.py:331",
+        "agent/plugins/manager.py:406",
+        "agent/plugins/manager.py:357",
+        "agent/plugins/manager.py:447"
       ],
       "fields": [
         "error",
@@ -1045,8 +1045,8 @@
     {
       "name": "plugin_removed",
       "emitters": [
-        "agent/plugins/manager.py:483",
-        "agent/plugins/manager.py:499"
+        "agent/plugins/manager.py:484",
+        "agent/plugins/manager.py:500"
       ],
       "fields": [
         "archive_path",

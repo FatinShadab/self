@@ -7,13 +7,17 @@ from pathlib import Path
 import tempfile
 import shutil
 
-plugin_dir = Path(__file__).resolve().parent.parent
-if str(plugin_dir) not in sys.path:
-    sys.path.insert(0, str(plugin_dir))
-
-from habitat import HabitatSimulation
-from phrase_engine import talk_with_pet, get_deterministic_reply
-import plugin
+try:
+    from agent.plugins.examples.pet_companion.habitat import HabitatSimulation
+    from agent.plugins.examples.pet_companion.phrase_engine import talk_with_pet, get_deterministic_reply
+    from agent.plugins.examples.pet_companion import plugin
+except ImportError:
+    plugin_dir = Path(__file__).resolve().parent.parent
+    if str(plugin_dir) not in sys.path:
+        sys.path.insert(0, str(plugin_dir))
+    from habitat import HabitatSimulation
+    from phrase_engine import talk_with_pet, get_deterministic_reply
+    import plugin
 
 
 class PetCompanionTests(unittest.TestCase):

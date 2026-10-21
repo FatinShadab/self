@@ -16,6 +16,7 @@ from agent.infra.event_log import EventLogger
 from agent.plugins.manifest import (
     PluginManifest,
     PluginManifestValidationError,
+    RESERVED_SLASH_COMMANDS,
     parse_manifest,
 )
 from agent.tools.base_tools import TOOL_DEFINITIONS
@@ -527,6 +528,11 @@ class PluginManager:
     def register_command(self, plugin_name: str, command: str, handler: Callable[[str], str]) -> None:
         """Register a human-facing slash command for an enabled plugin."""
         clean = command.strip().lstrip("/")
+        if clean.lower() in RESERVED_SLASH_COMMANDS:
+            raise ValueError(
+                f"Cannot register reserved slash command '/{clean}'. "
+                "Hard human controls and core commands cannot be overridden by plugins."
+            )
         self.active_commands[clean] = (plugin_name, handler)
 
     def unregister_commands_for_plugin(self, plugin_name: str) -> None:
@@ -548,6 +554,9 @@ class PluginManager:
             return None
         cmd_name = parts[0]
         cmd_args = parts[1] if len(parts) > 1 else ""
+
+        if cmd_name.lower() in RESERVED_SLASH_COMMANDS:
+            return None
 
         if cmd_name in self.active_commands:
             plugin_name, handler = self.active_commands[cmd_name]

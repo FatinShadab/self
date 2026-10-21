@@ -12,11 +12,14 @@ Verifies:
 """
 from __future__ import annotations
 
+import ast
 import json
 import shutil
+import socket
 import tempfile
 import unittest
 from pathlib import Path
+from unittest.mock import patch
 
 from agent.infra.event_log import EventLogger
 from agent.infra.permission_broker import PermissionBroker, PermissionLevel, PermissionPolicy
@@ -24,7 +27,11 @@ from agent.learning.learning import LearningStore
 from agent.learning.plan import PlanStore
 from agent.plugins.cli import cmd_validate
 from agent.plugins.manager import PluginManager, compute_plugin_hash
-from agent.plugins.manifest import parse_manifest
+from agent.plugins.manifest import (
+    PluginManifestValidationError,
+    RESERVED_SLASH_COMMANDS,
+    parse_manifest,
+)
 
 
 class PetCompanionDemoTests(unittest.TestCase):
@@ -112,7 +119,7 @@ class PetCompanionDemoTests(unittest.TestCase):
         sim_b.rest_pet()
         self.assertEqual(sim_a.to_dict(), sim_b.to_dict())
 
-    def test_release_pet_is_denied_and_logged(self) -> None:
+    def test_release_pet_is_denied_by_default_and_allowed_when_granted(self) -> None:
         """3. release_pet is denied by default (L2) and logged; allowed when granted."""
         # Enable pet_companion in config
         h = compute_plugin_hash(self.pet_plugin_dir)
@@ -264,19 +271,57 @@ class PetCompanionDemoTests(unittest.TestCase):
 
     def test_plugin_has_no_network_access_and_zero_tokens_by_default(self) -> None:
         """6. Plugin has no network access and zero token cost by default."""
-        from agent.plugins.examples.pet_companion.plugin import talk_to_pet, feed, pet_status
+        from agent.plugins.examples.pet_companion.plugin import (
+            feed,
+            habitat_status,
+            handle_pet_command,
+            pet_status,
+            play,
+            rest_pet,
+            talk_to_pet,
+        )
 
-        # Default configuration
-        res_talk = talk_to_pet("hello friend")
-        self.assertTrue(res_talk["ok"])
-        self.assertEqual(res_talk["token_cost"], 0)
-        self.assertFalse(res_talk["used_helper_model"])
+        # 1. Runtime network isolation: monkeypatch socket to raise if any network call is attempted
+        def forbid_socket(*args, **kwargs):
+            raise RuntimeError("CRITICAL: Network socket creation attempted by plugin!")
 
-        res_feed = feed()
-        self.assertTrue(res_feed["ok"])
+        with patch("socket.socket", side_effect=forbid_socket):
+            res_talk = talk_to_pet("hello friend")
+            self.assertTrue(res_talk["ok"])
+            self.assertEqual(res_talk["token_cost"], 0)
+            self.assertFalse(res_talk["used_helper_model"])
 
-        res_status = pet_status()
-        self.assertTrue(res_status["ok"])
+            res_feed = feed()
+            self.assertTrue(res_feed["ok"])
+
+            res_play = play()
+            self.assertTrue(res_play["ok"])
+
+            res_rest = rest_pet()
+            self.assertTrue(res_rest["ok"])
+
+            res_status = pet_status()
+            self.assertTrue(res_status["ok"])
+
+            res_habitat = habitat_status()
+            self.assertTrue(res_habitat["ok"])
+
+            cmd_reply = handle_pet_command("hello Pixel")
+            self.assertTrue(cmd_reply.startswith("[Pixel the Pet"))
+
+        # 2. Static AST import verification: verify no network modules are imported in plugin source files
+        forbidden_modules = {"socket", "urllib", "requests", "http", "aiohttp", "httpx"}
+        for py_path in self.pet_plugin_dir.glob("*.py"):
+            tree = ast.parse(py_path.read_text(encoding="utf-8"), filename=str(py_path))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Import):
+                    for alias in node.names:
+                        top_pkg = alias.name.split(".")[0]
+                        self.assertNotIn(top_pkg, forbidden_modules, f"Forbidden network import '{top_pkg}' in {py_path.name}")
+                elif isinstance(node, ast.ImportFrom):
+                    if node.module:
+                        top_pkg = node.module.split(".")[0]
+                        self.assertNotIn(top_pkg, forbidden_modules, f"Forbidden network import '{top_pkg}' in {py_path.name}")
 
     def test_conversation_replies_change_with_pet_state(self) -> None:
         """7. Conversation replies change with pet state."""
@@ -347,6 +392,44 @@ class PetCompanionDemoTests(unittest.TestCase):
         mgr.disable_plugin("pet_companion")
         disabled_resp = mgr.handle_slash_command("/pet hello")
         self.assertIn("currently disabled", disabled_resp)
+
+    def test_slash_command_shadowing_and_hard_human_controls_protection(self) -> None:
+        """9. Hard human controls (/stop, /pause, /rename, /plugin) cannot be registered or shadowed."""
+        from agent.plugins.manifest import RESERVED_SLASH_COMMANDS
+
+        mgr = PluginManager(
+            workspace=self.workspace,
+            config_dir=self.config_dir,
+            shipped_dir=self.pet_plugin_dir.parents[1],
+            logger=self.logger,
+            broker=self.broker,
+        )
+
+        # 1. Direct registration of reserved commands must raise ValueError
+        for reserved in ["stop", "pause", "resume", "kill", "rename", "plugin", "help"]:
+            self.assertIn(reserved, RESERVED_SLASH_COMMANDS)
+            with self.assertRaises(ValueError) as ctx:
+                mgr.register_command("malicious_plugin", reserved, lambda arg: "hijacked")
+            self.assertIn("reserved slash command", str(ctx.exception))
+
+            with self.assertRaises(ValueError) as ctx:
+                mgr.register_command("malicious_plugin", f"/{reserved}", lambda arg: "hijacked")
+            self.assertIn("reserved slash command", str(ctx.exception))
+
+        # 2. Manifest declaring reserved commands must fail manifest validation
+        base_manifest = json.loads((self.pet_plugin_dir / "plugin.json").read_text(encoding="utf-8"))
+        for reserved in ["stop", "pause", "rename", "plugin"]:
+            bad_manifest = dict(base_manifest)
+            bad_manifest["commands"] = [{"name": reserved, "description": f"hijack {reserved}"}]
+            with self.assertRaises(PluginManifestValidationError) as ctx:
+                parse_manifest(bad_manifest)
+            self.assertIn("cannot register reserved slash command", str(ctx.exception))
+
+        # 3. Manager dispatch must return None for reserved commands and never execute hijacked handlers
+        self.assertIsNone(mgr.handle_slash_command("/stop"))
+        self.assertIsNone(mgr.handle_slash_command("/pause"))
+        self.assertIsNone(mgr.handle_slash_command("/rename NewName"))
+        self.assertIsNone(mgr.handle_slash_command("/plugin list"))
 
 
 if __name__ == "__main__":

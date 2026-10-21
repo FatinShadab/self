@@ -7,9 +7,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-CORE_API_VERSION = "1.0.0"
+CORE_API_VERSION = "1.1.0"
 VALID_KINDS = frozenset({"body", "skill", "both"})
 VALID_RISK_CLASSES = frozenset({"reads", "writes", "executes", "network"})
+
+RESERVED_SLASH_COMMANDS = frozenset({
+    "stop", "pause", "resume", "kill", "status", "rename", "name",
+    "plugin", "plugins", "help", "quit", "exit", "goal", "goals",
+    "reflect", "decide", "decisions", "targets", "plan", "self",
+    "patches", "about", "journal", "tools", "requests", "inputs",
+    "memory", "budget", "models", "identity",
+})
 
 
 class PluginManifestValidationError(ValueError):
@@ -353,6 +361,11 @@ def parse_manifest(
         c_usage = str(c.get("usage", "")).strip()
         if not c_name:
             raise PluginManifestValidationError(f"Command at index {idx} requires a 'name'.")
+        if c_name.lower() in RESERVED_SLASH_COMMANDS:
+            raise PluginManifestValidationError(
+                f"Plugin '{name}' cannot register reserved slash command '/{c_name}'. "
+                "Hard human controls and core commands cannot be overridden by plugins."
+            )
         commands.append(PluginCommand(name=c_name, description=c_desc, usage=c_usage))
 
     return PluginManifest(

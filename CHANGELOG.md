@@ -4,6 +4,22 @@ All notable changes to this project are documented in this file.
 The format is based on [Keep a Changelog](https://keepachangelog.com/en/1.0.0/),
 and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0.html).
 
+## [1.1.0] - 2026-10-21
+
+### Added
+- **Plugin Slash Command Framework**:
+  - `PluginCommand` manifest specification and core API registration mechanism.
+  - Manifest field `commands` allowing plugins to declare human-facing slash commands.
+  - Lifecycle dispatch via `PluginManager.register_command` and `handle_slash_command`.
+  - Non-intercepting slash command routing in `wake.py` for direct human interaction without polluting autonomous input queues.
+  - Hard human control protection: `RESERVED_SLASH_COMMANDS` enforcement forbidding plugins from registering or shadowing `/stop`, `/pause`, `/resume`, `/kill`, `/rename`, `/plugin`, or other core human controls.
+- **Example Demo Plugin `pet_companion`**:
+  - Shipped under `/opt/agent/plugins/examples/pet_companion` (disabled by default, zero network, zero token spend).
+  - Simulated habitat with virtual pet "Pixel" (hunger, energy, mood, last-interaction tick, cleanliness, temperature, food bowl).
+  - Sensors (`pet_status`, `habitat_status`), actions (`feed`, `play`, `rest_pet` at L1; irreversible `release_pet` at L2 denied by default), and conversation tool (`talk_to_pet`).
+  - Human direct slash command `/pet <message>`.
+  - Embodiment text ensuring first-person agent identity is maintained and virtual pet state is not interpreted as sentience.
+
 ## [1.0.0] - 2026-10-21
 
 ### Added

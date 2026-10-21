@@ -23,7 +23,7 @@ Below is the manifest for `pet_companion`:
 {
   "name": "pet_companion",
   "version": "1.0.0",
-  "core_api": ">=1.0.0,<2.0.0",
+  "core_api": ">=1.1.0,<2.0.0",
   "kind": "both",
   "description": "Safe, deterministic virtual pet demo in a simulated habitat with sensors, actions, and conversation.",
   "tools": [
@@ -119,7 +119,7 @@ Below is the manifest for `pet_companion`:
    - `"name": "pet_companion"` gives the plugin its canonical namespace. Tools are exposed as `pet_companion.<tool>`.
    - `"kind": "both"` indicates that the plugin provides sensory/action environment capabilities and dynamic tools.
 2. **`core_api`:**
-   - `">=1.0.0,<2.0.0"` specifies compatibility with SemVer 1.x core engines.
+   - `">=1.1.0,<2.0.0"` specifies compatibility with SemVer 1.x core engines supporting slash commands (v1.1.0+).
 3. **`tools`:**
    - Exposes `talk_to_pet` to the agent's autonomous loop.
 4. **`sensors`:**
@@ -152,7 +152,7 @@ Output:
 ```
 NAME                 VERSION    CORE_API           STATUS     HASH_STATUS    SOURCE    
 --------------------------------------------------------------------------------------
-pet_companion        1.0.0      >=1.0.0,<2.0.0     disabled   disabled       shipped   
+pet_companion        1.0.0      >=1.1.0,<2.0.0     disabled   disabled       shipped   
 ```
 
 ### Step 2: Enable in `config/plugins.json`

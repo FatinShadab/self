@@ -1,7 +1,7 @@
 {
   "name": "pet_companion",
   "version": "1.0.0",
-  "core_api": ">=1.0.0,<2.0.0",
+  "core_api": ">=1.1.0,<2.0.0",
   "kind": "both",
   "description": "Safe, deterministic virtual pet demo in a simulated habitat with sensors, actions, and conversation.",
   "tools": [
