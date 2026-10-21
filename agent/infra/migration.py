@@ -43,8 +43,17 @@ def run_migration_p14(workspace: str | Path, backup_dir: str | Path | None = Non
     tools_dir = ws / "tools"
     state_dir.mkdir(parents=True, exist_ok=True)
 
-    ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-    backup_path = Path(backup_dir).resolve() if backup_dir else state_dir / "backups" / ts
+    base_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
+    if backup_dir:
+        backup_path = Path(backup_dir).resolve()
+        ts = backup_path.name
+    else:
+        backup_path = state_dir / "backups" / base_ts
+        counter = 1
+        while backup_path.exists():
+            backup_path = state_dir / "backups" / f"{base_ts}_{counter}"
+            counter += 1
+        ts = backup_path.name
     backup_path.mkdir(parents=True, exist_ok=True)
 
     # 1. Identify files to backup
@@ -71,10 +80,9 @@ def run_migration_p14(workspace: str | Path, backup_dir: str | Path | None = Non
             manifest[rel] = sha256_file(file_path)
             backed_up.append(rel)
 
-    (backup_path / "manifest.json").write_text(
-        json.dumps(manifest, indent=2, sort_keys=True) + "\n",
-        encoding="utf-8",
-    )
+    manifest_json = json.dumps(manifest, indent=2, sort_keys=True) + "\n"
+    (backup_path / "manifest.json").write_text(manifest_json, encoding="utf-8")
+    (backup_path / "backup_manifest.json").write_text(manifest_json, encoding="utf-8")
 
     stats: dict[str, Any] = {
         "timestamp": ts,
@@ -251,9 +259,11 @@ def restore_migration_p14(workspace: str | Path, backup_dir: str | Path) -> dict
     ws = Path(workspace).resolve()
     backup_path = Path(backup_dir).resolve()
 
-    manifest_path = backup_path / "manifest.json"
+    manifest_path = backup_path / "backup_manifest.json"
     if not manifest_path.exists():
-        raise FileNotFoundError(f"Backup manifest not found: {manifest_path}")
+        manifest_path = backup_path / "manifest.json"
+    if not manifest_path.exists():
+        raise FileNotFoundError(f"Backup manifest not found in: {backup_path}")
 
     manifest = json.loads(manifest_path.read_text(encoding="utf-8"))
     restored_files: list[str] = []

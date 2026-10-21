@@ -472,6 +472,10 @@ class TaggedStateAcceptanceTests(unittest.TestCase):
         migration_stats = run_migration_p14(self.workspace)
         backup_path = migration_stats["backup_path"]
 
+        # Verify backup manifest existence and contents
+        self.assertTrue((Path(backup_path) / "backup_manifest.json").exists())
+        self.assertTrue((Path(backup_path) / "manifest.json").exists())
+
         # Verify migration results
         # 1. Audit trail was NEVER touched or rewritten!
         self.assertEqual(sha256_file(self.state_dir / "audit_trail.jsonl"), orig_audit_hash)
@@ -492,6 +496,12 @@ class TaggedStateAcceptanceTests(unittest.TestCase):
         map_after = json.loads((self.state_dir / "map.json").read_text(encoding="utf-8"))
         self.assertEqual(map_after["schema_version"], 2)
         self.assertEqual(map_after["entries"]["kernel"]["plugin"], "core")
+
+        # 3b. Test idempotency: consecutive migration run on already migrated state
+        second_stats = run_migration_p14(self.workspace)
+        mem_second = json.loads((self.state_dir / "memory.jsonl").read_text(encoding="utf-8").strip())
+        self.assertEqual(mem_second["lesson"], mem_after["lesson"])
+        self.assertEqual(mem_second["report_path"], mem_after["report_path"])
 
         # 4. Perform disable and re-enable, appending to audit trail
         audit.append("plugin_disabled", action="disable", level="L1_REVERSIBLE")
