@@ -241,7 +241,7 @@ When a body or specialization plugin (e.g. an antivirus scanner or sensor plugin
 ## 6. Core API Versioning, Compatibility Ranges & SDK Seam (Prompt 15)
 
 `[read] agent/plugins/manifest.py:10-88, agent/plugins/cli.py:1-380, VERSION:1`:
-1. **Core Version Semver (`CORE_API_VERSION = "1.0.0"`):**
+1. **Core Version Semver (`CORE_API_VERSION = "1.1.0"`):**
    - Core API version is tracked in `CORE_API_VERSION` and verified against repo root `VERSION`.
    - Breaking contract changes increment Major, backwards-compatible additions increment Minor, bug fixes increment Patch.
 2. **Manifest Range Compatibility:**

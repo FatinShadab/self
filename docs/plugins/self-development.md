@@ -96,8 +96,15 @@ Before testing or review, the agent runs `validate_plugin(name)`:
 - Checks for undeclared network or subprocess calls.
 - Scans all files for prompt injection patterns or delimiter escape attempts.
 
+> [!NOTE]
+> `validate_plugin` is an **advisory static linter**, not a hard security boundary. Static AST and regex checks can be bypassed by dynamic language constructs (`getattr`, `__import__`, `eval`). The true security gate is human review, human promotion, and human enablement with cryptographic content hash pinning.
+
 ### Step 6: Isolated Testing (`test_plugin`)
-Runs plugin tests in `workspace/plugin_dev/<name>/tests/` in an isolated subprocess with secrets stripped (`_child_env`). Tests run against simulation models (`SimBody`) and scenarios—never against real external services or host resources.
+Runs plugin tests in `workspace/plugin_dev/<name>/tests/` in an isolated subprocess with secrets stripped and network access blocked:
+- `_child_env` strips all credential and token environment variables matching secret markers.
+- All outbound network calls are routed to dead loopback endpoints (`http://127.0.0.1:0`) via proxy environment variables.
+- Tests run against deterministic simulation models (`SimBody`) and scenarios—never against real external services or host resources.
+- If a stop-loss review is pending, `test_plugin` is blocked until an explicit decision is recorded in the plan.
 
 ### Step 7: Heavier Critic Review (`request_plugin_review`)
 Invokes a specialized plugin critic prompt (`PLUGIN_CRITIC_PROMPT`) evaluating 5 strict dimensions:
@@ -115,12 +122,14 @@ Produces a review packet (`review_packet.json`) with a unified diff and permissi
 
 At **25%**, **50%**, and **100%** of the estimated tokens or cycles (whichever occurs first), the harness triggers a mandatory stop-loss review:
 
-- The cycle prompt flags the triggered threshold with measured spend vs. original estimate.
-- The agent **must** record an explicit decision in its plan update (`update_plan` action=`decide_plugin_review`):
+- **Benchmark ceiling:** The 100% mark is benchmarked against the upper bound (`max` of `tokens` and `cycles`) declared in the proposal estimate.
+- **Cycle Prompt Alert:** The cycle prompt flags the triggered threshold with measured spend vs. original estimate.
+- **Enforcement on Silence:** Continuing is allowed; silence is not. If a stop-loss review is pending and unacknowledged, the cycle prompt re-prompts on every cycle AND all plugin development tools (`validate_plugin`, `test_plugin`, `request_plugin_review`) are **blocked** from executing until the agent records an explicit decision in its plan update (`update_plan` action=`decide_plugin_review`):
   - `continue`: Justify why continuing remains worthwhile despite spend.
   - `reduce_scope`: Prune non-essential actions to stay within bounds.
   - `abandon`: Terminate development and roll back draft files.
-- Continuing is permitted; silence is not.
+- **Attribution:** Project spend accumulates from granular plugin events and cycles where the active milestone is a plugin project goal; general exploration cycles attribute spend to general discovery.
+- **Budget Reservation:** Critic LLM reviews dispatched via `request_plugin_review` use `BudgetedLLM` and strictly respect daily token ledger reservations (`DailyTokenLedger`).
 - The harness logs `plugin_project_review` events for transparent auditability.
 
 ---
@@ -135,7 +144,7 @@ Developing a plugin takes many cycles, but autonomous environmental exploration 
 
 ## 7. Human Governance & Boundaries
 
-1. **Viewing Proposals:** Human operators inspect pending and active proposals via the `/proposals` slash command.
+1. **Viewing Proposals:** Human operators inspect pending and active proposals via the `/proposals` slash command. Core reserved slash commands (`RESERVED_SLASH_COMMANDS`) include `/proposals` and `/proposal` and cannot be shadowed by plugins.
 2. **Operator Comments:** Operators can comment via `/proposals comment <name> <comment>`. Comments are delivered to the agent's inbox as advice to weigh; the agent decides how to adapt its plan.
 3. **Promotion (`/plugins promote <name>`):**
    - Human-only slash command.
@@ -143,7 +152,9 @@ Developing a plugin takes many cycles, but autonomous environmental exploration 
    - Displays the unified diff and permission summary to the operator.
    - The agent cannot promote drafts.
 4. **Enablement (`/plugins enable <name>`):**
-   - Enabling remains a separate human action that computes and pins the SHA-256 content hash in `/config/plugins.json`.
+   - Promotion is a convenience copy; the true security gate is **human enablement with content hash pinning**.
+   - Even if the agent manually writes or copies files directly to `workspace/plugins/<name>` using base file or shell tools, the plugin loader leaves it in a strictly **DISABLED** state at every cycle boundary until the human explicitly reviews permissions and issues `/plugins enable <name>`.
+   - Enabling computes and pins the SHA-256 content hash in `/config/plugins.json` and outputs declared tool permissions to the operator.
    - The agent cannot enable plugins.
 5. **Permission Elevation:**
    - The agent cannot grant itself permissions. Actions above `L0` remain denied until the human operator updates `/config/permissions.json`.

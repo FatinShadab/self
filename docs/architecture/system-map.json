@@ -536,7 +536,7 @@
     {
       "name": "custom_tool_executed",
       "emitters": [
-        "agent/tools/tool_registry.py:475"
+        "agent/tools/tool_registry.py:476"
       ],
       "fields": [
         "exit_code",
@@ -548,7 +548,7 @@
     {
       "name": "cycle_completed",
       "emitters": [
-        "agent/runtime/loop.py:840"
+        "agent/runtime/loop.py:842"
       ],
       "fields": [
         "actions",
@@ -1040,7 +1040,7 @@
     {
       "name": "plugin_critic_failed",
       "emitters": [
-        "agent/plugins/self_dev.py:653"
+        "agent/plugins/self_dev.py:748"
       ],
       "fields": [
         "error",
@@ -1097,8 +1097,8 @@
     {
       "name": "plugin_project_review",
       "emitters": [
-        "agent/runtime/loop.py:792",
-        "agent/tools/base_tools.py:708"
+        "agent/runtime/loop.py:794",
+        "agent/tools/base_tools.py:694"
       ],
       "fields": [
         "cycle_estimate",
@@ -1114,7 +1114,7 @@
     {
       "name": "plugin_promoted",
       "emitters": [
-        "agent/plugins/self_dev.py:757"
+        "agent/plugins/self_dev.py:852"
       ],
       "fields": [
         "name",
@@ -1124,7 +1124,7 @@
     {
       "name": "plugin_proposed",
       "emitters": [
-        "agent/plugins/self_dev.py:229"
+        "agent/plugins/self_dev.py:305"
       ],
       "fields": [
         "cycle_estimate",
@@ -1148,7 +1148,7 @@
     {
       "name": "plugin_review_completed",
       "emitters": [
-        "agent/plugins/self_dev.py:670"
+        "agent/plugins/self_dev.py:765"
       ],
       "fields": [
         "approved",
@@ -1159,7 +1159,7 @@
     {
       "name": "plugin_scaffolded",
       "emitters": [
-        "agent/plugins/self_dev.py:299"
+        "agent/plugins/self_dev.py:375"
       ],
       "fields": [
         "name",
@@ -1169,7 +1169,7 @@
     {
       "name": "plugin_tested",
       "emitters": [
-        "agent/plugins/self_dev.py:553"
+        "agent/plugins/self_dev.py:648"
       ],
       "fields": [
         "exit_code",
@@ -1182,7 +1182,7 @@
     {
       "name": "plugin_validated",
       "emitters": [
-        "agent/plugins/self_dev.py:483"
+        "agent/plugins/self_dev.py:569"
       ],
       "fields": [
         "error_count",
@@ -1403,7 +1403,7 @@
     {
       "name": "run_completed",
       "emitters": [
-        "agent/runtime/loop.py:871"
+        "agent/runtime/loop.py:873"
       ],
       "fields": [
         "iterations",
@@ -1414,7 +1414,7 @@
     {
       "name": "run_failed",
       "emitters": [
-        "agent/runtime/loop.py:958",
+        "agent/runtime/loop.py:960",
         "agent/runtime/loop.py:736"
       ],
       "fields": [
@@ -1445,7 +1445,7 @@
         "agent/runtime/loop.py:295",
         "agent/runtime/loop.py:299",
         "agent/runtime/loop.py:303",
-        "agent/runtime/loop.py:954",
+        "agent/runtime/loop.py:956",
         "agent/runtime/loop.py:592"
       ],
       "fields": [
@@ -1494,7 +1494,7 @@
     {
       "name": "session_reflection_completed",
       "emitters": [
-        "agent/session/coordinator.py:772"
+        "agent/session/coordinator.py:785"
       ],
       "fields": [
         "purpose",
@@ -1504,7 +1504,7 @@
     {
       "name": "session_reflection_fallback",
       "emitters": [
-        "agent/session/coordinator.py:775"
+        "agent/session/coordinator.py:788"
       ],
       "fields": [
         "error_type",
@@ -1525,7 +1525,7 @@
     {
       "name": "session_summary",
       "emitters": [
-        "agent/session/coordinator.py:1108"
+        "agent/session/coordinator.py:1121"
       ],
       "fields": [
         "message"
@@ -1534,7 +1534,7 @@
     {
       "name": "session_unexpected_exception",
       "emitters": [
-        "agent/session/coordinator.py:1121"
+        "agent/session/coordinator.py:1134"
       ],
       "fields": []
     },
@@ -1554,7 +1554,7 @@
     {
       "name": "stale_budget_plan_recovered",
       "emitters": [
-        "agent/session/coordinator.py:862"
+        "agent/session/coordinator.py:875"
       ],
       "fields": [
         "available_daily_tokens"
@@ -1649,7 +1649,7 @@
       "name": "tool_call",
       "emitters": [
         "agent/tests/identity/test_identity.py:66",
-        "agent/tools/base_tools.py:540"
+        "agent/tools/base_tools.py:524"
       ],
       "fields": [
         "arguments",
@@ -1659,7 +1659,7 @@
     {
       "name": "tool_creation_failed",
       "emitters": [
-        "agent/tools/tool_registry.py:437"
+        "agent/tools/tool_registry.py:438"
       ],
       "fields": [
         "attempt",
@@ -1674,7 +1674,7 @@
     {
       "name": "tool_critic",
       "emitters": [
-        "agent/tools/tool_registry.py:361"
+        "agent/tools/tool_registry.py:362"
       ],
       "fields": [
         "attempt",
@@ -1685,14 +1685,14 @@
     {
       "name": "tool_failure_lesson",
       "emitters": [
-        "agent/tools/tool_registry.py:453"
+        "agent/tools/tool_registry.py:454"
       ],
       "fields": []
     },
     {
       "name": "tool_load_rejected",
       "emitters": [
-        "agent/tools/tool_registry.py:192"
+        "agent/tools/tool_registry.py:193"
       ],
       "fields": [
         "error",
@@ -1703,7 +1703,7 @@
     {
       "name": "tool_loaded",
       "emitters": [
-        "agent/tools/tool_registry.py:197"
+        "agent/tools/tool_registry.py:198"
       ],
       "fields": [
         "name",
@@ -1714,7 +1714,7 @@
       "name": "tool_registered",
       "emitters": [
         "agent/tests/reporting/test_report.py:22",
-        "agent/tools/tool_registry.py:414"
+        "agent/tools/tool_registry.py:415"
       ],
       "fields": [
         "attempts",
@@ -1731,7 +1731,7 @@
       "name": "tool_result",
       "emitters": [
         "agent/tests/identity/test_identity.py:67",
-        "agent/tools/base_tools.py:671"
+        "agent/tools/base_tools.py:655"
       ],
       "fields": [
         "duration_ms",
@@ -1745,7 +1745,7 @@
     {
       "name": "tool_retrieval",
       "emitters": [
-        "agent/tools/tool_registry.py:209"
+        "agent/tools/tool_registry.py:210"
       ],
       "fields": [
         "query",
@@ -1756,7 +1756,7 @@
     {
       "name": "tool_test",
       "emitters": [
-        "agent/tools/tool_registry.py:380"
+        "agent/tools/tool_registry.py:381"
       ],
       "fields": [
         "attempt",
@@ -1767,7 +1767,7 @@
     {
       "name": "tool_test_compat_alias",
       "emitters": [
-        "agent/tools/tool_registry.py:372"
+        "agent/tools/tool_registry.py:373"
       ],
       "fields": [
         "name",
@@ -1777,7 +1777,7 @@
     {
       "name": "zero_cycle_session_preserved",
       "emitters": [
-        "agent/session/coordinator.py:1077"
+        "agent/session/coordinator.py:1090"
       ],
       "fields": [
         "end_reason",
