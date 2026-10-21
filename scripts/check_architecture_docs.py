@@ -1,10 +1,12 @@
 #!/usr/bin/env python3
 """check_architecture_docs.py - Fast static check to ensure system-map.json matches code."""
 
+import argparse
 import ast
 import json
 import re
 import sys
+from dataclasses import fields
 from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
@@ -92,6 +94,32 @@ def check():
         if not found and not (REPO_ROOT / sf).exists():
             errors.append(f"State file {sf} not found in agent code or on disk")
 
+    # 5. Check plugin manifest schema against docs/plugins/manifest-reference.md
+    from agent.plugins.manifest import PluginManifest
+    manifest_ref_file = REPO_ROOT / "docs" / "plugins" / "manifest-reference.md"
+    manifest_fields = set()
+    if not manifest_ref_file.exists():
+        errors.append("docs/plugins/manifest-reference.md does not exist.")
+    else:
+        ref_text = manifest_ref_file.read_text(encoding="utf-8")
+        manifest_fields = {f.name for f in fields(PluginManifest)}
+        for mf in manifest_fields:
+            if f"`{mf}`" not in ref_text:
+                errors.append(f"PluginManifest field '{mf}' not documented in docs/plugins/manifest-reference.md")
+
+    # 6. Check plugin CLI commands
+    from agent.plugins.cli import build_parser
+    parser = build_parser()
+    expected_commands = {"new", "validate", "list", "check"}
+    actual_commands = set()
+    for action in parser._actions:
+        if isinstance(action, argparse._SubParsersAction):
+            actual_commands = set(action.choices.keys())
+            break
+    missing_cmds = expected_commands - actual_commands
+    if missing_cmds:
+        errors.append(f"Plugin CLI missing expected commands: {sorted(missing_cmds)}")
+
     if errors:
         print("FAIL: Architecture drift detected:")
         for err in errors:
@@ -103,6 +131,8 @@ def check():
     print(f"  Events verified: {len(map_events)}")
     print(f"  Env vars verified: {len(map_env_vars)}")
     print(f"  State files verified: {len(map_state_files)}")
+    print(f"  Plugin manifest fields verified: {len(manifest_fields)}")
+    print(f"  Plugin CLI commands verified: {len(actual_commands)}")
     return 0
 
 if __name__ == "__main__":

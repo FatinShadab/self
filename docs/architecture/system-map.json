@@ -113,6 +113,12 @@
       "description": "Verification script for Phase 8 identity and plan integration."
     },
     {
+      "name": "agent.plugins",
+      "path": "agent/plugins/__main__.py",
+      "type": "CLI",
+      "description": "Static plugin CLI for scaffolding (new), manifest validation (validate), discovery listing (list), and version compatibility checks (check)."
+    },
+    {
       "name": "agent.tools.tool_worker",
       "path": "agent/tools/tool_worker.py",
       "type": "Subprocess Worker",
@@ -981,7 +987,7 @@
     {
       "name": "plugin_disabled",
       "emitters": [
-        "agent/plugins/manager.py:406"
+        "agent/plugins/manager.py:412"
       ],
       "fields": [
         "plugin"
@@ -990,7 +996,7 @@
     {
       "name": "plugin_enabled",
       "emitters": [
-        "agent/plugins/manager.py:381"
+        "agent/plugins/manager.py:387"
       ],
       "fields": [
         "hash",
@@ -1001,7 +1007,7 @@
     {
       "name": "plugin_hash_mismatch",
       "emitters": [
-        "agent/plugins/manager.py:511"
+        "agent/plugins/manager.py:517"
       ],
       "fields": [
         "actual",
@@ -1012,13 +1018,13 @@
     {
       "name": "plugin_load_failed",
       "emitters": [
-        "agent/plugins/manager.py:238",
-        "agent/plugins/manager.py:241",
-        "agent/plugins/manager.py:278",
-        "agent/plugins/manager.py:299",
-        "agent/plugins/manager.py:374",
-        "agent/plugins/manager.py:325",
-        "agent/plugins/manager.py:401"
+        "agent/plugins/manager.py:242",
+        "agent/plugins/manager.py:246",
+        "agent/plugins/manager.py:284",
+        "agent/plugins/manager.py:305",
+        "agent/plugins/manager.py:380",
+        "agent/plugins/manager.py:331",
+        "agent/plugins/manager.py:407"
       ],
       "fields": [
         "error",
@@ -1028,8 +1034,8 @@
     {
       "name": "plugin_removed",
       "emitters": [
-        "agent/plugins/manager.py:437",
-        "agent/plugins/manager.py:453"
+        "agent/plugins/manager.py:443",
+        "agent/plugins/manager.py:459"
       ],
       "fields": [
         "archive_path",

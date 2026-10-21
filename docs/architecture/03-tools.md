@@ -185,3 +185,13 @@ workspace/tools/parse_mounts/
 2. **Core Collision Protection:** Plugin tools cannot collide with core built-in tools (`TOOL_DEFINITIONS`) or `create_tool`. Any collision causes plugin loading to fail with `plugin_load_failed` without taking down the core engine.
 3. **Unplug Resilience & Vanished Tools:** When a plugin is disabled or removed, its tools are immediately deregistered at the cycle boundary. If the LLM generates a tool call for a vanished plugin tool, the engine intercepts the call and returns a structured observation (`{"ok": False, "error": "tool no longer available: plugin X disabled"}`) instead of raising an exception.
 
+
+
+---
+
+## 6. Static Plugin Validation & SDK CLI
+
+`[read] agent/plugins/cli.py:1-380, agent/plugins/manifest.py:1-326`:
+1. **Static Inspection:** `python -m agent.plugins validate <path>` and `check` statically parse manifests and file structures without importing or executing plugin code.
+2. **Core Tool Collision Safeguards:** Static validation rejects any plugin tool named after built-in tools (`CORE_TOOL_NAMES`: `TOOL_DEFINITIONS` and `create_tool`).
+3. **Namespacing Enforcement:** All plugin tools are offered to the model prefixed with their plugin namespace (`<plugin>.<tool>`).

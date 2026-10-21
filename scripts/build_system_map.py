@@ -311,6 +311,7 @@ def get_entry_points():
         {"name": "agent.helper_models.model_decisions", "path": "agent/helper_models/model_decisions.py", "type": "CLI", "description": "Print summary of model decisions recorded in state/model_decisions.jsonl."},
         {"name": "agent.ui.version_check", "path": "agent/ui/version_check.py", "type": "CLI / Hook", "description": "Verify code hash against expected image version to catch stale containers."},
         {"name": "agent.ui.phase8_verify", "path": "agent/ui/phase8_verify.py", "type": "CLI", "description": "Verification script for Phase 8 identity and plan integration."},
+        {"name": "agent.plugins", "path": "agent/plugins/__main__.py", "type": "CLI", "description": "Static plugin CLI for scaffolding (new), manifest validation (validate), discovery listing (list), and version compatibility checks (check)."},
         {"name": "agent.tools.tool_worker", "path": "agent/tools/tool_worker.py", "type": "Subprocess Worker", "description": "Subprocess runner for custom tools; reads JSON from stdin and emits JSON envelope."},
         {"name": "scripts/egress_proxy.py", "path": "scripts/egress_proxy.py", "type": "Proxy Sidecar", "description": "Forward HTTP/HTTPS filtering proxy sidecar with domain allowlist for hardened profile."},
         {"name": "scripts/run-tests.ps1", "path": "scripts/run-tests.ps1", "type": "Host Script", "description": "Build CI image and run agent unit tests and isolated eval unit tests in Docker."},
