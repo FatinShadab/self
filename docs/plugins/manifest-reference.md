@@ -87,6 +87,25 @@ Below is an example illustrating all supported manifest fields:
 | `state_dir` | `string` | No | Relative path for private plugin state storage (default: `"state"`). Absolute paths or `..` traversals are rejected. |
 | `declared_needs` | `object` | No | Optional declared prerequisites (`env_vars`: `list[string]`, `mounts`: `list[string]`). |
 | `tests_entry_point` | `string` | No | Relative path to the test module (default: `"tests/test_plugin.py"`). |
+| `commands` | `list[object]` | No | Optional human-facing slash commands (e.g. `pet`) registered while enabled. |
+
+---
+
+### Command Object Schema
+
+Each entry in `commands` represents a human-facing slash command:
+
+```json
+{
+  "name": "pet",
+  "description": "Talk directly to the virtual pet in the habitat.",
+  "usage": "/pet <message>"
+}
+```
+
+- `name` (`string`, required): Command identifier (without leading slash). Exposed to the terminal interface as `/<name>`.
+- `description` (`string`, required): Explanation of the command purpose.
+- `usage` (`string`, optional): Usage syntax pattern.
 
 ---
 
