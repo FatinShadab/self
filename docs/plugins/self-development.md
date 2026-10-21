@@ -96,8 +96,10 @@ Before testing or review, the agent runs `validate_plugin(name)`:
 - Checks for undeclared network or subprocess calls.
 - Scans all files for prompt injection patterns or delimiter escape attempts.
 
-> [!NOTE]
-> `validate_plugin` is an **advisory static linter**, not a hard security boundary. Static AST and regex checks can be bypassed by dynamic language constructs (`getattr`, `__import__`, dynamic code execution). The true security gate is human review, human promotion, and human enablement with cryptographic content hash pinning.
+#### Limits of Validation
+`validate_plugin` is strictly an advisory static checker, not a hard security boundary:
+- **Bypassable static checks:** Static AST parsing and text regexes are easily bypassed by dynamic Python patterns, such as `__import__("socket")`, dynamic attribute access (`getattr(os, "system")`), or runtime string construction for paths and secret files (`"".join(["/", "etc", "/", "shadow"])`).
+- **Real controls:** Hard security is provided exclusively by downstream human review, immutable SHA-256 hash pinning against `/config/plugins.json`, the runtime `PermissionBroker`, and unprivileged container isolation.
 
 ### Step 6: Isolated Testing (`test_plugin`)
 Runs plugin tests in `workspace/plugin_dev/<name>/tests/` in an isolated subprocess with secrets stripped and network access blocked:
