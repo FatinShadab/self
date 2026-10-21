@@ -356,7 +356,8 @@ def main():
     }
 
     out_file = REPO_ROOT / "docs" / "architecture" / "system-map.json"
-    out_file.write_text(json.dumps(system_map, indent=2, ensure_ascii=False) + "\n", encoding="utf-8")
+    with open(out_file, "w", encoding="utf-8", newline="\n") as f:
+        f.write(json.dumps(system_map, indent=2, ensure_ascii=False) + "\n")
     print(f"Wrote {out_file} successfully:")
     print(f"  Packages: {len(packages)}")
     print(f"  Entry points: {len(entry_points)}")
