@@ -26,7 +26,7 @@
       "description": "Observe hello plugin heartbeat telemetry.",
       "risk_class": "reads",
       "reversible": true,
-      "required_permission_level": "read_only"
+      "required_permission_level": "L0"
     }
   ],
   "actions": [
@@ -35,7 +35,7 @@
       "description": "Send a lightweight ping to the hello plugin.",
       "risk_class": "executes",
       "reversible": true,
-      "required_permission_level": "read_only"
+      "required_permission_level": "L0"
     }
   ],
   "starting_goal_seeds": [
