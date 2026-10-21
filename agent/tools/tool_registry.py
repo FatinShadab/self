@@ -248,6 +248,9 @@ class ToolRegistry:
             return {"ok": False, "name": name, "attempts_remaining": 0, "error": "Three attempts exhausted in this run; failure recorded as a lesson."}
         self.attempt_counts[name] = count + 1
         attempt = count + 1
+        started_time = time.monotonic()
+        critic_calls_count = 0
+        critic_tokens_total = 0
         entry: dict[str, Any] = {"at": timestamp(), "attempt": attempt, "target_version": meta["version"] + 1, "passed": False}
         critic_call_id: str | None = None
         critic_model = getattr(self.review_call, "model", "base")
@@ -306,6 +309,8 @@ class ToolRegistry:
                     call_args["model"] = review_model
                 try:
                     response = self.review_call(**call_args)
+                    critic_calls_count += 1
+                    critic_tokens_total += getattr(response, "total_tokens", 0) or (getattr(response, "input_tokens", 0) + getattr(response, "output_tokens", 0))
                 except Exception:
                     if self.model_decisions is not None and hasattr(self.model_decisions, "record_provider_error"):
                         self.model_decisions.record_provider_error()
@@ -406,7 +411,17 @@ class ToolRegistry:
                         registered=True, updated_at=timestamp(), code_sha256=digest(code), test_sha256=digest(test_code))
             meta["pass_fail_history"].append(entry)
             self._save_meta(folder, meta)
-            self.logger.log("tool_registered", name=name, version=meta["version"], input_schema=schema)
+            self.logger.log(
+                "tool_registered",
+                name=name,
+                version=meta["version"],
+                input_schema=schema,
+                tokens=critic_tokens_total,
+                llm_calls=critic_calls_count,
+                wall_time_seconds=round(time.monotonic() - started_time, 2),
+                cycles=1,
+                attempts=attempt,
+            )
             self.attempt_counts[name] = 0
             self.refresh()
             return {"ok": True, "name": name, "version": meta["version"], "path": str(folder), "input_schema": schema,
@@ -419,7 +434,16 @@ class ToolRegistry:
             entry["error"] = diagnostic
             meta["pass_fail_history"].append(entry)
             self._save_meta(folder, meta)
-            self.logger.log("tool_creation_failed", name=name, attempt=attempt, traceback=diagnostic)
+            self.logger.log(
+                "tool_creation_failed",
+                name=name,
+                attempt=attempt,
+                traceback=diagnostic,
+                tokens=critic_tokens_total,
+                llm_calls=critic_calls_count,
+                wall_time_seconds=round(time.monotonic() - started_time, 2),
+                cycles=1,
+            )
             if attempt == 3:
                 lesson = {"at": timestamp(), "tool": name, "lesson": "Three creation attempts failed; reconsider design before retrying in a later run.", "traceback": diagnostic}
                 lessons = self.workspace / "memory" / "lessons.jsonl"
