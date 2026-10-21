@@ -73,11 +73,19 @@ This catalog documents all **101** unique event types statically found across th
 | `plan_unchanged` | `[read] agent/learning/plan.py:444`<br>`[read] agent/learning/plan.py:300` | `cycle`, `diff`, `evidence`, `plan_version`, `reason`, `source` | The agent (source='agent') or harness fallback (source='harness_auto') affirmed that the existing plan remains valid. |
 | `plan_updated` | `[read] agent/learning/plan.py:381` | `cycle`, `diff`, `evidence`, `plan_version`, `reason` | The agent modified state/plan.json citing evidence and reasons. |
 | `plugin_command_error` | `[read] agent/plugins/manager.py:539` | `command`, `error`, `plugin` | An error occurred while executing a plugin-registered slash command. |
+| `plugin_critic_failed` | `[read] agent/plugins/self_dev.py:653` | `error`, `name` | Plugin critic review LLM call failed or could not parse JSON. |
 | `plugin_disabled` | `[read] agent/plugins/manager.py:441` | `plugin` | A plugin was deactivated at a cycle boundary. |
 | `plugin_enabled` | `[read] agent/plugins/manager.py:417` | `hash`, `plugin`, `version` | A plugin was activated and dynamic tools registered at a cycle boundary. |
 | `plugin_hash_mismatch` | `[read] agent/plugins/manager.py:524` | `actual`, `expected`, `plugin` | An enabled plugin was refused because its disk hash diverged from the pinned hash. |
 | `plugin_load_failed` | `[read] agent/plugins/manager.py:249`<br>`[read] agent/plugins/manager.py:288` | `error`, `plugin` | A plugin failed schema parsing, core compatibility, or dynamic loading. |
+| `plugin_project_review` | `[read] agent/runtime/loop.py:792`<br>`[read] agent/tools/base_tools.py:708` | `cycles`, `decision`, `name`, `reason`, `threshold`, `tokens` | Stop-loss review checkpoint triggered or continue/reduce_scope/abandon decision recorded. |
+| `plugin_promoted` | `[read] agent/plugins/self_dev.py:757` | `name`, `source`, `target` | Human operator promoted a plugin draft from plugin_dev to workspace/plugins as disabled. |
+| `plugin_proposed` | `[read] agent/plugins/self_dev.py:229` | `expected_benefit`, `name` | A new plugin proposal was submitted and stored in state/plugin_proposals.jsonl. |
 | `plugin_removed` | `[read] agent/plugins/manager.py:465` | `archive_path`, `mode`, `plugin` | A plugin was removed and archived or purged by operator command. |
+| `plugin_review_completed` | `[read] agent/plugins/self_dev.py:670` | `approved`, `name`, `score`, `tokens`, `wall_clock_seconds` | Stricter plugin critic review completed with score and metrics. |
+| `plugin_scaffolded` | `[read] agent/plugins/self_dev.py:299` | `kind`, `name`, `path` | Plugin scaffold initialized in workspace/plugin_dev/<name>/. |
+| `plugin_tested` | `[read] agent/plugins/self_dev.py:553` | `name`, `passed`, `test_type`, `tests_run` | Isolated plugin test execution completed with results. |
+| `plugin_validated` | `[read] agent/plugins/self_dev.py:483` | `error_count`, `name`, `valid`, `warning_count` | Plugin static validation (manifest, permissions, secrets, injections) completed. |
 | `provider_backoff` | `[read] agent/llm/brain_router.py:155` | `detail`, `provider`, `seconds` | The brain router applied exponential backoff after a provider rate limit. |
 | `provider_benchmark_completed` | `[read] agent/tools/benchmark.py:37` | `cases_per_provider`, `providers` | A local benchmark run across configured providers completed. |
 | `provider_call_attempt` | `[read] agent/llm/brain_router.py:125` | `model`, `provider`, `provider_call_number` | A supplementary provider API call was initiated via the brain router. |

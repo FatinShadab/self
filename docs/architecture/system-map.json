@@ -310,6 +310,48 @@
       "risk_class": "executes / writes / network",
       "core_vs_body": "core",
       "description": "Create or update a reusable Python tool with critic review, isolated unittest execution, and schema check."
+    },
+    {
+      "name": "read_cost_ledger",
+      "module": "agent/tools/base_tools.py",
+      "risk_class": "reads",
+      "core_vs_body": "core",
+      "description": "Read measured cost ledger baselines (median and p90 for tool tokens, LLM calls, wall time, cycles) and totals for active or historical plugin projects."
+    },
+    {
+      "name": "propose_plugin",
+      "module": "agent/tools/base_tools.py",
+      "risk_class": "writes",
+      "core_vs_body": "core",
+      "description": "Propose developing a new specialization plugin with ledger-derived cost estimates and stop-loss criteria."
+    },
+    {
+      "name": "scaffold_plugin",
+      "module": "agent/tools/base_tools.py",
+      "risk_class": "writes",
+      "core_vs_body": "core",
+      "description": "Scaffold a new plugin draft in workspace/plugin_dev/<name>/ from the starter template."
+    },
+    {
+      "name": "validate_plugin",
+      "module": "agent/tools/base_tools.py",
+      "risk_class": "reads",
+      "core_vs_body": "core",
+      "description": "Run static validation on a plugin draft in workspace/plugin_dev/<name>/ checking manifest, namespacing, permissions, and security."
+    },
+    {
+      "name": "test_plugin",
+      "module": "agent/tools/base_tools.py",
+      "risk_class": "executes",
+      "core_vs_body": "core",
+      "description": "Execute unittests and simulation scenarios for a plugin draft in workspace/plugin_dev/<name>/ in an isolated environment without real resources."
+    },
+    {
+      "name": "request_plugin_review",
+      "module": "agent/tools/base_tools.py",
+      "risk_class": "executes / network",
+      "core_vs_body": "core",
+      "description": "Request a strict critic review of a validated and tested plugin draft in workspace/plugin_dev/<name>/, generating a diff and permission summary review packet."
     }
   ],
   "events": [
@@ -356,7 +398,7 @@
     {
       "name": "agent_step",
       "emitters": [
-        "agent/runtime/loop.py:356"
+        "agent/runtime/loop.py:373"
       ],
       "fields": [
         "message"
@@ -432,7 +474,7 @@
     {
       "name": "context_retrieval",
       "emitters": [
-        "agent/runtime/loop.py:184"
+        "agent/runtime/loop.py:191"
       ],
       "fields": [
         "files_scanned",
@@ -494,7 +536,7 @@
     {
       "name": "custom_tool_executed",
       "emitters": [
-        "agent/tools/tool_registry.py:451"
+        "agent/tools/tool_registry.py:475"
       ],
       "fields": [
         "exit_code",
@@ -506,7 +548,7 @@
     {
       "name": "cycle_completed",
       "emitters": [
-        "agent/runtime/loop.py:717"
+        "agent/runtime/loop.py:840"
       ],
       "fields": [
         "actions",
@@ -518,7 +560,7 @@
     {
       "name": "daily_budget_human_request_created",
       "emitters": [
-        "agent/runtime/loop.py:326"
+        "agent/runtime/loop.py:343"
       ],
       "fields": [
         "path"
@@ -550,7 +592,7 @@
     {
       "name": "daily_token_limit_paused",
       "emitters": [
-        "agent/runtime/loop.py:332"
+        "agent/runtime/loop.py:349"
       ],
       "fields": [
         "session_id"
@@ -559,7 +601,7 @@
     {
       "name": "daily_token_limit_resumed",
       "emitters": [
-        "agent/runtime/loop.py:336"
+        "agent/runtime/loop.py:353"
       ],
       "fields": [
         "session_id"
@@ -653,7 +695,7 @@
     {
       "name": "human_input_decision",
       "emitters": [
-        "agent/learning/plan.py:556"
+        "agent/learning/plan.py:576"
       ],
       "fields": [
         "cycle",
@@ -697,7 +739,7 @@
     {
       "name": "identity_context_fallback",
       "emitters": [
-        "agent/runtime/loop.py:391"
+        "agent/runtime/loop.py:490"
       ],
       "fields": [
         "error_type"
@@ -928,7 +970,7 @@
     {
       "name": "plan_goals_resumed",
       "emitters": [
-        "agent/learning/plan.py:766"
+        "agent/learning/plan.py:786"
       ],
       "fields": [
         "goal_ids",
@@ -938,7 +980,7 @@
     {
       "name": "plan_goals_suspended",
       "emitters": [
-        "agent/learning/plan.py:737"
+        "agent/learning/plan.py:757"
       ],
       "fields": [
         "goal_ids",
@@ -948,7 +990,7 @@
     {
       "name": "plan_hygiene_applied",
       "emitters": [
-        "agent/learning/plan.py:707"
+        "agent/learning/plan.py:727"
       ],
       "fields": [
         "cycle",
@@ -959,8 +1001,8 @@
     {
       "name": "plan_unchanged",
       "emitters": [
-        "agent/learning/plan.py:483",
-        "agent/learning/plan.py:325"
+        "agent/learning/plan.py:503",
+        "agent/learning/plan.py:330"
       ],
       "fields": [
         "cycle",
@@ -974,7 +1016,7 @@
     {
       "name": "plan_updated",
       "emitters": [
-        "agent/learning/plan.py:462"
+        "agent/learning/plan.py:482"
       ],
       "fields": [
         "cycle",
@@ -987,7 +1029,7 @@
     {
       "name": "plugin_command_error",
       "emitters": [
-        "agent/plugins/manager.py:567"
+        "agent/plugins/manager.py:569"
       ],
       "fields": [
         "command",
@@ -996,9 +1038,19 @@
       ]
     },
     {
+      "name": "plugin_critic_failed",
+      "emitters": [
+        "agent/plugins/self_dev.py:653"
+      ],
+      "fields": [
+        "error",
+        "name"
+      ]
+    },
+    {
       "name": "plugin_disabled",
       "emitters": [
-        "agent/plugins/manager.py:453"
+        "agent/plugins/manager.py:455"
       ],
       "fields": [
         "plugin"
@@ -1007,7 +1059,7 @@
     {
       "name": "plugin_enabled",
       "emitters": [
-        "agent/plugins/manager.py:427"
+        "agent/plugins/manager.py:429"
       ],
       "fields": [
         "hash",
@@ -1018,7 +1070,7 @@
     {
       "name": "plugin_hash_mismatch",
       "emitters": [
-        "agent/plugins/manager.py:610"
+        "agent/plugins/manager.py:612"
       ],
       "fields": [
         "actual",
@@ -1029,13 +1081,13 @@
     {
       "name": "plugin_load_failed",
       "emitters": [
-        "agent/plugins/manager.py:256",
-        "agent/plugins/manager.py:260",
-        "agent/plugins/manager.py:310",
-        "agent/plugins/manager.py:331",
-        "agent/plugins/manager.py:406",
-        "agent/plugins/manager.py:357",
-        "agent/plugins/manager.py:447"
+        "agent/plugins/manager.py:258",
+        "agent/plugins/manager.py:262",
+        "agent/plugins/manager.py:312",
+        "agent/plugins/manager.py:333",
+        "agent/plugins/manager.py:408",
+        "agent/plugins/manager.py:359",
+        "agent/plugins/manager.py:449"
       ],
       "fields": [
         "error",
@@ -1043,15 +1095,99 @@
       ]
     },
     {
+      "name": "plugin_project_review",
+      "emitters": [
+        "agent/runtime/loop.py:792",
+        "agent/tools/base_tools.py:708"
+      ],
+      "fields": [
+        "cycle_estimate",
+        "cycles_spent",
+        "decision",
+        "project",
+        "reason",
+        "threshold",
+        "token_estimate",
+        "tokens_spent"
+      ]
+    },
+    {
+      "name": "plugin_promoted",
+      "emitters": [
+        "agent/plugins/self_dev.py:757"
+      ],
+      "fields": [
+        "name",
+        "target"
+      ]
+    },
+    {
+      "name": "plugin_proposed",
+      "emitters": [
+        "agent/plugins/self_dev.py:229"
+      ],
+      "fields": [
+        "cycle_estimate",
+        "name",
+        "need",
+        "token_estimate"
+      ]
+    },
+    {
       "name": "plugin_removed",
       "emitters": [
-        "agent/plugins/manager.py:484",
-        "agent/plugins/manager.py:500"
+        "agent/plugins/manager.py:486",
+        "agent/plugins/manager.py:502"
       ],
       "fields": [
         "archive_path",
         "mode",
         "plugin"
+      ]
+    },
+    {
+      "name": "plugin_review_completed",
+      "emitters": [
+        "agent/plugins/self_dev.py:670"
+      ],
+      "fields": [
+        "approved",
+        "issues",
+        "name"
+      ]
+    },
+    {
+      "name": "plugin_scaffolded",
+      "emitters": [
+        "agent/plugins/self_dev.py:299"
+      ],
+      "fields": [
+        "name",
+        "path"
+      ]
+    },
+    {
+      "name": "plugin_tested",
+      "emitters": [
+        "agent/plugins/self_dev.py:553"
+      ],
+      "fields": [
+        "exit_code",
+        "name",
+        "passed",
+        "tests_run",
+        "timed_out"
+      ]
+    },
+    {
+      "name": "plugin_validated",
+      "emitters": [
+        "agent/plugins/self_dev.py:483"
+      ],
+      "fields": [
+        "error_count",
+        "name",
+        "valid"
       ]
     },
     {
@@ -1248,7 +1384,7 @@
     {
       "name": "repeated_tool_action_blocked",
       "emitters": [
-        "agent/runtime/loop.py:669"
+        "agent/runtime/loop.py:770"
       ],
       "fields": [
         "tool"
@@ -1267,7 +1403,7 @@
     {
       "name": "run_completed",
       "emitters": [
-        "agent/runtime/loop.py:748"
+        "agent/runtime/loop.py:871"
       ],
       "fields": [
         "iterations",
@@ -1278,8 +1414,8 @@
     {
       "name": "run_failed",
       "emitters": [
-        "agent/runtime/loop.py:835",
-        "agent/runtime/loop.py:635"
+        "agent/runtime/loop.py:958",
+        "agent/runtime/loop.py:736"
       ],
       "fields": [
         "error",
@@ -1290,7 +1426,7 @@
     {
       "name": "run_started",
       "emitters": [
-        "agent/runtime/loop.py:458"
+        "agent/runtime/loop.py:557"
       ],
       "fields": [
         "curriculum",
@@ -1306,11 +1442,11 @@
     {
       "name": "run_stopped",
       "emitters": [
-        "agent/runtime/loop.py:278",
-        "agent/runtime/loop.py:282",
-        "agent/runtime/loop.py:286",
-        "agent/runtime/loop.py:831",
-        "agent/runtime/loop.py:493"
+        "agent/runtime/loop.py:295",
+        "agent/runtime/loop.py:299",
+        "agent/runtime/loop.py:303",
+        "agent/runtime/loop.py:954",
+        "agent/runtime/loop.py:592"
       ],
       "fields": [
         "reason"
@@ -1358,7 +1494,7 @@
     {
       "name": "session_reflection_completed",
       "emitters": [
-        "agent/session/coordinator.py:722"
+        "agent/session/coordinator.py:772"
       ],
       "fields": [
         "purpose",
@@ -1368,7 +1504,7 @@
     {
       "name": "session_reflection_fallback",
       "emitters": [
-        "agent/session/coordinator.py:725"
+        "agent/session/coordinator.py:775"
       ],
       "fields": [
         "error_type",
@@ -1389,7 +1525,7 @@
     {
       "name": "session_summary",
       "emitters": [
-        "agent/session/coordinator.py:1058"
+        "agent/session/coordinator.py:1108"
       ],
       "fields": [
         "message"
@@ -1398,7 +1534,7 @@
     {
       "name": "session_unexpected_exception",
       "emitters": [
-        "agent/session/coordinator.py:1071"
+        "agent/session/coordinator.py:1121"
       ],
       "fields": []
     },
@@ -1418,7 +1554,7 @@
     {
       "name": "stale_budget_plan_recovered",
       "emitters": [
-        "agent/session/coordinator.py:812"
+        "agent/session/coordinator.py:862"
       ],
       "fields": [
         "available_daily_tokens"
@@ -1513,7 +1649,7 @@
       "name": "tool_call",
       "emitters": [
         "agent/tests/identity/test_identity.py:66",
-        "agent/tools/base_tools.py:428"
+        "agent/tools/base_tools.py:540"
       ],
       "fields": [
         "arguments",
@@ -1523,18 +1659,22 @@
     {
       "name": "tool_creation_failed",
       "emitters": [
-        "agent/tools/tool_registry.py:422"
+        "agent/tools/tool_registry.py:437"
       ],
       "fields": [
         "attempt",
+        "cycles",
+        "llm_calls",
         "name",
-        "traceback"
+        "tokens",
+        "traceback",
+        "wall_time_seconds"
       ]
     },
     {
       "name": "tool_critic",
       "emitters": [
-        "agent/tools/tool_registry.py:356"
+        "agent/tools/tool_registry.py:361"
       ],
       "fields": [
         "attempt",
@@ -1545,7 +1685,7 @@
     {
       "name": "tool_failure_lesson",
       "emitters": [
-        "agent/tools/tool_registry.py:429"
+        "agent/tools/tool_registry.py:453"
       ],
       "fields": []
     },
@@ -1574,19 +1714,24 @@
       "name": "tool_registered",
       "emitters": [
         "agent/tests/reporting/test_report.py:22",
-        "agent/tools/tool_registry.py:409"
+        "agent/tools/tool_registry.py:414"
       ],
       "fields": [
+        "attempts",
+        "cycles",
         "input_schema",
+        "llm_calls",
         "name",
-        "version"
+        "tokens",
+        "version",
+        "wall_time_seconds"
       ]
     },
     {
       "name": "tool_result",
       "emitters": [
         "agent/tests/identity/test_identity.py:67",
-        "agent/tools/base_tools.py:559"
+        "agent/tools/base_tools.py:671"
       ],
       "fields": [
         "duration_ms",
@@ -1611,7 +1756,7 @@
     {
       "name": "tool_test",
       "emitters": [
-        "agent/tools/tool_registry.py:375"
+        "agent/tools/tool_registry.py:380"
       ],
       "fields": [
         "attempt",
@@ -1622,7 +1767,7 @@
     {
       "name": "tool_test_compat_alias",
       "emitters": [
-        "agent/tools/tool_registry.py:367"
+        "agent/tools/tool_registry.py:372"
       ],
       "fields": [
         "name",
@@ -1632,7 +1777,7 @@
     {
       "name": "zero_cycle_session_preserved",
       "emitters": [
-        "agent/session/coordinator.py:1027"
+        "agent/session/coordinator.py:1077"
       ],
       "fields": [
         "end_reason",
@@ -1880,6 +2025,18 @@
       "purpose": "Human-owned domain and IP prefix allowlist for hardened egress proxy sidecar",
       "writer": "Human operator",
       "reader": "scripts/egress_proxy.py"
+    },
+    {
+      "path": "workspace/state/cost_ledger.jsonl",
+      "purpose": "Measured tokens, LLM calls, wall time, and cycles per create_tool and per plugin project",
+      "writer": "agent/infra/cost_ledger.py",
+      "reader": "agent/infra/cost_ledger.py, agent/tools/base_tools.py"
+    },
+    {
+      "path": "workspace/state/plugin_proposals.jsonl",
+      "purpose": "Durable plugin self-development proposals with ledger-derived cost estimates and stop-loss criteria",
+      "writer": "agent/plugins/self_dev.py",
+      "reader": "agent/plugins/self_dev.py, agent/session/coordinator.py"
     }
   ],
   "env_vars": [

@@ -174,6 +174,48 @@ def get_tools():
             "risk_class": "executes / writes / network",
             "core_vs_body": "core",
             "description": "Create or update a reusable Python tool with critic review, isolated unittest execution, and schema check."
+        },
+        {
+            "name": "read_cost_ledger",
+            "module": "agent/tools/base_tools.py",
+            "risk_class": "reads",
+            "core_vs_body": "core",
+            "description": "Read measured cost ledger baselines (median and p90 for tool tokens, LLM calls, wall time, cycles) and totals for active or historical plugin projects."
+        },
+        {
+            "name": "propose_plugin",
+            "module": "agent/tools/base_tools.py",
+            "risk_class": "writes",
+            "core_vs_body": "core",
+            "description": "Propose developing a new specialization plugin with ledger-derived cost estimates and stop-loss criteria."
+        },
+        {
+            "name": "scaffold_plugin",
+            "module": "agent/tools/base_tools.py",
+            "risk_class": "writes",
+            "core_vs_body": "core",
+            "description": "Scaffold a new plugin draft in workspace/plugin_dev/<name>/ from the starter template."
+        },
+        {
+            "name": "validate_plugin",
+            "module": "agent/tools/base_tools.py",
+            "risk_class": "reads",
+            "core_vs_body": "core",
+            "description": "Run static validation on a plugin draft in workspace/plugin_dev/<name>/ checking manifest, namespacing, permissions, and security."
+        },
+        {
+            "name": "test_plugin",
+            "module": "agent/tools/base_tools.py",
+            "risk_class": "executes",
+            "core_vs_body": "core",
+            "description": "Execute unittests and simulation scenarios for a plugin draft in workspace/plugin_dev/<name>/ in an isolated environment without real resources."
+        },
+        {
+            "name": "request_plugin_review",
+            "module": "agent/tools/base_tools.py",
+            "risk_class": "executes / network",
+            "core_vs_body": "core",
+            "description": "Request a strict critic review of a validated and tested plugin draft in workspace/plugin_dev/<name>/, generating a diff and permission summary review packet."
         }
     ]
     return tools
@@ -298,7 +340,9 @@ def get_state_files():
         {"path": "workspace/memory/lessons.jsonl", "purpose": "Recorded tool failure lessons after 3 failed creation attempts", "writer": "agent/tools/tool_registry.py", "reader": "agent/runtime/loop.py"},
         {"path": "config/plugins.json", "purpose": "Human-owned configuration file recording plugin enablement status and SHA-256 hash pins", "writer": "agent/plugins/manager.py", "reader": "agent/plugins/manager.py"},
         {"path": "config/permissions.json", "purpose": "Human-owned permission policy defining action levels (L0-L3) and actor grants", "writer": "Human operator", "reader": "agent/infra/permission_broker.py"},
-        {"path": "config/egress_allowlist.txt", "purpose": "Human-owned domain and IP prefix allowlist for hardened egress proxy sidecar", "writer": "Human operator", "reader": "scripts/egress_proxy.py"}
+        {"path": "config/egress_allowlist.txt", "purpose": "Human-owned domain and IP prefix allowlist for hardened egress proxy sidecar", "writer": "Human operator", "reader": "scripts/egress_proxy.py"},
+        {"path": "workspace/state/cost_ledger.jsonl", "purpose": "Measured tokens, LLM calls, wall time, and cycles per create_tool and per plugin project", "writer": "agent/infra/cost_ledger.py", "reader": "agent/infra/cost_ledger.py, agent/tools/base_tools.py"},
+        {"path": "workspace/state/plugin_proposals.jsonl", "purpose": "Durable plugin self-development proposals with ledger-derived cost estimates and stop-loss criteria", "writer": "agent/plugins/self_dev.py", "reader": "agent/plugins/self_dev.py, agent/session/coordinator.py"}
     ]
 
 def get_entry_points():
