@@ -787,6 +787,8 @@ class AgentLoop:
                                         reviewed_set = self.reviewed_thresholds.setdefault(proj, set())
                                         thresh = 25 if 25 not in reviewed_set else (50 if 50 not in reviewed_set else 100)
                                         reviewed_set.add(thresh)
+                                        if hasattr(self.plugin_dev, "record_review_decision"):
+                                            self.plugin_dev.record_review_decision(proj, thresh)
                                         ledger_summary = self.tools.cost_ledger.get_summary()
                                         pdata = ledger_summary.get("plugin_projects", {}).get(proj, {})
                                         self.logger.log(

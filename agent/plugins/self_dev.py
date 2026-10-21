@@ -66,11 +66,21 @@ def now_utc() -> str:
 
 
 def _child_env() -> dict[str, str]:
-    """Return stripped environment containing no API keys or credentials."""
-    return {
+    """Return stripped environment containing no API keys or credentials, with network disabled via dead proxy."""
+    env = {
         key: val for key, val in os.environ.items()
         if not any(marker in key.upper() for marker in SECRET_NAME_MARKERS)
     }
+    # Block outbound network by routing proxy to dead loopback port
+    env["HTTP_PROXY"] = "http://127.0.0.1:0"
+    env["HTTPS_PROXY"] = "http://127.0.0.1:0"
+    env["ALL_PROXY"] = "http://127.0.0.1:0"
+    env["http_proxy"] = "http://127.0.0.1:0"
+    env["https_proxy"] = "http://127.0.0.1:0"
+    env["all_proxy"] = "http://127.0.0.1:0"
+    env["NO_PROXY"] = ""
+    env["no_proxy"] = ""
+    return env
 
 
 class PluginDevManager:
@@ -91,6 +101,46 @@ class PluginDevManager:
         self.logger = logger or EventLogger(self.workspace)
         self.cost_ledger = cost_ledger or CostLedger(self.workspace)
         self.review_call = review_call
+        self.reviewed_thresholds: dict[str, set[int]] = {}
+
+    def get_proposal(self, name: str) -> dict[str, Any] | None:
+        """Fetch proposal by name from state/plugin_proposals.jsonl."""
+        for p in self.list_proposals():
+            if p.get("name") == name:
+                return p
+        return None
+
+    def get_pending_stop_loss(self, name: str) -> list[int]:
+        """Check if any stop-loss review threshold (25, 50, 100) is reached but unacknowledged."""
+        proposal = self.get_proposal(name)
+        if not proposal:
+            return []
+        est = proposal.get("estimate", {})
+        tokens_est = est.get("tokens", {}) if isinstance(est.get("tokens"), dict) else {}
+        cycles_est = est.get("cycles", {}) if isinstance(est.get("cycles"), dict) else {}
+        max_tokens = tokens_est.get("max", 0)
+        max_cycles = cycles_est.get("max", 0)
+        if not max_tokens and not max_cycles:
+            return []
+
+        ledger_summary = self.cost_ledger.get_summary()
+        proj_data = ledger_summary.get("plugin_projects", {}).get(name, {})
+        spent_tokens = proj_data.get("tokens", 0)
+        spent_cycles = proj_data.get("cycles", 0)
+
+        reviewed = self.reviewed_thresholds.setdefault(name, set())
+        pending = []
+        for pct in (25, 50, 100):
+            if pct not in reviewed:
+                tok_thresh = (pct / 100.0) * max_tokens if max_tokens else 999999999
+                cyc_thresh = (pct / 100.0) * max_cycles if max_cycles else 999999999
+                if (max_tokens and spent_tokens >= tok_thresh) or (max_cycles and spent_cycles >= cyc_thresh):
+                    pending.append(pct)
+        return pending
+
+    def record_review_decision(self, name: str, threshold: int) -> None:
+        """Mark a stop-loss review threshold as acknowledged and reviewed."""
+        self.reviewed_thresholds.setdefault(name, set()).add(threshold)
 
     def ensure_directories(self) -> None:
         """Ensure necessary directories exist."""
@@ -169,12 +219,17 @@ class PluginDevManager:
 
         ledger_keywords = {"ledger", "baseline", "median", "p90", "cost_ledger", "measured"}
         has_ledger_ref = any(kw in derivation for kw in ledger_keywords)
+        summary = self.cost_ledger.get_summary()
+        tool_baselines = summary.get("baselines", {}).get("tool", {})
+        tokens_base = tool_baselines.get("tokens", {})
+        actual_median = int(tokens_base.get("median", 0))
+        actual_p90 = int(tokens_base.get("p90", 0))
+
         if not has_ledger_ref:
             # Check if derivation contains explicit numbers citing ledger baselines
-            summary = self.cost_ledger.get_summary()
-            tool_baselines = summary.get("baselines", {}).get("tool", {})
-            p90_tokens = str(int(tool_baselines.get("tokens", {}).get("p90", 0)))
-            if p90_tokens and p90_tokens in derivation:
+            if actual_p90 and str(actual_p90) in derivation:
+                has_ledger_ref = True
+            elif actual_median and str(actual_median) in derivation:
                 has_ledger_ref = True
 
         if not has_ledger_ref:
@@ -182,6 +237,27 @@ class PluginDevManager:
                 "ok": False,
                 "error": "Estimate derivation must explicitly reference measured cost ledger data (cite ledger baselines, median, p90, or read_cost_ledger values).",
             }
+
+        # If ledger has measured tool baselines and derivation cites specific numbers for median or p90, verify consistency
+        if actual_median > 0:
+            median_matches = re.findall(r'median(?:\s+tool)?(?:\s+tokens)?(?:\s+of|\s+is|\s*[:=])?\s*(\d+)', derivation)
+            for m in median_matches:
+                val = int(m)
+                if abs(val - actual_median) > max(10, 0.2 * actual_median):
+                    return {
+                        "ok": False,
+                        "error": f"Estimate derivation claims tool median of {val} tokens, but ledger recorded median is {actual_median} tokens. Numbers cited must match the measured cost ledger.",
+                    }
+
+        if actual_p90 > 0:
+            p90_matches = re.findall(r'p90(?:\s+tool)?(?:\s+tokens)?(?:\s+of|\s+is|\s*[:=])?\s*(\d+)', derivation)
+            for m in p90_matches:
+                val = int(m)
+                if abs(val - actual_p90) > max(10, 0.2 * actual_p90):
+                    return {
+                        "ok": False,
+                        "error": f"Estimate derivation claims tool p90 of {val} tokens, but ledger recorded p90 is {actual_p90} tokens. Numbers cited must match the measured cost ledger.",
+                    }
 
         # Construct record
         proposal_record = {
@@ -311,6 +387,16 @@ class PluginDevManager:
     def validate_plugin(self, name: str) -> dict[str, Any]:
         """Perform strict static validation on a draft plugin in workspace/plugin_dev/<name>/."""
         clean_name = str(name).strip()
+        pending_reviews = self.get_pending_stop_loss(clean_name)
+        if pending_reviews:
+            highest_pct = max(pending_reviews)
+            return {
+                "ok": False,
+                "valid": False,
+                "errors": [f"Mandatory stop-loss review at {highest_pct}% of estimate is pending for plugin '{clean_name}'. You must record an explicit continue / reduce_scope / abandon decision in your plan update before proceeding."],
+                "warnings": [],
+            }
+
         draft_dir = self.dev_dir / clean_name
         if not draft_dir.exists() or not draft_dir.is_dir():
             return {
@@ -501,6 +587,15 @@ class PluginDevManager:
     ) -> dict[str, Any]:
         """Execute unittests for a draft plugin in isolation without touching real resources."""
         clean_name = str(name).strip()
+        pending_reviews = self.get_pending_stop_loss(clean_name)
+        if pending_reviews:
+            highest_pct = max(pending_reviews)
+            return {
+                "ok": False,
+                "passed": False,
+                "error": f"Mandatory stop-loss review at {highest_pct}% of estimate is pending for plugin '{clean_name}'. You must record an explicit continue / reduce_scope / abandon decision in your plan update before proceeding.",
+            }
+
         draft_dir = self.dev_dir / clean_name
         if not draft_dir.exists() or not draft_dir.is_dir():
             return {"ok": False, "passed": False, "error": f"Draft '{clean_name}' does not exist."}

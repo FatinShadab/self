@@ -460,12 +460,14 @@ class ToolRunner:
         agent_root: str | Path = "/opt/agent",
         body: Body | None = None,
         broker: PermissionBroker | None = None,
+        plugin_dev: Any = None,
     ) -> None:
         self.logger = logger
         self.workspace = Path(workspace)
         self.core_root = Path(core_root)
         self.agent_root = Path(agent_root)
         self.broker = broker
+        self.plugin_dev = plugin_dev
         configured_cap = int(os.getenv("SELF_MAX_OUTPUT_CHARS", str(DEFAULT_OUTPUT_CAP)))
         self.output_cap = max(1_000, output_cap or configured_cap)
         if body is None:
@@ -492,24 +494,6 @@ class ToolRunner:
         from agent.infra.cost_ledger import CostLedger
         self.cost_ledger = CostLedger(self.workspace)
         self.review_call: Any = None
-        self._plugin_dev: Any = None
-
-    @property
-    def plugin_dev(self) -> Any:
-        if self._plugin_dev is None:
-            import importlib
-            mod = importlib.import_module("agent.plugins.self_dev")
-            self._plugin_dev = mod.PluginDevManager(
-                workspace=self.workspace,
-                logger=self.logger,
-                cost_ledger=self.cost_ledger,
-                review_call=self.review_call,
-            )
-        return self._plugin_dev
-
-    @plugin_dev.setter
-    def plugin_dev(self, value: Any) -> None:
-        self._plugin_dev = value
 
     @property
     def identity(self) -> Any:
@@ -705,6 +689,8 @@ class ToolRunner:
                 ledger_summary = self.cost_ledger.get_summary()
                 pdata = ledger_summary.get("plugin_projects", {}).get(proj, {})
                 thresh = int(arguments.get("threshold", 25))
+                if self.plugin_dev is not None and hasattr(self.plugin_dev, "record_review_decision"):
+                    self.plugin_dev.record_review_decision(proj, thresh)
                 self.logger.log(
                     "plugin_project_review",
                     project=proj,
@@ -812,6 +798,8 @@ class ToolRunner:
         rollback: str,
     ) -> dict[str, Any]:
         """Propose developing a specialization plugin."""
+        if self.plugin_dev is None:
+            return {"ok": False, "error": "Plugin development is not configured on ToolRunner."}
         return self.plugin_dev.propose_plugin(
             name=name,
             need=need,
@@ -829,17 +817,25 @@ class ToolRunner:
 
     def scaffold_plugin(self, name: str, kind: str = "skill", description: str = "") -> dict[str, Any]:
         """Scaffold a plugin draft in workspace/plugin_dev/<name>/."""
+        if self.plugin_dev is None:
+            return {"ok": False, "error": "Plugin development is not configured on ToolRunner."}
         return self.plugin_dev.scaffold_plugin(name=name, kind=kind, description=description)
 
     def validate_plugin(self, name: str) -> dict[str, Any]:
         """Run static validation on a plugin draft in workspace/plugin_dev/<name>/."""
+        if self.plugin_dev is None:
+            return {"ok": False, "error": "Plugin development is not configured on ToolRunner."}
         return self.plugin_dev.validate_plugin(name=name)
 
     def test_plugin(self, name: str, test_type: str = "unit") -> dict[str, Any]:
         """Execute unittests for a plugin draft in workspace/plugin_dev/<name>/."""
+        if self.plugin_dev is None:
+            return {"ok": False, "error": "Plugin development is not configured on ToolRunner."}
         return self.plugin_dev.test_plugin(name=name, test_type=test_type)
 
     def request_plugin_review(self, name: str) -> dict[str, Any]:
         """Request strict critic review of a validated plugin draft."""
+        if self.plugin_dev is None:
+            return {"ok": False, "error": "Plugin development is not configured on ToolRunner."}
         return self.plugin_dev.request_plugin_review(name=name)
 

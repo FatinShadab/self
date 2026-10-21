@@ -220,6 +220,25 @@ class SelfPluginsTests(unittest.TestCase):
         self.assertIn("promoted to workspace/plugins/my_spec as DISABLED", promote_out)
         self.assertTrue((self.workspace / "plugins" / "my_spec" / "plugin.json").exists())
 
+        # Manually copied directory directly in workspace/plugins/ stays DISABLED
+        self.dev_manager.scaffold_plugin("rogue_copy", kind="skill", description="Directly copied plugin")
+        shutil.copytree(self.workspace / "plugin_dev" / "rogue_copy", self.workspace / "plugins" / "rogue_copy")
+
+        mgr = PluginManager(self.workspace, logger=self.logger)
+        mgr.sync_at_cycle_boundary()
+        # Must be discovered but NOT active/enabled
+        self.assertIn("rogue_copy", mgr.discovered)
+        self.assertFalse(mgr.discovered["rogue_copy"].is_enabled)
+        self.assertNotIn("rogue_copy", mgr.active_plugins)
+        active_tool_names = [t["name"] for t in mgr.get_active_tool_definitions()]
+        self.assertNotIn("rogue_copy.sample_tool", active_tool_names)
+
+        # Human enable shows permission summary and hash
+        enable_out = coord.handle_plugins_command("/plugins enable rogue_copy")
+        self.assertIn("enabled", enable_out)
+        self.assertIn("hash pinned", enable_out)
+        self.assertIn("rogue_copy.sample_tool", enable_out)
+
     # -------------------------------------------------------------------------
     # 6. Draft validation rejects secret reads, prompt injection, and undeclared ops
     # -------------------------------------------------------------------------
@@ -323,6 +342,86 @@ class SelfPluginsTests(unittest.TestCase):
         self.assertTrue(len(review_events) >= 1)
         self.assertEqual(review_events[-1]["threshold"], 25)
         self.assertEqual(review_events[-1]["decision"], "continue")
+
+    def test_derivation_citing_mismatched_ledger_numbers_is_rejected(self) -> None:
+        """Derivation citing ledger numbers that conflict with measured data must be rejected."""
+        # Populate ledger with measured tool baselines (median 1500 tokens)
+        events = [
+            {"event": "tool_cost", "name": "tool_1", "tokens": 1500, "llm_calls": 1, "wall_time": 10.0, "attempt": 1, "success": True},
+        ]
+        self.cost_ledger.build_from_events(events)
+
+        # Cite contradictory number (claims median is 99999)
+        res = self.dev_manager.propose_plugin(
+            name="bad_derivation_plug",
+            need="Need automation",
+            evidence="Environment analysis",
+            alternatives_considered="None",
+            estimate={
+                "tokens": {"min": 5000, "max": 10000},
+                "cycles": {"min": 3, "max": 6},
+                "wall_time": {"min": 10, "max": 30},
+                "human_review_minutes": {"min": 5, "max": 15},
+                "derivation": "Derived from measured tool median of 99999 tokens and 1 cycle",
+            },
+            expected_benefit="High speed",
+            actions_needed_with_risk_levels=[{"name": "read_data", "level": "L0", "risk": "reads"}],
+            maintenance_burden="Low",
+            stop_loss="Stop if over budget",
+            rollback="Delete files",
+        )
+        self.assertFalse(res["ok"])
+        self.assertIn("ledger recorded median is 1500", res["error"])
+
+    def test_stop_loss_ignored_blocks_plugin_dev_tools(self) -> None:
+        """When a stop-loss threshold is pending, plugin dev tools are blocked until plan update."""
+        # Propose project with 10,000 max tokens
+        self.dev_manager.propose_plugin(
+            name="blocked_dev",
+            need="Need telemetry",
+            evidence="Observed gap",
+            alternatives_considered="None",
+            estimate={
+                "tokens": {"min": 5000, "max": 10000},
+                "cycles": {"min": 2, "max": 4},
+                "wall_time": {"min": 10, "max": 30},
+                "human_review_minutes": {"min": 5, "max": 15},
+                "derivation": "Derived from cost_ledger baselines",
+            },
+            expected_benefit="Telemetry",
+            actions_needed_with_risk_levels=[{"name": "op", "level": "L0", "risk": "reads"}],
+            maintenance_burden="Low",
+            stop_loss="Stop at 25%",
+            rollback="Rm",
+        )
+        self.dev_manager.scaffold_plugin("blocked_dev")
+
+        # Simulate spend past 25% threshold (3000 tokens)
+        self.logger.log("plugin_review_completed", name="blocked_dev", tokens=3000, cycles=1, approved=True, score=85)
+
+        # Validate and test must be blocked
+        val = self.dev_manager.validate_plugin("blocked_dev")
+        self.assertFalse(val["ok"])
+        self.assertTrue(any("Mandatory stop-loss review at 25%" in err for err in val.get("errors", [])))
+
+        test_res = self.dev_manager.test_plugin("blocked_dev")
+        self.assertFalse(test_res["ok"])
+        self.assertIn("Mandatory stop-loss review at 25%", test_res.get("error", ""))
+
+        # Acknowledge review decision
+        self.dev_manager.record_review_decision("blocked_dev", 25)
+
+        # Now validate proceeds
+        val_after = self.dev_manager.validate_plugin("blocked_dev")
+        self.assertTrue(val_after["ok"])
+
+    def test_plugin_cannot_register_reserved_proposals_command(self) -> None:
+        """Plugins cannot register /proposals or /proposal reserved slash commands."""
+        mgr = PluginManager(self.workspace, logger=self.logger)
+        with self.assertRaises(ValueError):
+            mgr.register_command("test_p", "proposals", lambda args: "shadowed")
+        with self.assertRaises(ValueError):
+            mgr.register_command("test_p", "proposal", lambda args: "shadowed")
 
 
 if __name__ == "__main__":

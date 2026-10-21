@@ -494,7 +494,20 @@ class WakeCoordinator:
                 return "Usage: /plugins enable <name>"
             try:
                 res = self.plugins.enable_by_human(name)
-                return f"Plugin '{name}' enabled (hash: {res['hash'][:12]}...). Takes effect at the next cycle boundary."
+                p = self.plugins.discovered.get(name)
+                perm_summary: dict[str, Any] = {}
+                if p and p.manifest:
+                    for t in p.manifest.tools:
+                        perm_summary[f"{name}.{t.get('name')}"] = {
+                            "permission_level": t.get("permission_level", "L0"),
+                            "risk_classes": t.get("risk_classes", []),
+                        }
+                perm_text = json.dumps(perm_summary, indent=2) if perm_summary else "No tools declared."
+                return (
+                    f"Plugin '{name}' enabled (hash pinned: {res['hash'][:12]}...).\n"
+                    f"Permission requests:\n{perm_text}\n"
+                    f"Takes effect at the next cycle boundary."
+                )
             except PermissionError:
                 return f"Cannot enable plugin '{name}': /config/plugins.json is mounted read-only (human host config). Please edit ./config/plugins.json on host."
             except Exception as exc:
