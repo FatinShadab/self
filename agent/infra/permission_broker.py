@@ -38,7 +38,7 @@ class PermissionLevel(enum.IntEnum):
         if isinstance(val, int):
             return cls(min(3, max(0, val)))
         s = str(val).strip().upper()
-        if s in {"L0", "0", "OBSERVE", "READS"}:
+        if s in {"L0", "0", "OBSERVE", "READS", "READ_ONLY"}:
             return cls.L0
         if s in {"L1", "1", "REVERSIBLE", "QUARANTINE"}:
             return cls.L1

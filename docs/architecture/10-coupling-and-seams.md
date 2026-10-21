@@ -234,3 +234,21 @@ When a body or specialization plugin (e.g. an antivirus scanner or sensor plugin
    - If the LLM generates a `tool_use` block for a vanished or disabled tool, `ToolRunner.execute()` catches it and returns a structured observation: `{"ok": False, "error": "tool no longer available: plugin X disabled"}` instead of raising `[read] agent/tools/base_tools.py:346, agent/runtime/loop.py:612`.
 6. **Untrusted Data Protection:**
    - Any inactive or archived plugin text that must be shown to the model is wrapped with `<UNTRUSTED_DATA>` delimiters.
+
+
+---
+
+## 6. Core API Versioning, Compatibility Ranges & SDK Seam (Prompt 15)
+
+`[read] agent/plugins/manifest.py:10-88, agent/plugins/cli.py:1-380, VERSION:1`:
+1. **Core Version Semver (`CORE_API_VERSION = "1.0.0"`):**
+   - Core API version is tracked in `CORE_API_VERSION` and verified against repo root `VERSION`.
+   - Breaking contract changes increment Major, backwards-compatible additions increment Minor, bug fixes increment Patch.
+2. **Manifest Range Compatibility:**
+   - Manifests declare a `core_api` compatible range (e.g. `">=1.0,<2.0"`).
+   - Incompatible plugins are rejected at discovery with `plugin_load_failed`.
+   - Enabled plugins that become incompatible retain `"suspended: plugin disabled"` goals without deleting private state.
+3. **Template Scaffolding:**
+   - Starter template in `plugins/_template` is ignored during normal discovery and hash checking, and is copied under custom names for development.
+4. **SDK Documentation:**
+   - Developer guides in `docs/plugins/` are shipped read-only to `/opt/agent/docs/plugins` for agent self-authoring.

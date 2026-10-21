@@ -45,9 +45,9 @@ def compute_plugin_hash(plugin_dir: Path) -> str:
         rel = path.relative_to(plugin_dir)
         parts = rel.parts
         # Exclude runtime state/ directory and _archive directory
-        if len(parts) > 0 and (parts[0] == "state" or parts[0] == "_archive"):
+        if len(parts) > 0 and (parts[0] in {"state", "_archive", "_template"}):
             continue
-        if "_archive" in parts:
+        if "_archive" in parts or "_template" in parts:
             continue
         # Exclude __pycache__ and bytecode
         if "__pycache__" in parts or path.suffix in {".pyc", ".pyo", ".pyd"}:
@@ -72,6 +72,8 @@ def compute_plugin_hash(plugin_dir: Path) -> str:
 
 @dataclass
 class Plugin:
+    """Runtime representation of a discovered or loaded plugin."""
+
     manifest: PluginManifest
     plugin_dir: Path
     is_shipped: bool
@@ -133,6 +135,7 @@ class PluginManager:
         self.active_plugins: dict[str, Plugin] = {}
         self.vanished_plugins: set[str] = set()
         self.refused_plugins: set[str] = set()
+        self.failed_plugins: dict[str, str] = {}
 
     # -------------------------------------------------------------------------
     # Configuration (Human-Owned ./config/plugins.json)
@@ -196,10 +199,13 @@ class PluginManager:
     def discover(self) -> dict[str, Plugin]:
         """Scan shipped and workspace directories for plugin.json manifests."""
         discovered: dict[str, Plugin] = {}
+        self.failed_plugins.clear()
 
         # 1. Shipped plugins (read-only image content)
         if self.shipped_dir.exists() and self.shipped_dir.is_dir():
             for entry in self.shipped_dir.iterdir():
+                if entry.name in {"_archive", "_template"} or entry.name.startswith(('_', '.')):
+                    continue
                 if entry.is_dir() and (entry / "plugin.json").exists():
                     p = self._discover_plugin_dir(entry, is_shipped=True)
                     if p:
@@ -214,7 +220,7 @@ class PluginManager:
         # 2. Workspace plugins (human-installed under workspace/plugins/<name>)
         if self.workspace_plugins_dir.exists() and self.workspace_plugins_dir.is_dir():
             for entry in self.workspace_plugins_dir.iterdir():
-                if entry.name == "_archive" or entry.name.startswith("_") or entry.name.startswith("."):
+                if entry.name in {"_archive", "_template"} or entry.name.startswith(('_', '.')):
                     continue
                 if entry.is_dir() and (entry / "plugin.json").exists():
                     p = self._discover_plugin_dir(entry, is_shipped=False)
@@ -236,9 +242,11 @@ class PluginManager:
             manifest = parse_manifest(manifest_file)
         except PluginManifestValidationError as exc:
             self.logger.log("plugin_load_failed", plugin=plugin_dir.name, error=str(exc))
+            self.failed_plugins[plugin_dir.name] = str(exc)
             return None
         except Exception as exc:
             self.logger.log("plugin_load_failed", plugin=plugin_dir.name, error=f"Unexpected error: {exc}")
+            self.failed_plugins[plugin_dir.name] = str(exc)
             return None
 
         # State dir under workspace/plugins/<name>/state
@@ -534,6 +542,14 @@ class PluginManager:
                     self.disable_plugin(name)
                     if ps is not None:
                         ps.suspend_plugin_goals(name)
+
+        # Check for enabled plugins that failed discovery or were removed
+        for cfg_name, entry in plugins_cfg.items():
+            if entry.get("enabled", False) and cfg_name not in self.discovered:
+                if cfg_name in self.active_plugins:
+                    self.disable_plugin(cfg_name)
+                if ps is not None:
+                    ps.suspend_plugin_goals(cfg_name)
 
         # Check for vanished plugins whose directories were removed
         for active_name in list(self.active_plugins):

@@ -81,9 +81,11 @@ self/
 │   │
 │   ├── plugins/                      # Plugin lifecycle, dynamic tool registration, hash pinning (Layer 2)
 │   │   ├── __init__.py               # Exports PluginManager, PluginManifest, compute_plugin_hash [read] agent/plugins/__init__.py:1-25
-│   │   ├── hello/                    # Shipped sample hello plugin fixture [read] agent/plugins/hello/plugin.json:1-35
-│   │   ├── manager.py                # PluginManager: discovery, lifecycle, sync, hash checks [read] agent/plugins/manager.py:1-400
-│   │   └── manifest.py               # PluginManifest schema validation and version checks [read] agent/plugins/manifest.py:1-200
+│   │   ├── __main__.py               # Entrypoint for python -m agent.plugins [read] agent/plugins/__main__.py:1-6
+│   │   ├── cli.py                    # Static Plugin SDK CLI: new, validate, list, check [read] agent/plugins/cli.py:1-380
+│   │   ├── hello/                    # Shipped sample hello plugin fixture [read] agent/plugins/hello/plugin.json:1-54
+│   │   ├── manager.py                # PluginManager: discovery, lifecycle, sync, hash checks [read] agent/plugins/manager.py:1-660
+│   │   └── manifest.py               # PluginManifest schema validation and version checks [read] agent/plugins/manifest.py:1-326
 │   │
 │   ├── reporting/                    # Activity reporting and statistics aggregation (Layer 4)
 │   │   ├── __init__.py               # Exports generate_report [read] agent/reporting/__init__.py:1-5
@@ -147,7 +149,11 @@ self/
 │   └── verify-phase8.ps1             # Verification runner for Phase 8 milestones
 │
 ├── docs/                             # Project documentation
-│   └── architecture/                 # Full architecture specification and briefing (THIS DIRECTORY)
+│   ├── architecture/                 # Full architecture specification and briefing (THIS DIRECTORY)
+│   └── plugins/                      # Plugin SDK developer guides shipped to /opt/agent/docs/plugins
+├── plugins/                          # Plugin development templates and scaffold source
+│   └── _template/                    # Minimal working skeleton for new plugins [read] plugins/_template/plugin.json:1-50
+├── VERSION                           # Core API version tracking file (checked against CORE_API_VERSION) [read] VERSION:1
 │
 └── workspace/                        # Runtime persistent volume mounted to /home/entity [read] docker-compose.yml:17-18
     ├── logs/                         # actions.jsonl event log [read]
