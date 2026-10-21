@@ -97,7 +97,7 @@ Before testing or review, the agent runs `validate_plugin(name)`:
 - Scans all files for prompt injection patterns or delimiter escape attempts.
 
 > [!NOTE]
-> `validate_plugin` is an **advisory static linter**, not a hard security boundary. Static AST and regex checks can be bypassed by dynamic language constructs (`getattr`, `__import__`, `eval`). The true security gate is human review, human promotion, and human enablement with cryptographic content hash pinning.
+> `validate_plugin` is an **advisory static linter**, not a hard security boundary. Static AST and regex checks can be bypassed by dynamic language constructs (`getattr`, `__import__`, dynamic code execution). The true security gate is human review, human promotion, and human enablement with cryptographic content hash pinning.
 
 ### Step 6: Isolated Testing (`test_plugin`)
 Runs plugin tests in `workspace/plugin_dev/<name>/tests/` in an isolated subprocess with secrets stripped and network access blocked:

@@ -1148,12 +1148,16 @@
     {
       "name": "plugin_review_completed",
       "emitters": [
-        "agent/plugins/self_dev.py:765"
+        "agent/plugins/self_dev.py:765",
+        "agent/tests/plugins/test_self_plugins.py:400"
       ],
       "fields": [
         "approved",
+        "cycles",
         "issues",
-        "name"
+        "name",
+        "score",
+        "tokens"
       ]
     },
     {
