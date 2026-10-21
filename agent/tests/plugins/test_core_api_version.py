@@ -41,7 +41,7 @@ class CoreApiVersionTests(unittest.TestCase):
         self.assertTrue(version_file.exists(), f"VERSION file must exist (checked {candidates})")
         file_version = version_file.read_text(encoding="utf-8").strip()
         self.assertEqual(CORE_API_VERSION, file_version)
-        self.assertEqual(CORE_API_VERSION, "1.0.0")
+        self.assertEqual(CORE_API_VERSION, "1.1.0")
 
     def test_range_syntax_compatibility(self) -> None:
         # Standard compound ranges

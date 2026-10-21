@@ -5,11 +5,13 @@ import sys
 import unittest
 from pathlib import Path
 
-plugin_dir = Path(__file__).resolve().parent.parent
-if str(plugin_dir) not in sys.path:
-    sys.path.insert(0, str(plugin_dir))
-
-from plugin import greet, on_disable, on_enable
+try:
+    from agent.plugins.hello.plugin import greet, on_disable, on_enable
+except ImportError:
+    plugin_dir = Path(__file__).resolve().parent.parent
+    if str(plugin_dir) not in sys.path:
+        sys.path.insert(0, str(plugin_dir))
+    from plugin import greet, on_disable, on_enable
 
 
 class HelloPluginTests(unittest.TestCase):

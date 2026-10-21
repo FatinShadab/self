@@ -96,7 +96,7 @@ class TaggedStateAcceptanceTests(unittest.TestCase):
         manifest = {
             "name": name,
             "version": "1.0.0",
-            "core_api": "1.0.0",
+            "core_api": ">=1.0.0,<2.0.0",
             "kind": "skill",
             "description": "Custom sensor plugin for testing.",
             "tools": [

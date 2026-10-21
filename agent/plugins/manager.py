@@ -16,6 +16,7 @@ from agent.infra.event_log import EventLogger
 from agent.plugins.manifest import (
     PluginManifest,
     PluginManifestValidationError,
+    RESERVED_SLASH_COMMANDS,
     parse_manifest,
 )
 from agent.tools.base_tools import TOOL_DEFINITIONS
@@ -133,6 +134,7 @@ class PluginManager:
         # Live state
         self.discovered: dict[str, Plugin] = {}
         self.active_plugins: dict[str, Plugin] = {}
+        self.active_commands: dict[str, tuple[str, Callable[[str], str]]] = {}
         self.vanished_plugins: set[str] = set()
         self.refused_plugins: set[str] = set()
         self.failed_plugins: dict[str, str] = {}
@@ -203,35 +205,45 @@ class PluginManager:
 
         # 1. Shipped plugins (read-only image content)
         if self.shipped_dir.exists() and self.shipped_dir.is_dir():
-            for entry in self.shipped_dir.iterdir():
-                if entry.name in {"_archive", "_template"} or entry.name.startswith(('_', '.')):
-                    continue
-                if entry.is_dir() and (entry / "plugin.json").exists():
-                    p = self._discover_plugin_dir(entry, is_shipped=True)
-                    if p:
-                        if p.manifest.name in self.active_plugins:
-                            active = self.active_plugins[p.manifest.name]
-                            active.manifest = p.manifest
-                            active.plugin_dir = p.plugin_dir
-                            discovered[p.manifest.name] = active
-                        else:
-                            discovered[p.manifest.name] = p
+            search_dirs = [self.shipped_dir]
+            examples_dir = self.shipped_dir / "examples"
+            if examples_dir.exists() and examples_dir.is_dir():
+                search_dirs.append(examples_dir)
+            for s_dir in search_dirs:
+                for entry in s_dir.iterdir():
+                    if entry.name in {"_archive", "_template", "examples"} or entry.name.startswith(('_', '.')):
+                        continue
+                    if entry.is_dir() and (entry / "plugin.json").exists():
+                        p = self._discover_plugin_dir(entry, is_shipped=True)
+                        if p:
+                            if p.manifest.name in self.active_plugins:
+                                active = self.active_plugins[p.manifest.name]
+                                active.manifest = p.manifest
+                                active.plugin_dir = p.plugin_dir
+                                discovered[p.manifest.name] = active
+                            else:
+                                discovered[p.manifest.name] = p
 
         # 2. Workspace plugins (human-installed under workspace/plugins/<name>)
         if self.workspace_plugins_dir.exists() and self.workspace_plugins_dir.is_dir():
-            for entry in self.workspace_plugins_dir.iterdir():
-                if entry.name in {"_archive", "_template"} or entry.name.startswith(('_', '.')):
-                    continue
-                if entry.is_dir() and (entry / "plugin.json").exists():
-                    p = self._discover_plugin_dir(entry, is_shipped=False)
-                    if p:
-                        if p.manifest.name in self.active_plugins:
-                            active = self.active_plugins[p.manifest.name]
-                            active.manifest = p.manifest
-                            active.plugin_dir = p.plugin_dir
-                            discovered[p.manifest.name] = active
-                        else:
-                            discovered[p.manifest.name] = p
+            ws_search_dirs = [self.workspace_plugins_dir]
+            ws_examples = self.workspace_plugins_dir / "examples"
+            if ws_examples.exists() and ws_examples.is_dir():
+                ws_search_dirs.append(ws_examples)
+            for ws_dir in ws_search_dirs:
+                for entry in ws_dir.iterdir():
+                    if entry.name in {"_archive", "_template", "examples"} or entry.name.startswith(('_', '.')):
+                        continue
+                    if entry.is_dir() and (entry / "plugin.json").exists():
+                        p = self._discover_plugin_dir(entry, is_shipped=False)
+                        if p:
+                            if p.manifest.name in self.active_plugins:
+                                active = self.active_plugins[p.manifest.name]
+                                active.manifest = p.manifest
+                                active.plugin_dir = p.plugin_dir
+                                discovered[p.manifest.name] = active
+                            else:
+                                discovered[p.manifest.name] = p
 
         self.discovered = discovered
         return discovered
@@ -275,8 +287,20 @@ class PluginManager:
         plugin.tools.clear()
         plugin.tool_specs.clear()
 
+        # Collect all callable specifications: declared tools, plus actions and sensors
+        all_tool_defs: list[dict[str, Any]] = [dict(t) for t in plugin.manifest.tools]
+        registered_names = {t["name"] for t in all_tool_defs}
+        for s in plugin.manifest.sensors:
+            if s.name not in registered_names:
+                all_tool_defs.append({"name": s.name, "description": s.description})
+                registered_names.add(s.name)
+        for a in plugin.manifest.actions:
+            if a.name not in registered_names:
+                all_tool_defs.append({"name": a.name, "description": a.description})
+                registered_names.add(a.name)
+
         # Check for core tool collisions
-        for tool_def in plugin.manifest.tools:
+        for tool_def in all_tool_defs:
             raw_tool_name = tool_def["name"]
             namespaced_name = f"{plugin.manifest.name}.{raw_tool_name}"
 
@@ -309,7 +333,7 @@ class PluginManager:
                 return False
 
         # Register tools
-        for tool_def in plugin.manifest.tools:
+        for tool_def in all_tool_defs:
             raw_name = tool_def["name"]
             namespaced_name = f"{plugin.manifest.name}.{raw_name}"
 
@@ -386,6 +410,20 @@ class PluginManager:
         plugin.is_enabled = True
         self.active_plugins[plugin.manifest.name] = plugin
         self.vanished_plugins.discard(plugin.manifest.name)
+
+        # Register manifest slash commands
+        for cmd in plugin.manifest.commands:
+            c_name = cmd.name.lstrip("/")
+            handler = None
+            if plugin.module:
+                handler = (
+                    getattr(plugin.module, f"handle_{c_name}_command", None)
+                    or getattr(plugin.module, f"{c_name}_command", None)
+                    or getattr(plugin.module, "handle_command", None)
+                )
+            if handler is not None:
+                self.register_command(plugin.manifest.name, c_name, handler)
+
         self.logger.log(
             "plugin_enabled",
             plugin=plugin.manifest.name,
@@ -409,6 +447,7 @@ class PluginManager:
                     self.logger.log("plugin_load_failed", plugin=name, error=f"on_disable failed: {exc}")
 
             plugin.is_enabled = False
+            self.unregister_commands_for_plugin(name)
             self.active_plugins.pop(name, None)
             self.vanished_plugins.add(name)
             self.logger.log("plugin_disabled", plugin=name)
@@ -483,7 +522,59 @@ class PluginManager:
             "workspace": self.workspace,
             "state_dir": plugin.state_dir,
             "logger": self.logger,
+            "register_command": lambda cmd, fn: self.register_command(plugin.manifest.name, cmd, fn),
         }
+
+    def register_command(self, plugin_name: str, command: str, handler: Callable[[str], str]) -> None:
+        """Register a human-facing slash command for an enabled plugin."""
+        clean = command.strip().lstrip("/")
+        if clean.lower() in RESERVED_SLASH_COMMANDS:
+            raise ValueError(
+                f"Cannot register reserved slash command '/{clean}'. "
+                "Hard human controls and core commands cannot be overridden by plugins."
+            )
+        self.active_commands[clean] = (plugin_name, handler)
+
+    def unregister_commands_for_plugin(self, plugin_name: str) -> None:
+        """Unregister all commands belonging to a plugin."""
+        to_del = [cmd for cmd, (p_name, _) in self.active_commands.items() if p_name == plugin_name]
+        for cmd in to_del:
+            self.active_commands.pop(cmd, None)
+
+    def handle_slash_command(self, line: str) -> str | None:
+        """Dispatch slash command to active plugin handler if registered.
+
+        Returns string response from handler, or None if unrecognized.
+        """
+        raw = line.strip()
+        if not raw.startswith("/"):
+            return None
+        parts = raw[1:].split(None, 1)
+        if not parts:
+            return None
+        cmd_name = parts[0]
+        cmd_args = parts[1] if len(parts) > 1 else ""
+
+        if cmd_name.lower() in RESERVED_SLASH_COMMANDS:
+            return None
+
+        if cmd_name in self.active_commands:
+            plugin_name, handler = self.active_commands[cmd_name]
+            try:
+                res = handler(cmd_args)
+                return str(res)
+            except Exception as exc:
+                self.logger.log("plugin_command_error", plugin=plugin_name, command=cmd_name, error=str(exc))
+                return f"Error executing /{cmd_name}: {exc}"
+
+        # If command belongs to a known but disabled plugin, give a helpful hint
+        for p_name, p in self.discovered.items():
+            if not p.is_enabled:
+                for c in p.manifest.commands:
+                    if c.name.lstrip("/") == cmd_name:
+                        return f"Command '/{cmd_name}' belongs to plugin '{p_name}', which is currently disabled. Enable it with /plugins enable {p_name}."
+
+        return None
 
     # -------------------------------------------------------------------------
     # Cycle Boundary Synchronization & Hash Pinning

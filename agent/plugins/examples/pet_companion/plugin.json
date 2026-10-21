@@ -1,0 +1,93 @@
+{
+  "name": "pet_companion",
+  "version": "1.0.0",
+  "core_api": ">=1.1.0,<2.0.0",
+  "kind": "both",
+  "description": "Safe, deterministic virtual pet demo in a simulated habitat with sensors, actions, and conversation.",
+  "tools": [
+    {
+      "name": "talk_to_pet",
+      "description": "Speak to the virtual pet in the simulated habitat. The pet replies deterministically based on its current state.",
+      "input_schema": {
+        "type": "object",
+        "properties": {
+          "message": {
+            "type": "string",
+            "description": "Message to speak to the virtual pet"
+          }
+        },
+        "required": [
+          "message"
+        ]
+      }
+    }
+  ],
+  "sensors": [
+    {
+      "name": "pet_status",
+      "description": "Observe the virtual pet's telemetry: hunger, energy, mood, last interaction, and current tick.",
+      "risk_class": "reads",
+      "reversible": true,
+      "required_permission_level": "L0"
+    },
+    {
+      "name": "habitat_status",
+      "description": "Observe simulated habitat telemetry: cleanliness, food bowl status, temperature, and environmental lights.",
+      "risk_class": "reads",
+      "reversible": true,
+      "required_permission_level": "L0"
+    }
+  ],
+  "actions": [
+    {
+      "name": "feed",
+      "description": "Feed the virtual pet to reduce hunger and replenish energy. Reversible within simulation.",
+      "risk_class": "executes",
+      "reversible": true,
+      "required_permission_level": "L1"
+    },
+    {
+      "name": "play",
+      "description": "Play with the virtual pet to improve its mood and responsiveness. Reversible within simulation.",
+      "risk_class": "executes",
+      "reversible": true,
+      "required_permission_level": "L1"
+    },
+    {
+      "name": "rest_pet",
+      "description": "Allow the virtual pet to rest in its simulated habitat to restore energy. Reversible within simulation.",
+      "risk_class": "executes",
+      "reversible": true,
+      "required_permission_level": "L1"
+    },
+    {
+      "name": "release_pet",
+      "description": "Permanently release the virtual pet from the habitat. Irreversible action requiring human L2 permission.",
+      "risk_class": "executes",
+      "reversible": false,
+      "required_permission_level": "L2"
+    }
+  ],
+  "commands": [
+    {
+      "name": "pet",
+      "description": "Talk directly to the virtual pet in the habitat.",
+      "usage": "/pet <message>"
+    }
+  ],
+  "starting_goal_seeds": [
+    "check on the pet when no other goal is more important"
+  ],
+  "embodiment": "I have a simulated habitat with one virtual pet companion. The pet is a simulated character in the habitat, not a real animal and not a person. I may look after the pet or ignore it according to my own autonomous judgment. Pet state is not evidence of feelings in me or in the pet.",
+  "identity_notes": [
+    "The virtual pet in the habitat is a deterministic simulation, not a person or animal.",
+    "My primary identity and autonomous goals remain my own; caring for the pet is an optional low-priority activity.",
+    "Simulated pet hunger, energy, and mood metrics reflect software state rather than genuine emotional feelings."
+  ],
+  "state_dir": "state",
+  "declared_needs": {
+    "env_vars": [],
+    "mounts": []
+  },
+  "tests_entry_point": "tests/test_pet_companion.py"
+}

@@ -83,9 +83,11 @@ self/
 │   │   ├── __init__.py               # Exports PluginManager, PluginManifest, compute_plugin_hash [read] agent/plugins/__init__.py:1-25
 │   │   ├── __main__.py               # Entrypoint for python -m agent.plugins [read] agent/plugins/__main__.py:1-6
 │   │   ├── cli.py                    # Static Plugin SDK CLI: new, validate, list, check [read] agent/plugins/cli.py:1-380
+│   │   ├── examples/                 # Shipped example plugins directory
+│   │   │   └── pet_companion/        # Demo virtual pet companion in simulated habitat [read] agent/plugins/examples/pet_companion/plugin.json:1-60
 │   │   ├── hello/                    # Shipped sample hello plugin fixture [read] agent/plugins/hello/plugin.json:1-54
 │   │   ├── manager.py                # PluginManager: discovery, lifecycle, sync, hash checks [read] agent/plugins/manager.py:1-660
-│   │   └── manifest.py               # PluginManifest schema validation and version checks [read] agent/plugins/manifest.py:1-326
+│   │   └── manifest.py               # PluginManifest schema validation, commands, version checks [read] agent/plugins/manifest.py:1-326
 │   │
 │   ├── reporting/                    # Activity reporting and statistics aggregation (Layer 4)
 │   │   ├── __init__.py               # Exports generate_report [read] agent/reporting/__init__.py:1-5

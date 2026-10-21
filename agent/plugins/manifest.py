@@ -7,9 +7,17 @@ from dataclasses import dataclass, field
 from pathlib import Path
 from typing import Any
 
-CORE_API_VERSION = "1.0.0"
+CORE_API_VERSION = "1.1.0"
 VALID_KINDS = frozenset({"body", "skill", "both"})
 VALID_RISK_CLASSES = frozenset({"reads", "writes", "executes", "network"})
+
+RESERVED_SLASH_COMMANDS = frozenset({
+    "stop", "pause", "resume", "kill", "status", "rename", "name",
+    "plugin", "plugins", "help", "quit", "exit", "goal", "goals",
+    "reflect", "decide", "decisions", "targets", "plan", "self",
+    "patches", "about", "journal", "tools", "requests", "inputs",
+    "memory", "budget", "models", "identity",
+})
 
 
 class PluginManifestValidationError(ValueError):
@@ -114,6 +122,14 @@ class PluginAction:
 
 
 @dataclass
+class PluginCommand:
+    """Declared human-facing slash command specification."""
+    name: str
+    description: str
+    usage: str = ""
+
+
+@dataclass
 class DeclaredNeeds:
     """Declared external prerequisites for plugin operation."""
     env_vars: list[str] = field(default_factory=list)
@@ -137,6 +153,7 @@ class PluginManifest:
     state_dir: str = ""
     declared_needs: DeclaredNeeds = field(default_factory=DeclaredNeeds)
     tests_entry_point: str = ""
+    commands: list[PluginCommand] = field(default_factory=list)
 
     def to_dict(self) -> dict[str, Any]:
         """Convert manifest object to standard dictionary representation."""
@@ -176,6 +193,14 @@ class PluginManifest:
                 "mounts": self.declared_needs.mounts,
             },
             "tests_entry_point": self.tests_entry_point,
+            "commands": [
+                {
+                    "name": c.name,
+                    "description": c.description,
+                    "usage": c.usage,
+                }
+                for c in self.commands
+            ],
         }
 
 
@@ -323,6 +348,26 @@ def parse_manifest(
 
     tests_entry_point = str(raw.get("tests_entry_point", "")).strip()
 
+    # Commands (optional list of human-facing slash commands)
+    raw_commands = raw.get("commands", [])
+    if not isinstance(raw_commands, list):
+        raise PluginManifestValidationError("Plugin 'commands' must be a list of command definitions.")
+    commands: list[PluginCommand] = []
+    for idx, c in enumerate(raw_commands):
+        if not isinstance(c, dict):
+            raise PluginManifestValidationError(f"Command at index {idx} must be a dict.")
+        c_name = str(c.get("name", "")).strip().lstrip("/")
+        c_desc = str(c.get("description", "")).strip()
+        c_usage = str(c.get("usage", "")).strip()
+        if not c_name:
+            raise PluginManifestValidationError(f"Command at index {idx} requires a 'name'.")
+        if c_name.lower() in RESERVED_SLASH_COMMANDS:
+            raise PluginManifestValidationError(
+                f"Plugin '{name}' cannot register reserved slash command '/{c_name}'. "
+                "Hard human controls and core commands cannot be overridden by plugins."
+            )
+        commands.append(PluginCommand(name=c_name, description=c_desc, usage=c_usage))
+
     return PluginManifest(
         name=name,
         version=version,
@@ -338,4 +383,5 @@ def parse_manifest(
         state_dir=state_dir,
         declared_needs=declared_needs,
         tests_entry_point=tests_entry_point,
+        commands=commands,
     )
