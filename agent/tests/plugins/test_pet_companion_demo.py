@@ -520,6 +520,45 @@ class PetCompanionDemoTests(unittest.TestCase):
         self.assertEqual(invoked_calls, ["slow"])
         self.assertIsNone(mgr.handle_slash_command("/stop"))
 
+    def test_compute_plugin_hash_state_dir_pycache_crlf_lf_invariance(self) -> None:
+        """E3: Verify compute_plugin_hash ignores state/, __pycache__, and is deterministic across line endings."""
+        temp_dir = Path(tempfile.mkdtemp())
+        try:
+            (temp_dir / "plugin.json").write_text(
+                json.dumps({"name": "temp_p", "version": "1.0.0", "core_api": ">=1.1.0,<2.0.0"}),
+                encoding="utf-8",
+            )
+            # Write CRLF and LF files
+            (temp_dir / "crlf.txt").write_bytes(b"line1\r\nline2\r\n")
+            (temp_dir / "lf.txt").write_bytes(b"line1\nline2\n")
+
+            # state/ and __pycache__/ dirs
+            state_dir = temp_dir / "state"
+            state_dir.mkdir()
+            (state_dir / "runtime.json").write_text('{"count": 1}', encoding="utf-8")
+
+            pycache_dir = temp_dir / "__pycache__"
+            pycache_dir.mkdir()
+            (pycache_dir / "plugin.cpython-314.pyc").write_bytes(b"bytecode_mock")
+
+            h1 = compute_plugin_hash(temp_dir)
+            self.assertTrue(isinstance(h1, str) and len(h1) == 64)
+
+            # Mutate state/ and __pycache__/
+            (state_dir / "runtime.json").write_text('{"count": 999}', encoding="utf-8")
+            (state_dir / "extra_runtime.txt").write_text("volatile", encoding="utf-8")
+            (pycache_dir / "new.pyc").write_bytes(b"new_bytes")
+
+            h2 = compute_plugin_hash(temp_dir)
+            self.assertEqual(h1, h2, "Modifying state/ or __pycache__ must NOT alter plugin hash.")
+
+            # Modifying code or manifest MUST change hash
+            (temp_dir / "crlf.txt").write_bytes(b"line1\r\nline2_modified\r\n")
+            h3 = compute_plugin_hash(temp_dir)
+            self.assertNotEqual(h1, h3, "Modifying plugin payload files MUST alter plugin hash.")
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
+
 
 if __name__ == "__main__":
     unittest.main()

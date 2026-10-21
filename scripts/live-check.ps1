@@ -52,7 +52,7 @@ function Report-Item([string]$Status, [string]$CheckName, [string]$Detail) {
 function Get-PluginDirHash([string]$Dir) {
     if (-not (Test-Path -LiteralPath $Dir)) { return "" }
     $resolvedDir = (Resolve-Path $Dir).Path
-    $files = Get-ChildItem -LiteralPath $resolvedDir -Recurse -File | Where-Object {
+    $rawFiles = Get-ChildItem -LiteralPath $resolvedDir -Recurse -File | Where-Object {
         $rel = $_.FullName.Substring($resolvedDir.Length).TrimStart('\', '/')
         $parts = $rel -split '[\\/]'
         if ($parts.Count -gt 0 -and $parts[0] -in @('state', '_archive', '_template')) { return $false }
@@ -60,12 +60,20 @@ function Get-PluginDirHash([string]$Dir) {
         if ('__pycache__' -in $parts -or $_.Extension -in @('.pyc', '.pyo', '.pyd')) { return $false }
         if ($parts | Where-Object { $_.StartsWith('.') }) { return $false }
         return $true
-    } | Sort-Object { $_.FullName.Substring($resolvedDir.Length).TrimStart('\', '/').Replace('\', '/') }
+    }
+
+    $relMap = @{}
+    foreach ($f in $rawFiles) {
+        $rel = $f.FullName.Substring($resolvedDir.Length).TrimStart('\', '/').Replace('\', '/')
+        $relMap[$rel] = $f
+    }
+    $sortedRels = [string[]]($relMap.Keys)
+    [System.Array]::Sort($sortedRels, [System.StringComparer]::Ordinal)
 
     $sha = [System.Security.Cryptography.SHA256]::Create()
     $stream = New-Object System.IO.MemoryStream
-    foreach ($f in $files) {
-        $relPosix = $f.FullName.Substring($resolvedDir.Length).TrimStart('\', '/').Replace('\', '/')
+    foreach ($relPosix in $sortedRels) {
+        $f = $relMap[$relPosix]
         $nameBytes = [System.Text.Encoding]::UTF8.GetBytes($relPosix + [char]0)
         $stream.Write($nameBytes, 0, $nameBytes.Length)
         $contentBytes = [System.IO.File]::ReadAllBytes($f.FullName)
@@ -469,9 +477,12 @@ if (Test-Path -LiteralPath $cfgPluginsFile) {
 # Scan for plugin directories
 $scannedPlugins = @{}
 $pluginSearchPaths = @(
+    (Join-Path $repo 'agent\plugins'),
     (Join-Path $repo 'agent\plugins\examples'),
     (Join-Path $repo 'plugins'),
-    (Join-Path $resolvedWs 'plugins')
+    (Join-Path $resolvedWs 'plugins'),
+    '/opt/agent/plugins',
+    '/opt/agent/plugins/examples'
 )
 
 foreach ($sp in $pluginSearchPaths) {

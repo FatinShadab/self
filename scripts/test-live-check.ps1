@@ -164,6 +164,46 @@ try {
         throw "Failed to report cost ledger summary: $pluginWarnStr"
     }
 
+    # E3: Verify Get-PluginDirHash against Python compute_plugin_hash
+    Write-Host "`nTesting PowerShell Get-PluginDirHash vs Python compute_plugin_hash..." -ForegroundColor Cyan
+    . $scriptPath -Workspace $tempRoot -DryRun | Out-Null
+
+    $helloDir = Join-Path $repo 'agent\plugins\hello'
+    $petDir = Join-Path $repo 'agent\plugins\examples\pet_companion'
+
+    $psHello = Get-PluginDirHash $helloDir
+    $psPet = Get-PluginDirHash $petDir
+
+    $pyHello = (python -c "import sys; from pathlib import Path; from agent.plugins.manager import compute_plugin_hash; print(compute_plugin_hash(Path(sys.argv[1])))" $helloDir).Trim()
+    $pyPet = (python -c "import sys; from pathlib import Path; from agent.plugins.manager import compute_plugin_hash; print(compute_plugin_hash(Path(sys.argv[1])))" $petDir).Trim()
+
+    if ($psHello -ne $pyHello) {
+        throw "Hash mismatch on hello plugin: PS=$psHello PY=$pyHello"
+    }
+    if ($psPet -ne $pyPet) {
+        throw "Hash mismatch on pet_companion plugin: PS=$psPet PY=$pyPet"
+    }
+    Write-Host "PASS: Shipped plugin hashes match (hello and pet_companion)." -ForegroundColor Green
+
+    # Test temp plugin with state/, __pycache__, CRLF and LF files
+    $tempPluginDir = Join-Path $tempRoot 'temp_plugin_hash_test'
+    New-Item -ItemType Directory -Path $tempPluginDir -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $tempPluginDir 'plugin.json') -Value '{"name": "temp_p", "version": "1.0.0", "core_api": ">=1.1.0,<2.0.0"}' -Encoding UTF8
+    [System.IO.File]::WriteAllBytes((Join-Path $tempPluginDir 'crlf.txt'), [System.Text.Encoding]::UTF8.GetBytes("line1`r`nline2`r`n"))
+    [System.IO.File]::WriteAllBytes((Join-Path $tempPluginDir 'lf.txt'), [System.Text.Encoding]::UTF8.GetBytes("line1`nline2`n"))
+    New-Item -ItemType Directory -Path (Join-Path $tempPluginDir 'state') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $tempPluginDir 'state\runtime.json') -Value '{"volatile": true}' -Encoding UTF8
+    New-Item -ItemType Directory -Path (Join-Path $tempPluginDir '__pycache__') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $tempPluginDir '__pycache__\compiled.pyc') -Value 'bytecode' -Encoding UTF8
+
+    $psTempHash = Get-PluginDirHash $tempPluginDir
+    $pyTempHash = (python -c "import sys; from pathlib import Path; from agent.plugins.manager import compute_plugin_hash; print(compute_plugin_hash(Path(sys.argv[1])))" $tempPluginDir).Trim()
+
+    if ($psTempHash -ne $pyTempHash) {
+        throw "Hash mismatch on temporary plugin: PS=$psTempHash PY=$pyTempHash"
+    }
+    Write-Host "PASS: Temporary plugin hash matches with state/, __pycache__, and CRLF/LF files." -ForegroundColor Green
+
     Write-Host "`nAll live-check fixture tests PASSED." -ForegroundColor Green
 }
 finally {
