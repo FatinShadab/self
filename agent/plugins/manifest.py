@@ -17,6 +17,11 @@ RESERVED_SLASH_COMMANDS = frozenset({
     "reflect", "decide", "decisions", "targets", "plan", "self",
     "patches", "about", "journal", "tools", "requests", "inputs",
     "memory", "budget", "models", "identity",
+    # UI commands handled in wake.py
+    "archive", "back", "conversation", "coverage", "listen", "next", "previous", "restart", "typing", "voice",
+    # Subcommands and compound commands
+    "plugins promote", "plugins enable", "plugins disable", "plugins list",
+    "proposals comment", "about me", "about me delete",
 })
 
 
@@ -361,7 +366,8 @@ def parse_manifest(
         c_usage = str(c.get("usage", "")).strip()
         if not c_name:
             raise PluginManifestValidationError(f"Command at index {idx} requires a 'name'.")
-        if c_name.lower() in RESERVED_SLASH_COMMANDS:
+        base_cmd = c_name.split()[0].split("/")[0].lower()
+        if c_name.lower() in RESERVED_SLASH_COMMANDS or base_cmd in RESERVED_SLASH_COMMANDS:
             raise PluginManifestValidationError(
                 f"Plugin '{name}' cannot register reserved slash command '/{c_name}'. "
                 "Hard human controls and core commands cannot be overridden by plugins."
