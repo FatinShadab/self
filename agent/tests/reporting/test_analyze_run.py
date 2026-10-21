@@ -7,7 +7,7 @@ import tempfile
 import unittest
 from pathlib import Path
 
-from scripts.analyze_run import analyze_run
+from agent.reporting.run_analysis import analyze_run
 
 
 class AnalyzeRunTests(unittest.TestCase):
