@@ -210,20 +210,27 @@ graph TD
 
 ---
 
-## 5. What Would Break If a Plugin Were Unplugged Mid-Run
+## 5. What Happens When a Plugin Is Disabled, Re-enabled, or Removed (Prompt 14 Lifecycle)
 
-If a body or specialization plugin (e.g. an antivirus scanner or IoT motor plugin) is unplugged while the agent is running:
+When a body or specialization plugin (e.g. an antivirus scanner or sensor plugin) is modified by the human operator:
 
-1. **Tool Invocation Graceful Interception (No Uncaught `ValueError`):**
-   - The LLM's conversation history retains memory of the plugin's tools.
+1. **Cycle Boundary Application:**
+   - Plugin disable, enable, and removal are human-only actions applied strictly at cycle boundaries, never mid-cycle.
+2. **Disable & State Inactivation:**
+   - Items tagged with the disabled plugin across `plan.json`, `map.json`, `memory.jsonl`, and `tools/meta.json` become inactive: excluded from prompts, memory retrieval, map retrieval, and tool retrieval.
+   - All state items are kept (archived) on disk, never deleted.
+   - Goals depending on the plugin receive status `"suspended: plugin disabled"`.
+   - **Suspended Goal Exemptions:** Suspended goals are strictly exempt from stale-item pruning, consolidation over `max_items`, boot-time pruning, and archive purging.
+3. **Re-enable & Stale Fact Marking:**
+   - Re-enable is permitted only after the plugin loads successfully, passes hash verification, and is approved.
+   - On successful re-enable, suspended goals return with note `"re-verify: plugin was disabled"` in `why`.
+   - Map facts tagged with that plugin/body get confidence `"stale"`.
+   - If re-enable fails for any reason (hash mismatch or syntax error), goals remain suspended and a `plugin_load_failed` event is logged.
+4. **Removal & Archiving:**
+   - On removal, the plugin's state is archived to `workspace/plugins/_archive/<name>-<timestamp>/` unless the human explicitly confirms purge (`purge=True, confirmed=True`).
+   - Plugin discovery and hash checking strictly ignore the `_archive` folder.
+   - Pointers into the removed plugin's directory are cleanly dropped or rewritten, ensuring subsequent cycles run cleanly without dangling references.
+5. **Tool Invocation Graceful Interception:**
    - If the LLM generates a `tool_use` block for a vanished or disabled tool, `ToolRunner.execute()` catches it and returns a structured observation: `{"ok": False, "error": "tool no longer available: plugin X disabled"}` instead of raising `[read] agent/tools/base_tools.py:346, agent/runtime/loop.py:612`.
-   - *Impact:* The core runtime stays completely healthy. The agent observes the structured failure in the next turn and can adjust its plan.
-2. **Stalled Plan Goals:**
-   - Active goals in `state/plan.json` may depend on plugin capabilities (e.g., `goal-4: "Scan filesystem for malware signatures"`).
-   - *Impact:* Without the plugin tool, the goal cannot be achieved. The agent's plan review requirement `[read] agent/runtime/loop.py:488` will eventually mark the goal `"blocked"` or `"dropped"` citing the missing tool observation.
-3. **Dynamic Prompt Delimitation Removed:**
-   - The plugin's embodiment text in the system prompt and starting goal notes in the cycle prompt are completely removed on the next cycle boundary `[read] agent/runtime/loop.py:377, 488`.
-4. **State & Map Staleness:**
-   - Map entries recorded by the plugin in `state/map.json` remain on disk. The agent may cite stale facts until spot-checks detect they no longer exist.
-5. **Clean Recovery:**
-   - The core runtime will **NOT** crash. The inner tool round catches tool errors as standard observations `[read] agent/tools/base_tools.py:431-432`, appends them to message history, and allows the agent to reason about the failure and update its plan.
+6. **Untrusted Data Protection:**
+   - Any inactive or archived plugin text that must be shown to the model is wrapped with `<UNTRUSTED_DATA>` delimiters.

@@ -163,6 +163,8 @@ class ToolRegistry:
         return False
 
     def _save_meta(self, folder: Path, meta: dict[str, Any]) -> None:
+        meta.setdefault("plugin", "core")
+        meta.setdefault("body", "container")
         temporary = folder / f".meta-{uuid.uuid4().hex}.tmp"
         temporary.write_text(json.dumps(meta, ensure_ascii=False, indent=2), encoding="utf-8")
         temporary.replace(folder / "meta.json")
@@ -180,6 +182,8 @@ class ToolRegistry:
                 for file, key in (("tool.py", "code_sha256"), ("test_tool.py", "test_sha256")):
                     if digest((folder / file).read_text(encoding="utf-8")) != meta[key]:
                         raise ValueError(f"{file} changed outside create_tool; re-test and review it")
+                meta.setdefault("plugin", "core")
+                meta.setdefault("body", "container")
                 loaded[folder.name] = meta
                 self._logged_rejections.discard(folder.name)
             except (OSError, ValueError, KeyError, TypeError) as exc:
@@ -192,10 +196,16 @@ class ToolRegistry:
         for name in sorted(changed):
             self.logger.log("tool_loaded", name=name, version=loaded[name]["version"])
 
-    def retrieve(self, query: str, top_k: int) -> list[dict[str, Any]]:
+    def retrieve(self, query: str, top_k: int, active_plugins: Any = None) -> list[dict[str, Any]]:
         """Return relevant records for the current query."""
         self.refresh()
-        selected = self.search.search(query, list(self.tools.values()), top_k)
+        candidates = list(self.tools.values())
+        if active_plugins is not None:
+            candidates = [
+                t for t in candidates
+                if t.get("plugin", "core") == "core" or t.get("plugin") in active_plugins
+            ]
+        selected = self.search.search(query, candidates, top_k)
         self.logger.log("tool_retrieval", query=query, top_k=top_k, selected=[t["name"] for t in selected])
         return [{"name": tool["name"], "description": tool["description"], "input_schema": tool["input_schema"]} for tool in selected]
 

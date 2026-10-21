@@ -384,8 +384,9 @@ class AgentLoop:
 
     def _system_prompt(self) -> str:
         """Load the human-editable identity freshly for every model call."""
+        active_plugins_set = set(self.plugins.active_plugins.keys()) if self.plugins else set()
         try:
-            context = self.config.identity_context_provider() if self.config.identity_context_provider else self.identity.prompt_context()
+            context = self.config.identity_context_provider() if self.config.identity_context_provider else self.identity.prompt_context(active_plugins=active_plugins_set)
         except Exception as exc:
             self.logger.log("identity_context_fallback", error_type=type(exc).__name__)
             context = "## Persistent identity\nIdentity state could not be loaded; do not invent identity claims."
@@ -409,7 +410,8 @@ class AgentLoop:
         system_prompt = (prompt_text if self.helper_mode else
                          "\n".join(line for line in prompt_text.splitlines()
                                    if not line.startswith(OFF_PROMPT_PREFIXES)))
-        plugin_embodiment = f"\n\n{self.plugins.get_embodiment_prompt().strip()}" if (self.plugins and self.plugins.get_embodiment_prompt()) else ""
+        plugin_embodiment_text = self.plugins.get_embodiment_prompt().strip() if (self.plugins and self.plugins.get_embodiment_prompt()) else ""
+        plugin_embodiment = f"\n\n{wrap_untrusted(plugin_embodiment_text, source='plugins:embodiment')}" if plugin_embodiment_text else ""
         return f"{system_prompt}{model_context}\n\n{self.logger.redactor.text(context)}{plugin_embodiment}\n\n{UNTRUSTED_DATA_RULE}"
 
 
@@ -494,7 +496,10 @@ class AgentLoop:
 
             self.tools.current_cycle = cycle
             if self.plugins is not None:
-                self.plugins.sync_at_cycle_boundary()
+                self.plugins.sync_at_cycle_boundary(
+                    plan_store=self.plan_store,
+                    learning_store=self.learning,
+                )
                 for p_name, active_p in self.plugins.active_plugins.items():
                     for seed in active_p.manifest.starting_goal_seeds:
                         existing_goals = [item.get("goal") for item in self.plan_store.items]
@@ -507,7 +512,8 @@ class AgentLoop:
                                 cycle=cycle,
                                 source=f"plugin:{p_name}",
                             )
-            top_items = self.plan_store.top_items(limit=3)
+            active_plugins_set = set(self.plugins.active_plugins.keys()) if self.plugins else set()
+            top_items = self.plan_store.top_items(limit=3, active_plugins=active_plugins_set)
             primary_goal = top_items[0]["goal"] if top_items else (active_task or STANDING_GOAL)
             plan_query = self.plan_store.retrieval_query()
             self.logger.narrate(f"Cycle {cycle}: retrieving relevant tools and memories for plan...")
@@ -519,9 +525,9 @@ class AgentLoop:
             if self.config.retrieve_memories:
                 legacy_context = retrieve_context(self.config.workspace, query, self.logger)
                 context = (
-                    "## Self notes\n" + wrap_untrusted(self.learning.load_notes(), source="notes") +
-                    "\n\n## Verified environment map\n" + wrap_untrusted(self.learning.map_context(), source="environment_map") +
-                    "\n\n## Relevant persistent memories\n" + wrap_untrusted(self.learning.retrieve_memories(query), source="memories") +
+                    "## Self notes\n" + wrap_untrusted(self.learning.load_notes(active_plugins=active_plugins_set), source="notes") +
+                    "\n\n## Verified environment map\n" + wrap_untrusted(self.learning.map_context(active_plugins=active_plugins_set), source="environment_map") +
+                    "\n\n## Relevant persistent memories\n" + wrap_untrusted(self.learning.retrieve_memories(query, active_plugins=active_plugins_set), source="memories") +
                     "\n\n## Legacy lessons\n" + wrap_untrusted(legacy_context, source="legacy_context")
                 )
             else:
@@ -545,10 +551,10 @@ class AgentLoop:
                     + eval_hint
                 )
             failure_context = self.registry.recent_failure_context()
-            plan_summary = self.plan_store.prompt_summary()
+            plan_summary = self.plan_store.prompt_summary(active_plugins=active_plugins_set)
             actions_summary = self._format_actions(last_actions)
             plugin_notes = self.plugins.get_goal_notes_prompt().strip() if (self.plugins and self.plugins.get_goal_notes_prompt()) else ""
-            plugin_section = f"{plugin_notes}\n\n" if plugin_notes else ""
+            plugin_section = f"{wrap_untrusted(plugin_notes, source='plugins:notes')}\n\n" if plugin_notes else ""
             messages: list[dict[str, Any]] = [
                 {
                     "role": "user",
@@ -608,6 +614,7 @@ class AgentLoop:
                 selected = self.registry.retrieve(
                     f"{plan_query}\n{cycle_report or last_report}",
                     self.config.top_k_tools,
+                    active_plugins=active_plugins_set,
                 )
                 base = [tool for tool in TOOL_DEFINITIONS
                         if (self.config.base_tool_names is None or tool["name"] in self.config.base_tool_names)
