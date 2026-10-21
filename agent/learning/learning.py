@@ -329,20 +329,25 @@ class LearningStore:
             self.rewrite_notes()
             notes = self.notes_path.read_text(encoding="utf-8", errors="replace")
 
-        if active_plugins is not None:
-            lines = notes.splitlines()
-            filtered_lines: list[str] = []
-            current_section_enabled = True
-            for line in lines:
-                m = re.search(r"\[plugin:\s*([a-zA-Z0-9_-]+)\]", line) or re.search(r"<!--\s*plugin:\s*([a-zA-Z0-9_-]+)", line)
-                if m:
-                    p = m.group(1).strip()
+        lines = notes.splitlines()
+        filtered_lines: list[str] = []
+        current_section_enabled = True
+        for line in lines:
+            m = (
+                re.search(r"\[plugin:\s*([a-zA-Z0-9_-]+)\]", line)
+                or re.search(r"<!--\s*plugin:\s*([a-zA-Z0-9_-]+)", line)
+                or re.search(r"<!--\s*tags:\s*plugin=([a-zA-Z0-9_-]+)", line)
+            )
+            if m:
+                p = m.group(1).strip()
+                if active_plugins is not None:
                     current_section_enabled = (p == "core" or p in active_plugins)
-                elif line.startswith("#"):
-                    current_section_enabled = True
-                if current_section_enabled:
-                    filtered_lines.append(line)
-            notes = "\n".join(filtered_lines)
+                continue
+            elif line.startswith("#"):
+                current_section_enabled = True
+            if current_section_enabled:
+                filtered_lines.append(line)
+        notes = "\n".join(filtered_lines)
 
         return self.logger.redactor.text(notes[:self.notes_cap])
 

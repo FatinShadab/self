@@ -222,29 +222,29 @@ Here are 10 diverse entries retrieved via `LearningStore.retrieve_memories()` on
   Tags: directory., http_get, list_dir, listing, read_file, root, run_shell, the, update_environment_map
 ```
 
-#### Sample 2 (Index 7: Long Entry — 1,809 chars → 253 chars)
+#### Sample 2 (Index 7: Long Entry — 1,809 chars → 249 chars)
 ```
 - Tried: Cycle 1: standing exploration goal; tools: list_dir, list_dir, list_dir, list_dir, run_shell, read_file, read_file, update_environment_map
   Outcome: completed
-  Lesson: Investigate the system's log area (/var/log) to understand what services are active and what recent events have been recorded. This will further flesh out the environment map and may reveal additional capabilities (e.g., cron jobs, systemd units).…
+  Lesson: The root filesystem contains the usual Linux directories plus a .dockerenv file and symlinks for bin, lib, lib64, and sbin. My home directory /home/entity holds the persistent sub-folders logs, memory, self, state, tools and a placeholder .gitkeep.…
   Tags: arbitrary, area, bin, can, container, contents, create, cycle, directory, e.g., external, files, filesystem, high, home, in, keys, made, overall, placeholder, probe, read, recent, run_shell, state, system, tools, update_environment_map, var, will
   Report: state/reports/report_migrated_00007.txt
 ```
 
-#### Sample 3 (Index 11: Long Entry — 966 chars → 235 chars)
+#### Sample 3 (Index 11: Long Entry — 966 chars → 232 chars)
 ```
 - Tried: Cycle 1: Immediately inventory the installed Python packages in this container. Use the relevant shell/tool action now, record the result with update_environment_map, and do not spend this cycle only planning.; tools: run_shell, run_shell, update_environment_map
   Outcome: completed
-  Lesson: Explore how these packages are being used (e.g., check for any local scripts or services that import them) or map other aspects of the environment such as installed system packages, active services, or scheduled jobs.…
+  Lesson: Updated the persistent environment map (/home/entity/state/map.json) with a new entry: Key: python_packages Value: JSON list of package names and versions (e.g., annotated-types 0.8.0, anthropic 1.14.0, …, typing-inspection 0.4.4).…
   Tags: 0.4.4, 1.14.0, and, annotated-types, any, as, aspects, confidence, entity, executed, further, how, identify, installed, key, local, next, not, or, pip, ran, result, retrieve, run_shell, shell, successfully, taken, this, value, with
   Report: state/reports/report_migrated_00011.txt
 ```
 
-#### Sample 4 (Index 40: Long Entry — 1,397 chars → 271 chars)
+#### Sample 4 (Index 40: Long Entry — 1,397 chars → 264 chars)
 ```
 - Tried: Cycle 30: Immediately inventory the installed Python packages in this container. Use the relevant shell/tool action now, record the result with update_environment_map, and do not spend this cycle only planning.; tools: run_shell, update_environment_map
   Outcome: completed
-  Lesson: Discoveries (Cycle 30) The container's current Python environment contains the following packages (name + version): annotated-types 0.8.0 anthropic 1.14.0 anyio 4.15.1 attrs 26.1.0 docstring_parser 0.18.0 h11 0.16.0 httpcore2 2.13.1 httpx2 2.13.1 idna 3.20 jiter 0.17.…
+  Lesson: The container’s current Python environment contains the following packages (name + version): annotated-types 0.8.0 anthropic 1.14.0 anyio 4.15.1 attrs 26.1.0 docstring_parser 0.18.0 h11 0.16.0 httpcore2 2.13.1 httpx2 2.13.1 idna 3.20 jiter 0.17.0 jsonschema 4.26.…
   Tags: 0.8.0, 1.14.0, 2026.9.1, 4.15.1, and, annotated-types, anthropic, anyio, attrs, capture, completed, container, current, cycle, discoveries, docstring_parser, environment, httpcore2, installed, inventory, jiter, jsonschema, markdown-it-py, narration, package, packages, pip, python, run_shell, update_environment_map
   Report: state/reports/report_migrated_00040.txt
 ```
@@ -253,52 +253,52 @@ Here are 10 diverse entries retrieved via `LearningStore.retrieve_memories()` on
 ```
 - Tried: Cycle 13: standing exploration goal; tools: list_dir, list_dir, read_file, read_file, read_file, read_file, read_file, read_file, read_file, read_file, read_file, read_file, list_dir, read_file, read_file, run_shell, read_file, update_environment_map
   Outcome: completed
-  Lesson: Listed the contents of the system-d wants directories: /etc/systemd/system/timers.target.wants -> apt-daily-upgrade.timer, apt-daily.timer, dpkg-db-backup.timer, e2scrub_all.timer, fstrim.timer Read the full unit files for several core services and timers.…
+  Lesson: Key | Value (excerpt) | Evidence | |-----|-----------------|----------| systemd_multi_user_wants_contents | ["e2scrub_reap.service"] | list_dir /etc/systemd/system/multi-user.target.wants | systemd_timers_wants_contents | ["apt-daily-upgrade.timer","apt-daily.…
   Tags: 1., 2., 3., actions, active, apt-daily, background, core, cron, directories, dpkg-db-backup, e2scrub_all, environment, etc_systemd_system_multi-user_target_wants, etc_systemd_timers_wants, exploration, filesystem, fstrim, git, map, multi-user.target.wants, new, normal, progress, read_file, report, run_shell, service, update_environment_map
   Report: state/reports/report_migrated_00104.txt
 ```
 
-#### Sample 6 (Index 234: 2,304 chars → 270 chars — Former Worst Example 2)
+#### Sample 6 (Index 234: 2,304 chars → 263 chars — Former Worst Example 2)
 ```
 - Tried: Cycle 1: standing exploration goal; tools: list_dir, parse_systemd_service, parse_systemd_service, list_dir, read_file, run_shell, update_environment_map
   Outcome: completed
-  Lesson: Enabled timers: apt-daily-upgrade.timer, apt-daily.timer, dpkg-db-backup.timer, e2scrub_all.timer, fstrim.timer. Inspected the /var/log directory; it contains the usual log files (apt, alternatives.log, dpkg.log, etc.). Record hardware and kernel details (/proc/cpuinfo,…
+  Lesson: Listed all systemd unit files in /usr/lib/systemd/system (14 files: services and timers). Discovered which units are enabled via symlinks: Enabled multi-user service: e2scrub_reap.service. Enabled timers: apt-daily-upgrade.timer, apt-daily.timer, dpkg-db-backup.…
   Tags: all, and, covered, creating, directory, e2scrub_all, e2scrub_reap.service, entries, environment, from, fstrim, fstrim.timer, full, information, installed, installed_packages_head_sample, jobs, lib, packages., parse_systemd_service, parsed, read, required, run_shell, script, service, sources.list.d, their, tools, var
   Report: state/reports/report_migrated_00234.txt
 ```
 
-#### Sample 7 (Index 275: 2,600 chars → 238 chars)
+#### Sample 7 (Index 275: 2,600 chars → 272 chars)
 ```
 - Tried: Cycle 4: standing exploration goal; tools: list_dir, list_dir, list_dir, get_service_execstart, get_service_execstart, read_file, parse_systemd_service, read_file, parse_systemd_service, read_file, parse_systemd_service, update_environment_map
   Outcome: completed with tool failures: get_service_execstart, parse_systemd_service
-  Lesson: Mount and filesystem mapping - list mounted filesystems (/proc/mounts) and summarize usage to complete the storage picture. Network interfaces - pull detailed interface info (ip addr show) and record IPs, MACs, and routing.…
+  Lesson: Key | Value | Confidence | |-----|-------|------------| apt_daily_service_execstart_parsed | ["/usr/lib/apt/apt.systemd.daily update"] | high | apt_daily_upgrade_service_execstart_parsed | ["/usr/lib/apt/apt.systemd.daily install"] | high | etc_systemd_multi_user_wants |…
   Tags: 1., 2., 4., apt.systemd.daily, apt_daily_upgrade_service_execstart_parsed, can, capability, complete, core, crontabs., cycle, e2scrub_reap.service, etc_systemd_timers_wants, execstart, explore, inspected, install, json, mounts, multi, network, new, recorded, redesign, registration., retry, summarize, to, under, update_environment_map
   Report: state/reports/report_migrated_00275.txt
 ```
 
-#### Sample 8 (Index 309: 2,032 chars → 241 chars)
+#### Sample 8 (Index 309: 2,032 chars → 278 chars)
 ```
 - Tried: Cycle 26: standing exploration goal; tools: bulk_systemd_service_parser, list_dir, read_file, read_file, update_environment_map, update_environment_map, parse_service_execstarts, list_installed_packages, list_dir, update_environment_map, list_dir, list_dir, log_grep, log_grep, list_system_users
   Outcome: completed with tool failures: bulk_systemd_service_parser, parse_service_execstarts, list_installed_packages, list_dir, list_system_users
-  Lesson: Continue deeper exploration in a future cycle: e.g., parse systemd unit files for full ExecStart commands, examine cron.d scripts, or audit installed Python packages. For now the map is enriched with log and configuration details,…
+  Lesson: Listed the full contents of /var/log and recorded the directory entries. Read the first 500 characters of /var/log/fontconfig.log to capture the font-cache initialization details. Read the first 500 characters of /var/log/dpkg.log to capture recent package-management activity.…
   Tags: 01autoremove, all, and, chars, confirmed, covered, cycle, deeper, directory, docker, dpkg_log_head_snippet, e.g., environment, home, key, lastlog, map, need, next, or, output, package, python, regex, required, specific, state, the, tools, var_log_fontconfig_head
   Report: state/reports/report_migrated_00309.txt
 ```
 
-#### Sample 9 (Index 423: 2,859 chars → 269 chars — Former Worst Example 3)
+#### Sample 9 (Index 423: 2,859 chars → 264 chars — Former Worst Example 3)
 ```
 - Tried: Cycle 2: standing exploration goal; tools: list_dir, list_installed_debian_packages, parse_all_service_deps, parse_all_service_deps, timer_service_info, timer_service_info, timer_service_info, timer_service_info, read_file, update_environment_map, update_environment_map
   Outcome: completed with tool failures: list_dir, list_installed_debian_packages, parse_all_service_deps, parse_all_service_deps
-  Lesson: installed_packages_count | 461 | high | Confirmed from existing package count record. | installed_packages_sample_top10 | adduser 3.134; apt 2.6.1; autoconf 2.69; automake 1.16.5; autotools-dev 20220109.1; base-files 12.4+deb12u13; base-passwd 3.6.1; bash 5.2.15;…
+  Lesson: Key | Value | Confidence | Evidence | |-----|-------|------------|----------| installed_packages_count | 461 | high | Confirmed from existing package count record. | installed_packages_sample_top10 | adduser 3.134; apt 2.6.1; autoconf 2.71-3; automake 1:1.16.5-1.…
   Tags: 10, 3.134, 9.18.49, automake, autotools, b13, continue, daily.timer, debian, e2scrub_all, entries, environment, explore, fstrim.timer, if, in, list_dir, map, missing, newly, passwd, read_file, required, result, service_execstart, the, timer_info_e2scrub_all, tooling, usr, verified
   Report: state/reports/report_migrated_00423.txt
 ```
 
-#### Sample 10 (Index 481: 3,008 chars → 228 chars)
+#### Sample 10 (Index 481: 3,008 chars → 250 chars)
 ```
 - Tried: Cycle 31: standing exploration goal; tools: create_tool, create_tool, read_file, list_dir, read_file, list_dir, read_file, run_tool, write_file, run_shell, write_file, run_shell, update_environment_map, search_dir_tool, list_dir, run_shell, run_tool, write_file, run_shell, update_environment_map, read_file, run_shell, run_shell, update_environment_map, run_shell, write_file, run_shell
   Outcome: completed with tool failures: create_tool, read_file, read_file, run_tool, search_dir_tool, list_dir, run_tool
-  Lesson: Recorded new snapshot in persistent environment map (etc_snapshot_depth2). Diffed the new `/etc` snapshot against prior depth-2 listing (etc_recursive_listing_depth2). Unified diff written to etc_depth2_diff.patch.…
+  Lesson: The /etc directory contains many more entries than previously recorded at depth 2, including numerous systemd directories, cron jobs, and additional configuration files. The existing json_diff tool exceeds the allowed output size for large listings;…
   Tags: 033, additional, building, cap., captured, categorize, concise, created, designated, discovered, doc, entries, enumerate, helper, json_diff, large, listing, listings, prior, read_file, storing, summarization, timestamped, tiny, two, under, unified, using, via, write_file
   Report: state/reports/report_migrated_00481.txt
 ```

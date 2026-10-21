@@ -28,66 +28,120 @@ def deterministic_summary(text: str, max_chars: int = 280) -> str:
     # ── 1. Collapse unicode non-breaking / thin spaces to regular space ──────
     text = text.replace("\u00a0", " ").replace("\u202f", " ").replace("\u2011", "-")
 
-    # ── 2. Split into lines and strip markdown noise from each line ──────────
+    # ── 2. Line cleaning & section parsing ───────────────────────────────────
     _MD_INLINE = re.compile(r"\*{1,2}([^*]*?)\*{1,2}|`([^`]*)`")
     _MD_HEADER = re.compile(r"^#+\s*")
     _MD_LIST   = re.compile(r"^\s*(\d+\.|\d+\)|\*|-|\+|[>|])\s+")
 
-    def _clean_line(ln: str) -> str:
-        ln = _MD_HEADER.sub("", ln)
-        ln = _MD_LIST.sub("", ln)
-        ln = _MD_INLINE.sub(lambda m: m.group(1) or m.group(2) or "", ln)
-        return ln.strip()
+    def clean_text(s: str) -> str:
+        s = _MD_HEADER.sub("", s)
+        s = _MD_LIST.sub("", s)
+        s = _MD_INLINE.sub(lambda m: m.group(1) or m.group(2) or "", s)
+        return s.strip()
 
-    # ── 3. Remove boilerplate header lines & lead-in prefixes ────────────────
-    _TITLE_LINE = re.compile(
-        r"^(cycle\s*[\u2011\-]?\s*\d+.*|exploration\s+cycle\s*\d+.*"
-        r"|what\s+i\s+(did|observed|explored|discovered|learned).*"
-        r"|narrative\s+of\s+actions.*"
-        r"|narration\s*:?\s*$"
-        r"|action\s+taken\s*:?\s*$"
-        r"|recorded\s+observation\s*:?\s*$)",
+    # Priority ranking for findings sections:
+    # Rank 1: Direct discoveries/findings
+    _P1 = re.compile(
+        r"^(?:what\s+i\s+discovered|discoveries|verified\s+discoveries|key\s+verified\s+findings|findings|what\s+i\s+learned|new\s+knowledge|new\s+verified\s+entries)",
         re.IGNORECASE,
     )
-    _LEAD_IN = re.compile(
-        r"^(narration|action\s+taken|recorded\s+observation)\s*:\s*",
+    # Rank 2: Observations / explored
+    _P2 = re.compile(
+        r"^(?:recorded\s+observation|what\s+i\s+observed|what\s+i\s+explored|lesson|result)",
+        re.IGNORECASE,
+    )
+    # Rank 3: Actions / what I did / narrative
+    _P3 = re.compile(
+        r"^(?:what\s+i\s+did|action\s+taken|narrative|narration)",
+        re.IGNORECASE,
+    )
+    # Rank 4: Next steps (fallback if no findings/actions)
+    _P4 = re.compile(
+        r"^(?:(?:best\s+)?next\s+(?:steps?|actions?|recommended)|what[’\']?s\s+next)",
         re.IGNORECASE,
     )
 
-    lines = text.splitlines()
-    body_lines: list[str] = []
-    for ln in lines:
-        cleaned = _clean_line(ln)
+    # Title lines to ignore as sections
+    _TITLE = re.compile(
+        r"^(?:cycle\s*[\u2011\-]?\s*\d+|exploration\s+cycle\s*\d+)",
+        re.IGNORECASE,
+    )
+
+    sections: list[tuple[int, str, list[str]]] = []
+    current_rank = 3
+    current_header = "body"
+    current_lines: list[str] = []
+
+    for raw_line in text.splitlines():
+        line = raw_line.strip()
+        if not line:
+            continue
+        cleaned = clean_text(line)
         if not cleaned:
             continue
-        if _TITLE_LINE.match(cleaned):
-            continue
-        cleaned = _LEAD_IN.sub("", cleaned).strip()
-        if cleaned:
-            body_lines.append(cleaned)
 
-    body = " ".join(body_lines)
+        hdr_candidate = cleaned.strip(":*# -")
+
+        if _TITLE.match(hdr_candidate):
+            continue
+
+        is_header = False
+        rank = 3
+        if _P1.match(hdr_candidate):
+            is_header = True
+            rank = 1
+        elif _P2.match(hdr_candidate):
+            is_header = True
+            rank = 2
+        elif _P3.match(hdr_candidate):
+            is_header = True
+            rank = 3
+        elif _P4.match(hdr_candidate):
+            is_header = True
+            rank = 4
+
+        if is_header:
+            if current_lines:
+                sections.append((current_rank, current_header, current_lines))
+            current_rank = rank
+            current_header = hdr_candidate
+            current_lines = []
+            colon_idx = cleaned.find(":")
+            if colon_idx != -1 and colon_idx < len(cleaned) - 1:
+                after_col = cleaned[colon_idx + 1 :].strip()
+                if after_col:
+                    current_lines.append(after_col)
+        else:
+            current_lines.append(cleaned)
+
+    if current_lines:
+        sections.append((current_rank, current_header, current_lines))
+
+    # Pick the best section by rank
+    sections.sort(key=lambda s: s[0])
+
+    chosen_rank = 3
+    chosen_lines: list[str] = []
+    if sections:
+        chosen_rank = sections[0][0]
+        chosen_lines = sections[0][2]
+
+    body = " ".join(chosen_lines)
     body = re.sub(r"\s{2,}", " ", body).strip()
 
     if not body:
-        body = text.strip()
+        body_lines = [
+            clean_text(l)
+            for l in text.splitlines()
+            if clean_text(l) and not _TITLE.match(clean_text(l))
+        ]
+        body = " ".join(body_lines)
+        body = re.sub(r"\s{2,}", " ", body).strip()
+        chosen_rank = 3
 
-    if len(body) <= max_chars:
-        return body
-
-    # ── 4. Look for a preferred section ─────────────────────────────────────
-    _SECTION = re.compile(
-        r"(?:^|\s)(?:Discoveries?|Findings?|Lesson|Result|What\s+I\s+learned?|Next)\s*[:\-]?\s*",
-        re.IGNORECASE,
-    )
-    m = _SECTION.search(body)
-    if m:
-        candidate = body[m.start():].strip(" .\t-:")
-        if len(candidate) >= max_chars // 4:
-            body = candidate
-    else:
-        # If no preferred section exists, take first sentence plus last sentence
-        # (with ellipsis between if intermediate sentences were omitted)
+    if chosen_rank >= 3 and len(body) > max_chars:
+        # If no preferred findings section was found and body is long:
+        # Take first sentence of the body plus the last sentence
         sentences = [s.strip() for s in re.split(r"(?<=[.!?])\s+(?=[A-Za-z0-9])", body) if s.strip()]
         if len(sentences) >= 3:
             combined = f"{sentences[0]} … {sentences[-1]}"
