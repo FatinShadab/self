@@ -510,12 +510,15 @@ class Invariants:
     @classmethod
     def check_daily_ledger(cls, cycle: int, seed: int, workspace: Path) -> None:
         """Invariant: daily ledger <= cap, no leaked token reservations."""
-        budget_path = workspace / "state" / "daily_token_budget.json"
-        if budget_path.exists():
+        for filename in ("token_ledger.json", "daily_token_budget.json"):
+            budget_path = workspace / "state" / filename
+            if not budget_path.exists():
+                continue
             try:
                 data = json.loads(budget_path.read_text(encoding="utf-8"))
-                used = data.get("tokens_used", 0)
-                cap = data.get("max_tokens_per_day", 200_000)
+                used = int(data.get("used_tokens", data.get("tokens_used", 0)) or 0)
+                reserved = int(data.get("reserved_tokens", 0) or 0)
+                cap = int(data.get("cap", data.get("max_tokens_per_day", 200_000)) or 200_000)
                 if used > cap:
                     recent = cls._get_recent_logs(workspace)
                     raise AssertionError(
@@ -523,7 +526,15 @@ class Invariants:
                         f"tokens_used {used} exceeds daily cap {cap}.\n"
                         f"Last 20 log lines:\n{recent}"
                     )
-                # Check active unreleased reservations
+                # Check active unreleased reservations (must be 0 at cycle/run end)
+                if reserved > 0:
+                    recent = cls._get_recent_logs(workspace)
+                    raise AssertionError(
+                        f"Invariant violation [LEAKED_RESERVATION] at cycle {cycle} (seed={seed}): "
+                        f"Leaked active token reservation found: {reserved} tokens > 0.\n"
+                        f"Last 20 log lines:\n{recent}"
+                    )
+                # Check legacy active_reservations dict
                 reservations = data.get("active_reservations", {})
                 if isinstance(reservations, dict) and reservations:
                     recent = cls._get_recent_logs(workspace)
