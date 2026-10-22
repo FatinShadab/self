@@ -6,6 +6,7 @@ cd "$repo"
 image="${SELF_TEST_IMAGE:-self-ci}"
 
 python scripts/check_architecture_docs.py
+python scripts/check_docs_claims.py
 
 docker build --tag "$image" .
 

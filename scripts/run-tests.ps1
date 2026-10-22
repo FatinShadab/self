@@ -9,6 +9,9 @@ try {
     python "$PSScriptRoot/check_architecture_docs.py"
     if ($LASTEXITCODE -ne 0) { throw "Architecture documentation check failed with exit code $LASTEXITCODE." }
 
+    python "$PSScriptRoot/check_docs_claims.py"
+    if ($LASTEXITCODE -ne 0) { throw "Documentation claims check failed with exit code $LASTEXITCODE." }
+
     docker build --tag $Image .
     if ($LASTEXITCODE -ne 0) { throw "Docker image build failed with exit code $LASTEXITCODE." }
 
