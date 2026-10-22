@@ -779,6 +779,12 @@ class ToolRunner:
 
     def write_file(self, path: str, content: str, append: bool = False) -> dict[str, Any]:
         """Write a workspace file after enforcing path and size limits."""
+        from agent.opencode.sandbox import is_protected_path
+        if is_protected_path(path, workspace=self.workspace):
+            return {
+                "ok": False,
+                "error": f"Path '{path}' is protected against direct modification by agent tools.",
+            }
         if self.plugin_dev is not None and hasattr(self.plugin_dev, "get_pending_stop_loss"):
             norm_p = str(path).replace("\\", "/")
             m = re.search(r"plugin_dev/([a-z0-9_]+)", norm_p)

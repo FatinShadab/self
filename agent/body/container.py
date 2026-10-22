@@ -458,6 +458,11 @@ class ContainerBody(Body):
             raise PermissionError(
                 "The image-owned /opt/agent harness (including /opt/agent/core) is protected. Save a diff with propose_core_patch so the human can review and apply it from the host."
             )
+        from agent.opencode.sandbox import is_protected_path
+        if is_protected_path(file_path, workspace=self.workspace):
+            raise PermissionError(
+                f"Path '{path}' is protected against direct modification by agent tools."
+            )
         if self.identity is not None and getattr(self.identity, "is_managed_path", None) is not None:
             if self.identity.is_managed_path(file_path):
                 raise PermissionError(
