@@ -160,7 +160,7 @@ self/
 ├── config/       # Human configuration mounted read-only (plugins.json, permissions.json)
 ├── docs/         # Architecture, developer, operator, and migration documentation
 ├── eval/         # Host-only evaluation harness, benchmarks, and A/B experiment runner
-├── plugins/      # Plugin scaffolding template (plugins/_template)
+├── plugins/      # Plugin developer guide (plugins/README.md) and starter template (_template)
 ├── scenarios/    # Deterministic simulation scenarios and test fixtures
 ├── scripts/      # Operator automation, soak test runners, and diagnostic scripts
 └── workspace/    # Persistent runtime workspace (gitignored state, logs, tools)
@@ -168,6 +168,7 @@ self/
 
 ### Where to Read Next
 - **[docs/README.md](docs/README.md):** Complete index of all documentation, distinguishing internal vs. image-shipped files.
+- **[plugins/README.md](plugins/README.md):** Hands-on developer guide explaining what a plugin is, how to develop one, and how to attach it to SELF.
 - **[docs/operations.md](docs/operations.md):** Host-side operator runbook for testing, soak runs, diagnostic gates, and backups.
 - **[docs/glossary.md](docs/glossary.md):** Canonical architectural definitions derived directly from code.
 - **[docs/faq.md](docs/faq.md):** Plain answers to questions on safety, costs, stopping, and capabilities.

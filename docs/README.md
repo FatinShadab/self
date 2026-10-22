@@ -22,6 +22,7 @@ The repository maintains an explicit boundary between documentation shipped into
 ## Directory Map
 
 ### 1. Developer & Plugin Documentation (`docs/plugins/`)
+- **[plugins/README.md](../plugins/README.md)**: Hands-on developer guide: what is a plugin, how to build one, and how to attach it to SELF.
 Shipped inside `/opt/agent/docs/plugins/`:
 - **[overview.md](plugins/overview.md)**: Conceptual overview of plugins vs. tools, plugin classes (`body`, `skill`, `both`), and external system rules.
 - **[manifest-reference.md](plugins/manifest-reference.md)**: Complete specification of all 15 fields of `plugin.json` and Core API compatibility ranges.
