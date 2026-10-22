@@ -1,14 +1,20 @@
-# SELF Workspace Migration Guide: Core v0.1.0-rc1
+# SELF Workspace Migration Guide: Core Release Candidates
 
-**Scope:** Upgrading existing workspaces from pre-modular architectures (Prompts 01–08) or intermediate versions (Prompts 09–13) to **Core API v1.1.0** (`core-v0.1.0-rc1`).  
+**Scope:** Upgrading existing workspaces from pre-modular architectures (Prompts 01–08) or intermediate versions (Prompts 09–13) to **Core Engine Release Candidates** (`core-v0.1.0-rc1` through `core-v0.1.0-rc3`) and **Plugin API Specification v1.1.0**.  
 **Author:** SELF Autonomous Agent Core Maintenance Team  
-**Date:** 2026-10-21  
+**Date:** 2026-10-22  
 
 ---
 
-## 1. Summary of Architectural Changes (Prompts 09–17)
+### Versioning Explanation
+- **Core Engine Releases (`core-v0.1.0-rc1..rc3`):** Governs the full agent system, Docker packaging, runtime loop, safety mechanisms, soak test suite, and operator tooling.
+- **Plugin API Specification (`1.1.0`):** Tracked in `VERSION` and `CORE_API_VERSION`. Governs manifest schemas, plugin lifecycle hooks, dynamic tool registration, and custom slash commands.
 
-Across Prompts 09 to 17, the SELF runtime was decoupled from a monolithic container script into a modular, headless core with extensible bodies and hot-pluggable skills:
+---
+
+## 1. Summary of Architectural Changes (Prompts 09–20)
+
+Across Prompts 09 to 20, the SELF runtime was decoupled from a monolithic container script into a modular, headless core with extensible bodies, hot-pluggable skills, and soak reliability verification:
 
 1. **State Partitioning & Namespace Isolation**:
    - **Core State (`workspace/state/`)**: Contains only core agent memories, multi-goal plans, verified environmental maps, daily token budgets, identity records, and handoffs.
@@ -126,3 +132,5 @@ After migrating:
 1. **Live Check**: Run `scripts/live-check.ps1` periodically to inspect plugin states, hash mismatches, and cost ledger summaries.
 2. **Run Analysis**: For extended autonomous runs, run `scripts/analyze-run.ps1 -Workspace workspace` to audit plan autonomy ratios, handoff file growth against the 6,000-character ceiling, and failure classifications.
 3. **Plugin Management**: Enable plugins by adding their name and computed SHA-256 hash to `config/plugins.json`. Never modify plugin code in place without updating the pinned hash in `config/plugins.json`.
+4. **Deterministic Soak Verification**: Run `scripts/soak.ps1` to test multi-cycle stability against simulated provider workloads without incurring token spend.
+5. **Live Soak Invariant Gate**: Run `python scripts/live_soak_gate.py --workspace workspace --fail-on-warn` before commencing any live runs to verify token ledger and handoff size invariants.

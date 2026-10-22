@@ -8,6 +8,36 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
 - **Core Engine Releases (`core-v<major>.<minor>.<patch>[-rcN]`):** Tracks releases of the complete autonomous agent system, runtime loop, safety mechanisms, container packaging, and operator tooling (e.g. `core-v0.1.0-rc1`, `core-v0.1.0-rc2`).
 - **Plugin API Specification (`VERSION` file and `CORE_API_VERSION`):** SemVer specification governing the plugin interface (manifest schema, lifecycle hooks, tool registration, permissions, and slash commands). Plugins declare compatibility ranges against this specification (e.g. `core_api: ">=1.1.0,<2.0.0"`). Git tags `v1.0.0` and `v1.1.0` mark Plugin API milestones.
 
+## [core-v0.1.0-rc3] - 2026-10-22
+
+### Added
+- **Deterministic Soak Test Suite (Prompt 20)**:
+  - Scripted provider soak runner (`scripts/soak.ps1`) executing multi-cycle deterministic scenarios (B1 through B10) over 60 to 200 cycles without real LLM provider spend.
+  - Per-cycle invariant verification checking daily token budget balance, bounded handoffs (≤ 6,000 chars), plan hygiene, header deduplication, and absence of tight spins.
+  - Historical replay fixture and `ReplayProvider` running reproducible 30-cycle execution traces (`agent/tests/soak/test_soak_30_cycles_replay.py`).
+  - Pre-live soak gate invariant validator (`scripts/live-soak-gate.ps1` and `scripts/live_soak_gate.py`).
+  - Strict daily ledger monitoring on canonical `state/token_ledger.json` and active reservations.
+
+### Fixed
+- **Tight Spin Prevention**: Fixed tight spinning loop in `AgentLoop._pause_until_daily_reset` when remaining token balance was lower than minimal model call size.
+- **Recursive Handoff Header Accumulation**: Prevented recursive accumulation of `"Session complete after X cycles"` in `SessionCoordinator`.
+- **Legacy Handoff Bounding on Load**: Ensured oversized legacy handoffs are bounded and archived to `handoff_overflow.json` immediately upon load in `SessionStore`.
+- **Indented JSON Handoff Length Measurement**: Fixed handoff character count checks to evaluate `indent=2` JSON formatting matching disk persistence.
+
+## [core-v0.1.0-rc2] - 2026-10-22
+
+### Added
+- **Release Candidate Hardening (Prompt 19)**:
+  - Empty cost ledger bootstrap baseline support, allowing initial plugin proposals on fresh workspaces with zero prior recorded tool history.
+  - Stop-loss draft write blocking: blocked `write_file` and `run_shell` modifications to `workspace/plugin_dev/<name>` when an unacknowledged stop-loss review is pending.
+  - Ordinal cross-platform sorting for deterministic plugin SHA-256 hash pinning.
+  - Permission broker event mapping in architecture catalog and system map.
+  - Reserved slash commands AST verification to prevent plugin command collisions with core human controls.
+
+### Fixed
+- **Handoff Cap Alignment**: Aligned `HANDOFF_CAP` in `agent/session/session.py` to 6,000 characters matching architecture specification.
+- **Windows File Lock Contention**: Handled lock file contention on uninitialized lock bytes in `agent/infra/file_lock.py`.
+
 ## [core-v0.1.0-rc1] - 2026-10-21
 
 ### Added
