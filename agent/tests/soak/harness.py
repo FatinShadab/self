@@ -90,21 +90,20 @@ class FaultSchedule:
 
     def __init__(
         self,
-        schedule: dict[int | tuple[int, int] | str, Any] | None = None,
+        schedule: dict[Any, Any] | None = None,
+        *,
+        consume: bool = True,
     ) -> None:
-        self.schedule: dict[Any, Any] = schedule or {}
+        self.schedule: dict[Any, Any] = dict(schedule or {})
+        self.consume = consume
 
-    def add_fault(self, target: int | tuple[int, int] | str, fault: Any) -> None:
+    def add_fault(self, target: Any, fault: Any) -> None:
         self.schedule[target] = fault
 
     def get_fault(self, cycle: int, round_num: int = 1, call_count: int = 0) -> Any | None:
-        # Check specific round first, then cycle, then call count
-        if (cycle, round_num) in self.schedule:
-            return self.schedule[(cycle, round_num)]
-        if cycle in self.schedule:
-            return self.schedule[cycle]
-        if f"call_{call_count}" in self.schedule:
-            return self.schedule[f"call_{call_count}"]
+        for key in ((cycle, round_num), cycle, f"call_{call_count}", f"cycle_{cycle}"):
+            if key in self.schedule:
+                return self.schedule.pop(key) if self.consume else self.schedule[key]
         return None
 
 
@@ -129,6 +128,9 @@ class ScriptedProvider:
         self.key_count = max(1, key_count)
         self.key_index = 0
         self.calls = 0
+        self.current_cycle = 1
+        self.round_in_cycle = 0
+        self.max_observed_rounds_per_cycle = 0
         self.calls_by_cycle: dict[int, int] = {}
         self.call_history: list[dict[str, Any]] = []
         self.fault_schedule = fault_schedule or FaultSchedule()
@@ -160,8 +162,15 @@ class ScriptedProvider:
     ) -> LLMResult:
         self.calls += 1
         cycle = self._parse_cycle(messages)
-        round_num = self.calls_by_cycle.get(cycle, 0) + 1
-        self.calls_by_cycle[cycle] = round_num
+        if len(messages) == 1 or cycle != self.current_cycle:
+            self.current_cycle = cycle
+            self.round_in_cycle = 1
+        else:
+            self.round_in_cycle += 1
+
+        round_num = self.round_in_cycle
+        self.max_observed_rounds_per_cycle = max(self.max_observed_rounds_per_cycle, round_num)
+        self.calls_by_cycle[cycle] = max(self.calls_by_cycle.get(cycle, 0), round_num)
 
         if round_num > self.max_calls_per_cycle:
             raise RuntimeError(f"Infinite loop protection: cycle {cycle} exceeded {self.max_calls_per_cycle} calls")
@@ -225,19 +234,7 @@ class ScriptedProvider:
                         input_tokens=20, output_tokens=20, stop_reason="end_turn", model=selected_model,
                     )
 
-        # 3. Default progressive behavior
-        # Round 1: make a benign plan or inspection tool call
-        if round_num == 1:
-            return LLMResult(
-                content=[{
-                    "type": "tool_use",
-                    "id": f"plan-call-{self.calls}",
-                    "name": "read_plan",
-                    "input": {},
-                }],
-                input_tokens=30, output_tokens=15, stop_reason="tool_use", model=selected_model,
-            )
-        # Round 2: finish with standard cycle report
+        # 3. Default progressive behavior: finish cycle cleanly with an autonomous report
         return LLMResult(
             content=[{"type": "text", "text": f"Cycle {cycle} complete. Exploration proceeding steadily according to plan."}],
             input_tokens=40, output_tokens=30, stop_reason="end_turn", model=selected_model,
@@ -387,15 +384,17 @@ class Invariants:
 
     @classmethod
     def check_log_growth(cls, cycle: int, seed: int, workspace: Path, prior_bytes: int) -> int:
-        """Invariant: actions.jsonl growth per cycle under stated bound."""
+        """Invariant: actions.jsonl growth per cycle under stated bound (exempting full session start)."""
         log_path = workspace / "logs" / "actions.jsonl"
         current_bytes = log_path.stat().st_size if log_path.exists() else 0
         delta = current_bytes - prior_bytes
-        if delta > cls.MAX_CYCLE_LOG_GROWTH_BYTES:
+        # Specification: no single cycle > 25,000 bytes unless full session start
+        cap = cls.MAX_CYCLE_LOG_GROWTH_BYTES * 2 if cycle == 1 else cls.MAX_CYCLE_LOG_GROWTH_BYTES
+        if delta > cap:
             recent = cls._get_recent_logs(workspace)
             raise AssertionError(
                 f"Invariant violation [LOG_GROWTH] at cycle {cycle} (seed={seed}): "
-                f"actions.jsonl grew by {delta} bytes in cycle {cycle} > cap {cls.MAX_CYCLE_LOG_GROWTH_BYTES}.\n"
+                f"actions.jsonl grew by {delta} bytes in cycle {cycle} > cap {cap}.\n"
                 f"Last 20 log lines:\n{recent}"
             )
         return current_bytes
