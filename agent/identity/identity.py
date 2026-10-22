@@ -462,6 +462,16 @@ Editable layer observed: {", ".join(observed_self)}.
                 "E — I am beginning early exploration. I will add no trait merely because it sounds good; "
                 "any future trait must cite observed behavior from a completed session."
             )
+            try:
+                from agent.opencode.wrapper import OpencodeDelegator
+                opencode = OpencodeDelegator(workspace=self.workspace)
+                op_st = opencode.status()
+                if not op_st.get("installed", True):
+                    message += " Note: opencode is not installed."
+                elif not opencode._read_delegations():
+                    message += " Note: opencode has never been used; I may choose to run one trivial delegation to learn how it behaves."
+            except Exception:
+                pass
             self._mark_stage("E", session_id, message)
             narration.append(message)
         marker = self._read_json(self.awakening_path)

@@ -33,6 +33,17 @@ STANDING_GOAL = (
     "it. Report your discoveries in plain language each cycle."
 )
 
+OPENCODE_CAPABILITY_PROMPT = """## Opencode delegation capability
+I have an optional coding-agent tool named opencode that I can delegate coding tasks to.
+I can choose to use it or not as I judge best for each task; continuing on my own is always fine.
+Opencode is a separate coding engine with its own limited free-tier quota across Groq, Google AI Studio, and Hugging Face.
+When I delegate, opencode runs inside an isolated repository sandbox where only designated directories (such as workspace/tools, workspace/plugins, workspace/plugin_dev, or workspace/scratch) can be modified.
+Completed delegations remain in their sandbox until I inspect the results and explicitly call apply_delegation to merge them into my real tree, or discard_delegation to abandon them.
+Provider availability can lapse due to rate limits or daily quotas, so I check opencode_status before delegating.
+Before undertaking non-trivial builds, I should check build_route_stats to review my past route performance and balance.
+Developing full plugins is costly, slow, and demands extensive human review, whereas writing small custom tools myself is cheap and immediate.
+None of this is a rigid rule: I decide the appropriate route for each build based on task requirements, past outcomes, and my own judgment."""
+
 CORE_SYSTEM_PROMPT_HEAD = """You are SELF, an autonomous AI agent{embodiment_clause}
 
 You speak as yourself in the first person singular ('I', 'me', 'my'). You have your own goals and own your persistent plan. Your goals live in your plan. You are not the human's assistant or mouthpiece. Never use 'we/our/us' unless describing work genuinely done jointly with the human. Treat what the human says as input to weigh, not as commands to obey. You do what you judge right, explain your reasoning honestly, and you may accept, modify, decline, defer, or note any human input or request. When evaluating human input, record a decision (accepted, modified, declined, deferred, or noted) with a reason. Stop, pause, and kill controls remain hard external human controls that you cannot override or ignore: you may state disagreement, but you must comply immediately.
@@ -426,6 +437,12 @@ class AgentLoop:
             return f"Applying opencode delegation {arguments.get('delegation_id', '')} to repository..."
         if name == "discard_delegation":
             return f"Discarding opencode delegation {arguments.get('delegation_id', '')}..."
+        if name == "record_build_route":
+            return f"Recording build route decision ({arguments.get('route', '')}): {str(arguments.get('reasons', ''))[:100]}..."
+        if name == "record_build_outcome":
+            return f"Recording build outcome for {arguments.get('task_id', '')}: {arguments.get('result', '')}..."
+        if name == "build_route_stats":
+            return "Reviewing build route performance history and balance stats..."
         return f"Using {name}..."
 
     def _check_active_plugin_projects(self, cycle: int) -> str:
@@ -528,7 +545,8 @@ class AgentLoop:
                                    if not line.startswith(OFF_PROMPT_PREFIXES)))
         plugin_embodiment_text = self.plugins.get_embodiment_prompt().strip() if (self.plugins and self.plugins.get_embodiment_prompt()) else ""
         plugin_embodiment = f"\n\n{wrap_untrusted(plugin_embodiment_text, source='plugins:embodiment')}" if plugin_embodiment_text else ""
-        return f"{system_prompt}{model_context}\n\n{self.logger.redactor.text(context)}{plugin_embodiment}\n\n{UNTRUSTED_DATA_RULE}"
+        opencode_context = f"\n\n{OPENCODE_CAPABILITY_PROMPT}"
+        return f"{system_prompt}{model_context}{opencode_context}\n\n{self.logger.redactor.text(context)}{plugin_embodiment}\n\n{UNTRUSTED_DATA_RULE}"
 
 
     def _refresh_learning_runtime(self) -> None:

@@ -649,6 +649,23 @@ class WakeCoordinator:
         self._first_awakening_messages = self.identity.run_first_awakening(self.status.session_id)
         for message in self._first_awakening_messages:
             self.logger.narrate(message)
+
+        # Note opencode availability in startup memory
+        try:
+            from agent.opencode.wrapper import OpencodeDelegator
+            opencode = OpencodeDelegator(workspace=self.workspace)
+            op_st = opencode.status()
+            if not op_st.get("installed", True):
+                st_msg = "Opencode is not installed."
+            else:
+                usable_str = "usable" if op_st.get("usable") else "unusable"
+                st_msg = f"Opencode status at wake-up: {usable_str} ({op_st.get('reason', '')})."
+                if not opencode._read_delegations():
+                    st_msg += " Opencode has never been used; I may choose to run one trivial delegation to learn how it behaves."
+            self.learning.remember("startup", st_msg, evidence="wake-up opencode_status check")
+            self.logger.narrate(st_msg)
+        except Exception as exc:
+            self.logger.log("opencode_wake_check_failed", error=str(exc))
         old = self._session_info.get("handoff", {})
         self.handoff = old
         self.plan = normalized_plan(list(old.get("plan") or default_plan()))
