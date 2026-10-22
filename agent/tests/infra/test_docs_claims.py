@@ -5,21 +5,27 @@ import unittest
 from pathlib import Path
 import sys
 
-REPO_ROOT = Path(__file__).resolve().parents[2]
-if str(REPO_ROOT) not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT))
-if str(REPO_ROOT / "scripts") not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT / "scripts"))
+# Locate scripts/ relative to repo root (on host).
+# In container (/opt/agent), scripts/ is intentionally not copied into the image.
+SCRIPTS_AVAILABLE = False
+for parent in Path(__file__).resolve().parents:
+    if (parent / "scripts" / "check_docs_claims.py").is_file():
+        if str(parent) not in sys.path:
+            sys.path.insert(0, str(parent))
+        SCRIPTS_AVAILABLE = True
+        break
 
-from scripts.check_docs_claims import (
-    get_ground_truth_facts,
-    normalize_anchor,
-    check_claims,
-    check_markdown_links_and_paths,
-    check_symbol_citations,
-)
+if SCRIPTS_AVAILABLE:
+    from scripts.check_docs_claims import (
+        get_ground_truth_facts,
+        normalize_anchor,
+        check_claims,
+        check_markdown_links_and_paths,
+        check_symbol_citations,
+    )
 
 
+@unittest.skipUnless(SCRIPTS_AVAILABLE, "Host-side scripts/check_docs_claims is not included in container image")
 class DocsClaimsTests(unittest.TestCase):
     def test_ground_truth_facts_integrity(self) -> None:
         facts = get_ground_truth_facts()
