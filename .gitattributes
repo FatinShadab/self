@@ -12,4 +12,4 @@
 Dockerfile text eol=lf
 
 # PowerShell scripts on Windows
-*.ps1 text eol=crlf
+*.ps1 text eol=lf
