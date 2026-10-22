@@ -4,7 +4,7 @@ Verifies:
 1. Zero-plugin regression & golden prompt snapshots:
    - System prompt, conversation prompt, and cycle prompt match golden baseline character-for-character
      when PluginManager is present with no active plugins.
-   - Base tools (29 tools) offered cleanly without namespacing.
+   - Core tools (36 tools: 29 base + 7 opencode) offered cleanly without namespacing.
    - Cycle executes cleanly without plugin leakage.
 2. Pet companion demo round-trip:
    - Enable -> Disable -> Replug round trips.
@@ -187,10 +187,10 @@ class ReleaseRegressionTests(unittest.TestCase):
         self.assertNotIn("Active Plugins Notes", sys_prompt)
         self.assertNotIn("plugins:embodiment", sys_prompt)
 
-        # Verify offered tools: all 29 tools, no dot-namespaced tools
+        # Verify offered tools: all 36 core tools (29 base + 7 opencode), no dot-namespaced tools
         offered_tools = call["tools"]
         tool_names = [t["name"] for t in offered_tools]
-        self.assertEqual(len(tool_names), 29)
+        self.assertEqual(len(tool_names), 36)
         for name in tool_names:
             self.assertNotIn(".", name)
         self.assertIn("run_shell", tool_names)
