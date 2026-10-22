@@ -344,11 +344,19 @@ class AgentLoop:
 
     def _pause_until_daily_reset(self) -> None:
         """Pause safely until the daily ledger resets or is increased."""
+        if self.daily_ledger is None:
+            return
         self._request_daily_budget_action()
         self.logger.narrate("I reached today's daily token limit. Pausing until daily reset or limit increase.")
         self.logger.log("daily_token_limit_paused", session_id=self.config.session_id)
+        initial_data = self.daily_ledger._read()
+        initial_date = initial_data.get("date")
+        initial_available = self.daily_ledger.available_tokens()
         while not self._stopped():
-            if self.daily_ledger is None or self.daily_ledger.available_tokens() > 0:
+            current_data = self.daily_ledger._read()
+            current_date = current_data.get("date")
+            current_available = self.daily_ledger.available_tokens()
+            if (current_date != initial_date or current_available > initial_available) and current_available > 0:
                 self.logger.narrate("Daily token limit reset or increased. Resuming.")
                 self.logger.log("daily_token_limit_resumed", session_id=self.config.session_id)
                 if self.human_request.exists():
