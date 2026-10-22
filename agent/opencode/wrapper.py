@@ -258,6 +258,7 @@ class OpencodeDelegator:
             try:
                 self._ensure_model_decisions().record_build_outcome(
                     task_id=spec[:80],
+                    route="opencode",
                     result="unavailable",
                     notes="opencode not installed",
                     acceptance_passed=False,
@@ -316,6 +317,7 @@ class OpencodeDelegator:
             try:
                 self._ensure_model_decisions().record_build_outcome(
                     task_id=spec[:80],
+                    route="opencode",
                     result="unavailable",
                     notes=f"Opencode unavailable: {reason_text}",
                     acceptance_passed=False,
@@ -424,6 +426,7 @@ class OpencodeDelegator:
             try:
                 self._ensure_model_decisions().record_build_outcome(
                     task_id=delegation_id,
+                    route="opencode",
                     result="failed",
                     notes=f"opencode execution failed with status: {final_status}",
                     acceptance_passed=False,
@@ -473,6 +476,7 @@ class OpencodeDelegator:
             try:
                 self._ensure_model_decisions().record_build_outcome(
                     task_id=delegation_id,
+                    route="opencode",
                     result="rejected",
                     notes="Changes detected outside allowed target directories; delegation rejected.",
                     acceptance_passed=False,
@@ -533,6 +537,7 @@ class OpencodeDelegator:
             try:
                 self._ensure_model_decisions().record_build_outcome(
                     task_id=delegation_id,
+                    route="opencode",
                     result="failed",
                     notes="Acceptance check failed inside sandbox.",
                     acceptance_passed=False,
@@ -676,6 +681,7 @@ class OpencodeDelegator:
                     try:
                         self._ensure_model_decisions().record_build_outcome(
                             task_id=delegation_id,
+                            route="opencode",
                             result="failed",
                             notes="Acceptance check failed against real tree; changes rolled back.",
                             acceptance_passed=False,
@@ -697,6 +703,7 @@ class OpencodeDelegator:
                 try:
                     self._ensure_model_decisions().record_build_outcome(
                         task_id=delegation_id,
+                        route="opencode",
                         result="failed",
                         notes=f"Acceptance check error against real tree: {exc}; changes rolled back.",
                         acceptance_passed=False,
@@ -721,6 +728,7 @@ class OpencodeDelegator:
         try:
             self._ensure_model_decisions().record_build_outcome(
                 task_id=delegation_id,
+                route="opencode",
                 result="accepted",
                 notes="Delegation changes applied and verified against real tree.",
                 acceptance_passed=True,
@@ -757,6 +765,7 @@ class OpencodeDelegator:
         try:
             self._ensure_model_decisions().record_build_outcome(
                 task_id=delegation_id,
+                route="opencode",
                 result="abandoned",
                 notes="Delegation discarded by agent.",
                 acceptance_passed=False,

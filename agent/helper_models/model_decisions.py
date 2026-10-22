@@ -739,6 +739,7 @@ class ModelDecisions:
         result: str,
         notes: str | None = None,
         *,
+        route: str | None = None,
         duration: float = 0.0,
         acceptance_passed: bool | None = None,
         retries: int = 0,
@@ -754,14 +755,25 @@ class ModelDecisions:
         matched_decision = None
         for dec in reversed(decisions):
             if dec.get("task_type") == "build_route" and (
-                dec.get("task_id") == task_id or dec.get("task") == task_id or dec.get("call_id") == task_id
+                dec.get("task_id") == task_id
+                or dec.get("task") == task_id
+                or dec.get("call_id") == task_id
+                or (isinstance(dec.get("task"), str) and task_id in dec["task"])
             ):
                 matched_decision = dec
                 break
 
-        route = matched_decision.get("route", "self") if matched_decision else "self"
-        reasons = matched_decision.get("reasons", notes or "") if matched_decision else (notes or "")
-        expected_effort = matched_decision.get("expected_effort", "unknown") if matched_decision else "unknown"
+        rec_route = route or (matched_decision.get("route") if matched_decision else "self")
+        reasons = (
+            matched_decision.get("reasons")
+            if matched_decision and matched_decision.get("reasons")
+            else (notes or "")
+        )
+        expected_effort = (
+            matched_decision.get("expected_effort")
+            if matched_decision and matched_decision.get("expected_effort")
+            else "unknown"
+        )
         rec_forced_by = forced_by or (matched_decision.get("forced_by") if matched_decision else None)
 
         if acceptance_passed is None:
@@ -769,7 +781,7 @@ class ModelDecisions:
 
         return self.build_outcomes.append(
             task_id=task_id,
-            route=route,
+            route=rec_route,
             reasons=reasons,
             expected_effort=expected_effort,
             result=result_clean,

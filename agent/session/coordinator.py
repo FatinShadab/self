@@ -662,10 +662,15 @@ class WakeCoordinator:
                 st_msg = f"Opencode status at wake-up: {usable_str} ({op_st.get('reason', '')})."
                 if not opencode._read_delegations():
                     st_msg += " Opencode has never been used; I may choose to run one trivial delegation to learn how it behaves."
-            self.learning.remember("startup", st_msg, evidence="wake-up opencode_status check")
+            self.learning.append_memory(
+                what_was_tried="wake-up opencode status check",
+                outcome=st_msg,
+                lesson="Opencode status noted at wake-up",
+                tags=["startup", "opencode"],
+            )
             self.logger.narrate(st_msg)
         except Exception as exc:
-            self.logger.log("opencode_wake_check_failed", error=str(exc))
+            self.logger.narrate(f"Opencode wake-up check skipped: {exc}")
         old = self._session_info.get("handoff", {})
         self.handoff = old
         self.plan = normalized_plan(list(old.get("plan") or default_plan()))
