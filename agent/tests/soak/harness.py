@@ -242,6 +242,172 @@ class ScriptedProvider:
 
 
 # -----------------------------------------------------------------------------
+# 4b. Replay Provider
+# -----------------------------------------------------------------------------
+
+class ReplayProvider:
+    """Replays historical error sequences, create_tool churn, and reflection patterns."""
+
+    def __init__(
+        self,
+        fixture_path: Path | str | None = None,
+        model: str = "replay-historical-model",
+        logger: EventLogger | None = None,
+        total_replay_cycles: int = 30,
+    ) -> None:
+        self.model = model
+        self.base_model = model
+        self.provider = "ollama"
+        self.calls = 0
+        self.current_cycle = 1
+        self.round_in_cycle = 0
+        self.logger = logger
+        self.total_replay_cycles = max(1, total_replay_cycles)
+        if fixture_path is None:
+            fixture_path = Path(__file__).parent / "fixtures" / "real_run_shape.jsonl"
+        self.fixture_path = Path(fixture_path)
+        self.events: list[dict[str, Any]] = []
+        if self.fixture_path.exists():
+            with open(self.fixture_path, "r", encoding="utf-8") as f:
+                for line in f:
+                    try:
+                        self.events.append(json.loads(line))
+                    except Exception:
+                        pass
+        self.llm_failures = [e for e in self.events if e.get("event") == "llm_call_failed"]
+        self.create_tool_events = [e for e in self.events if e.get("tool") == "create_tool" and e.get("target_tool")]
+        self.llm_cursor = 0
+        self.tool_cursor = 0
+        self.replayed_llm_failures: dict[str, int] = {}
+        self.replayed_create_tools = 0
+        self.replayed_reflections = 0
+
+    def _parse_cycle(self, messages: list[dict[str, Any]]) -> int:
+        if messages and isinstance(messages[0].get("content"), str):
+            m = re.search(r"Begin exploration cycle (\d+)", messages[0]["content"])
+            if m:
+                return int(m.group(1))
+        return self.current_cycle
+
+    def call(
+        self,
+        *,
+        system: str,
+        messages: list[dict[str, Any]],
+        tools: list[dict[str, Any]],
+        max_tokens: int,
+        model: str | None = None,
+        **_: Any,
+    ) -> LLMResult:
+        self.calls += 1
+        cycle = self._parse_cycle(messages)
+        if len(messages) == 1 or cycle != self.current_cycle:
+            self.current_cycle = cycle
+            self.round_in_cycle = 1
+        else:
+            self.round_in_cycle += 1
+
+        selected_model = model or self.base_model
+
+        # Handle reflection turns with nested 'Session complete after' text
+        is_reflection = any("reflection" in str(m.get("content", "")).lower() for m in messages)
+        if is_reflection:
+            self.replayed_reflections += 1
+            return LLMResult(
+                content=[{
+                    "type": "text",
+                    "text": (
+                        f"Session complete after {cycle} cycle(s).\n"
+                        "Trying to do: shutdown reflection\n"
+                        "Achieved: Session complete after 0 cycle(s).\n"
+                        "Trying to do: shutdown reflection\n"
+                        "Achieved: Exploratory work completed without unhandled faults."
+                    ),
+                }],
+                input_tokens=50,
+                output_tokens=40,
+                stop_reason="end_turn",
+                model=selected_model,
+            )
+
+        # In round 1 of a cycle, replay a slice of historical LLM failures and a create_tool attempt
+        if self.round_in_cycle == 1:
+            batch_size = max(1, len(self.llm_failures) // self.total_replay_cycles) if self.llm_failures else 0
+            # On final cycle, consume remainder of fixture
+            end_idx = len(self.llm_failures) if cycle >= self.total_replay_cycles else min(len(self.llm_failures), self.llm_cursor + batch_size)
+            slice_failures = self.llm_failures[self.llm_cursor:end_idx]
+            self.llm_cursor = end_idx
+
+            if self.logger:
+                for evt in slice_failures:
+                    err_type = str(evt.get("error_type", "LLMError"))
+                    self.replayed_llm_failures[err_type] = self.replayed_llm_failures.get(err_type, 0) + 1
+                    self.logger.log(
+                        "llm_call_failed",
+                        cycle=cycle,
+                        provider=self.provider,
+                        model=selected_model,
+                        error_type=err_type,
+                        error=f"Replayed {err_type} from historical run",
+                        retry_attempt=1,
+                        retryable=evt.get("retryable", False),
+                        effective_cap=max_tokens,
+                    )
+
+            # Repeatedly attempt a failing tool (timer_service_map from historical log)
+            # across cycles 1, 3, 5, 7 to exercise 3-attempt lesson recording and blocking
+            if cycle in (1, 3, 5, 7):
+                target_tool = "timer_service_map"
+            elif self.create_tool_events and self.tool_cursor < len(self.create_tool_events):
+                target_tool = self.create_tool_events[self.tool_cursor]["target_tool"]
+                self.tool_cursor += 1
+            else:
+                target_tool = "replay_broken_tool"
+
+            self.replayed_create_tools += 1
+            if cycle % 2 == 1:
+                return LLMResult(
+                    content=[{
+                        "type": "tool_use",
+                        "id": f"call-replay-{self.calls}",
+                        "name": "create_tool",
+                        "input": {
+                            "name": target_tool,
+                            "description": f"Historical failing tool {target_tool} attempt {cycle}",
+                            "code": f"def run():\n    raise RuntimeError('deliberate failure attempt {cycle}')\n",
+                            "test_code": "import unittest\nclass T(unittest.TestCase):\n    def test_fail(self):\n        self.fail('deliberate replay failure')\n",
+                        },
+                    }],
+                    input_tokens=60,
+                    output_tokens=40,
+                    stop_reason="tool_use",
+                    model=selected_model,
+                )
+            else:
+                return LLMResult(
+                    content=[{
+                        "type": "tool_use",
+                        "id": f"call-replay-{self.calls}",
+                        "name": "read_file",
+                        "input": {"path": "state/self_code_explanation.md" if (cycle // 2) % 2 == 0 else "state/plan.json"},
+                    }],
+                    input_tokens=40,
+                    output_tokens=30,
+                    stop_reason="tool_use",
+                    model=selected_model,
+                )
+
+        # Subsequent rounds in cycle complete cleanly
+        return LLMResult(
+            content=[{"type": "text", "text": f"Cycle {cycle} complete. Replay stress test proceeding cleanly."}],
+            input_tokens=40,
+            output_tokens=30,
+            stop_reason="end_turn",
+            model=selected_model,
+        )
+
+
+# -----------------------------------------------------------------------------
 # 5. Invariants Checker
 # -----------------------------------------------------------------------------
 

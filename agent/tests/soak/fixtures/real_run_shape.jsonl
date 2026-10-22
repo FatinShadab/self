@@ -1,0 +1,1686 @@
+{"event": "cycle_completed", "timing_gap_ms": 0, "cycle": 1}
+{"event": "cycle_completed", "timing_gap_ms": 2316138, "cycle": 1}
+{"event": "cycle_completed", "timing_gap_ms": 14563, "cycle": 2}
+{"event": "cycle_completed", "timing_gap_ms": 55287, "cycle": 1}
+{"event": "tool_result", "timing_gap_ms": 5749, "tool": "probe_local_ollama", "ok": false, "duration_ms": 87.89}
+{"event": "cycle_completed", "timing_gap_ms": 401751, "cycle": 1}
+{"event": "cycle_completed", "timing_gap_ms": 68209, "cycle": 1}
+{"event": "cycle_completed", "timing_gap_ms": 101344, "cycle": 1}
+{"event": "cycle_completed", "timing_gap_ms": 46205, "cycle": 1}
+{"event": "cycle_completed", "timing_gap_ms": 48972, "cycle": 1}
+{"event": "llm_call_failed", "timing_gap_ms": 483638, "error_type": "InternalServerError"}
+{"event": "cycle_completed", "timing_gap_ms": 158754, "cycle": 1}
+{"event": "cycle_completed", "timing_gap_ms": 7818, "cycle": 2}
+{"event": "cycle_completed", "timing_gap_ms": 8404, "cycle": 3}
+{"event": "cycle_completed", "timing_gap_ms": 11790, "cycle": 4}
+{"event": "llm_call_failed", "timing_gap_ms": 7171, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 3932, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 8510, "cycle": 5}
+{"event": "cycle_completed", "timing_gap_ms": 10814, "cycle": 6}
+{"event": "cycle_completed", "timing_gap_ms": 10395, "cycle": 7}
+{"event": "cycle_completed", "timing_gap_ms": 8065, "cycle": 8}
+{"event": "tool_result", "timing_gap_ms": 5445, "tool": "update_environment_map", "ok": false, "duration_ms": 0.1}
+{"event": "cycle_completed", "timing_gap_ms": 6408, "cycle": 9}
+{"event": "cycle_completed", "timing_gap_ms": 11862, "cycle": 10}
+{"event": "llm_call_failed", "timing_gap_ms": 5736, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 6963, "cycle": 11}
+{"event": "cycle_completed", "timing_gap_ms": 9259, "cycle": 12}
+{"event": "cycle_completed", "timing_gap_ms": 9032, "cycle": 13}
+{"event": "cycle_completed", "timing_gap_ms": 7664, "cycle": 14}
+{"event": "tool_result", "timing_gap_ms": 6713, "tool": "update_environment_map", "ok": false, "duration_ms": 0.06}
+{"event": "cycle_completed", "timing_gap_ms": 4749, "cycle": 15}
+{"event": "cycle_completed", "timing_gap_ms": 8656, "cycle": 16}
+{"event": "cycle_completed", "timing_gap_ms": 8597, "cycle": 17}
+{"event": "cycle_completed", "timing_gap_ms": 7691, "cycle": 18}
+{"event": "llm_call_failed", "timing_gap_ms": 5359, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 6602, "cycle": 19}
+{"event": "llm_call_failed", "timing_gap_ms": 4892, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 6081, "cycle": 20}
+{"event": "cycle_completed", "timing_gap_ms": 8017, "cycle": 21}
+{"event": "llm_call_failed", "timing_gap_ms": 5381, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 7757, "cycle": 22}
+{"event": "cycle_completed", "timing_gap_ms": 8243, "cycle": 23}
+{"event": "cycle_completed", "timing_gap_ms": 9142, "cycle": 24}
+{"event": "cycle_completed", "timing_gap_ms": 8513, "cycle": 25}
+{"event": "cycle_completed", "timing_gap_ms": 8244, "cycle": 26}
+{"event": "cycle_completed", "timing_gap_ms": 7915, "cycle": 27}
+{"event": "cycle_completed", "timing_gap_ms": 6856, "cycle": 28}
+{"event": "cycle_completed", "timing_gap_ms": 8197, "cycle": 29}
+{"event": "cycle_completed", "timing_gap_ms": 9511, "cycle": 30}
+{"event": "cycle_completed", "timing_gap_ms": 13160, "cycle": 31}
+{"event": "cycle_completed", "timing_gap_ms": 12893, "cycle": 32}
+{"event": "cycle_completed", "timing_gap_ms": 14518, "cycle": 33}
+{"event": "cycle_completed", "timing_gap_ms": 13916, "cycle": 34}
+{"event": "cycle_completed", "timing_gap_ms": 12839, "cycle": 35}
+{"event": "cycle_completed", "timing_gap_ms": 13829, "cycle": 36}
+{"event": "cycle_completed", "timing_gap_ms": 10176, "cycle": 37}
+{"event": "cycle_completed", "timing_gap_ms": 8798, "cycle": 38}
+{"event": "cycle_completed", "timing_gap_ms": 13100, "cycle": 39}
+{"event": "cycle_completed", "timing_gap_ms": 10017, "cycle": 40}
+{"event": "cycle_completed", "timing_gap_ms": 13310, "cycle": 41}
+{"event": "cycle_completed", "timing_gap_ms": 9038, "cycle": 42}
+{"event": "cycle_completed", "timing_gap_ms": 7665, "cycle": 43}
+{"event": "llm_call_failed", "timing_gap_ms": 4785, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 4662, "cycle": 44}
+{"event": "cycle_completed", "timing_gap_ms": 493541, "cycle": 1}
+{"event": "cycle_completed", "timing_gap_ms": 17162, "cycle": 2}
+{"event": "tool_result", "timing_gap_ms": 13576, "tool": "read_file", "ok": false, "duration_ms": 10.77}
+{"event": "cycle_completed", "timing_gap_ms": 3630, "cycle": 3}
+{"event": "cycle_completed", "timing_gap_ms": 33328, "cycle": 4}
+{"event": "cycle_completed", "timing_gap_ms": 16987, "cycle": 5}
+{"event": "cycle_completed", "timing_gap_ms": 19664, "cycle": 6}
+{"event": "cycle_completed", "timing_gap_ms": 15534, "cycle": 7}
+{"event": "tool_result", "timing_gap_ms": 14183, "tool": "probe_local_ollama", "ok": false, "duration_ms": 280.75}
+{"event": "cycle_completed", "timing_gap_ms": 13644, "cycle": 8}
+{"event": "cycle_completed", "timing_gap_ms": 17905, "cycle": 9}
+{"event": "tool_result", "timing_gap_ms": 5893, "tool": "read_file", "ok": false, "duration_ms": 0.13}
+{"event": "llm_call_failed", "timing_gap_ms": 8169, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 9500, "cycle": 10}
+{"event": "cycle_completed", "timing_gap_ms": 15387, "cycle": 11}
+{"event": "cycle_completed", "timing_gap_ms": 16167, "cycle": 12}
+{"event": "cycle_completed", "timing_gap_ms": 15992, "cycle": 13}
+{"event": "cycle_completed", "timing_gap_ms": 15766, "cycle": 14}
+{"event": "cycle_completed", "timing_gap_ms": 16319, "cycle": 15}
+{"event": "tool_result", "timing_gap_ms": 9854, "tool": "probe_local_ollama", "ok": false, "duration_ms": 156.8}
+{"event": "cycle_completed", "timing_gap_ms": 9309, "cycle": 16}
+{"event": "cycle_completed", "timing_gap_ms": 16033, "cycle": 17}
+{"event": "cycle_completed", "timing_gap_ms": 16730, "cycle": 18}
+{"event": "cycle_completed", "timing_gap_ms": 15778, "cycle": 19}
+{"event": "cycle_completed", "timing_gap_ms": 21685, "cycle": 20}
+{"event": "tool_result", "timing_gap_ms": 6818, "tool": "list_dir", "ok": false, "duration_ms": 9.43}
+{"event": "cycle_completed", "timing_gap_ms": 10149, "cycle": 21}
+{"event": "cycle_completed", "timing_gap_ms": 15075, "cycle": 22}
+{"event": "cycle_completed", "timing_gap_ms": 14794, "cycle": 23}
+{"event": "tool_result", "timing_gap_ms": 9729, "tool": "probe_local_ollama", "ok": false, "duration_ms": 202.13}
+{"event": "cycle_completed", "timing_gap_ms": 16966501, "cycle": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 11736, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 3994, "cycle": 2}
+{"event": "cycle_completed", "timing_gap_ms": 43110, "cycle": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4419, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4567, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 1385, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 6200, "cycle": 2}
+{"event": "cycle_completed", "timing_gap_ms": 36655, "cycle": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 2045, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 1628, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 11423, "cycle": 2}
+{"event": "cycle_completed", "timing_gap_ms": 91342, "cycle": 1}
+{"event": "cycle_completed", "timing_gap_ms": 19204, "cycle": 2}
+{"event": "cycle_completed", "timing_gap_ms": 43683, "cycle": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 16153, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 3955, "cycle": 2}
+{"event": "cycle_completed", "timing_gap_ms": 53344, "cycle": 1}
+{"event": "tool_result", "timing_gap_ms": 10847, "tool": "list_dir", "ok": false, "duration_ms": 4.07}
+{"event": "cycle_completed", "timing_gap_ms": 6865, "cycle": 2}
+{"event": "cycle_completed", "timing_gap_ms": 53217, "cycle": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6290, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 11889, "cycle": 2}
+{"event": "cycle_completed", "timing_gap_ms": 3476624, "cycle": 1}
+{"event": "llm_call_failed", "timing_gap_ms": 19682, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 12543, "tool": "create_tool", "ok": false, "duration_ms": 87.91, "target_tool": "log_last_errors", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 7507, "tool": "create_tool", "ok": false, "duration_ms": 4848.74, "target_tool": "log_last_errors", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 6925, "tool": "create_tool", "ok": false, "duration_ms": 3814.93, "target_tool": "log_last_errors", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 4745, "tool": "create_tool", "ok": false, "duration_ms": 29.34, "target_tool": "log_last_errors", "attempts_remaining": 0}
+{"event": "cycle_completed", "timing_gap_ms": 5103, "cycle": 2}
+{"event": "tool_result", "timing_gap_ms": 11960, "tool": "create_tool", "ok": false, "duration_ms": 33.75, "target_tool": "log_last_errors", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 3812, "tool": "create_tool", "ok": false, "duration_ms": 53.8, "target_tool": "log_find_pattern", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 5872, "tool": "create_tool", "ok": false, "duration_ms": 2887.99, "target_tool": "log_find_pattern", "attempts_remaining": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4866, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 2242, "tool": "list_dir", "ok": false, "duration_ms": 0.85}
+{"event": "tool_result", "timing_gap_ms": 1662, "tool": "list_dir", "ok": false, "duration_ms": 0.35}
+{"event": "cycle_completed", "timing_gap_ms": 21110, "cycle": 3}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4016, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 1639, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 1800, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 16212, "tool": "create_tool", "ok": false, "duration_ms": 5848.12, "target_tool": "log_search", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 7189, "tool": "create_tool", "ok": false, "duration_ms": 3269.49, "target_tool": "log_search", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 5416, "tool": "create_tool", "ok": false, "duration_ms": 80.37, "target_tool": "log_search", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 2817, "tool": "create_tool", "ok": false, "duration_ms": 48.02, "target_tool": "log_search", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 2648, "tool": "read_file", "ok": false, "duration_ms": 0.32}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3817, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 1553, "tool": "list_dir", "ok": false, "duration_ms": 0.49}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9923, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 10417, "cycle": 4}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 10877, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3566, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 5011, "tool": "list_dir", "ok": false, "duration_ms": 0.79}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 1574, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 11109, "tool": "create_tool", "ok": false, "duration_ms": 103.23, "target_tool": "log_find", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 5891, "tool": "create_tool", "ok": false, "duration_ms": 2923.01, "target_tool": "log_find", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 6209, "tool": "create_tool", "ok": false, "duration_ms": 3287.89, "target_tool": "log_find", "attempts_remaining": 0}
+{"event": "cycle_completed", "timing_gap_ms": 23798, "cycle": 5}
+{"event": "tool_result", "timing_gap_ms": 6495, "tool": "create_tool", "ok": false, "duration_ms": 83.69, "target_tool": "log_find_tool", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 5458, "tool": "create_tool", "ok": false, "duration_ms": 2504.94, "target_tool": "log_find_tool", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 6776, "tool": "create_tool", "ok": false, "duration_ms": 3699.14, "target_tool": "log_find_tool", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 4753, "tool": "create_tool", "ok": false, "duration_ms": 44.31, "target_tool": "log_find_tool", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 6237, "tool": "create_tool", "ok": false, "duration_ms": 3095.67, "target_tool": "grep_log_tool", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3358, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4003, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 1917, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 1919, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 4636, "tool": "read_file", "ok": false, "duration_ms": 6.15}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6467, "tool": "run_shell", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 2399, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 17148, "cycle": 6}
+{"event": "tool_result", "timing_gap_ms": 8408, "tool": "create_tool", "ok": false, "duration_ms": 62.7, "target_tool": "log_search", "attempts_remaining": 0}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3704, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 4727, "tool": "read_file", "ok": false, "duration_ms": 0.45}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 12988, "tool": "run_shell", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 11067, "cycle": 7}
+{"event": "tool_result", "timing_gap_ms": 3915, "tool": "list_dir", "ok": false, "duration_ms": 0.69}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 1687, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 1893, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 2118, "tool": "list_dir", "ok": false, "duration_ms": 0.24}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 1887, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 1953, "tool": "read_file", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 9046, "tool": "create_tool", "ok": false, "duration_ms": 3566.98, "target_tool": "log_search_tool", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 7396, "tool": "create_tool", "ok": false, "duration_ms": 3958.15, "target_tool": "log_search_tool", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 10020, "tool": "create_tool", "ok": false, "duration_ms": 4755.11, "target_tool": "log_search_tool", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 3605, "tool": "create_tool", "ok": false, "duration_ms": 34.68, "target_tool": "log_search_tool", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 6546, "tool": "read_file", "ok": false, "duration_ms": 5.81}
+{"event": "cycle_completed", "timing_gap_ms": 17450, "cycle": 8}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5437, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6507, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 2628, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 2360, "tool": "read_file", "ok": false, "duration_ms": 0.56}
+{"event": "tool_result", "timing_gap_ms": 2154, "tool": "read_file", "ok": false, "duration_ms": 5.83}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 2313, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 4060, "tool": "create_tool", "ok": false, "duration_ms": 37.8, "target_tool": "log_search_tool", "attempts_remaining": 0}
+{"event": "cycle_completed", "timing_gap_ms": 37192, "cycle": 9}
+{"event": "tool_result", "timing_gap_ms": 9814, "tool": "list_dir", "ok": false, "duration_ms": 5.55}
+{"event": "tool_result", "timing_gap_ms": 1938, "tool": "list_dir", "ok": false, "duration_ms": 0.27}
+{"event": "tool_result", "timing_gap_ms": 1749, "tool": "list_dir", "ok": false, "duration_ms": 4.73}
+{"event": "tool_result", "timing_gap_ms": 3788, "tool": "list_dir", "ok": false, "duration_ms": 0.2}
+{"event": "tool_result", "timing_gap_ms": 1983, "tool": "list_dir", "ok": false, "duration_ms": 5.46}
+{"event": "llm_call_failed", "timing_gap_ms": 6394, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 4748, "tool": "create_tool", "ok": false, "duration_ms": 98.66, "target_tool": "regex_log_grep", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 7157, "tool": "create_tool", "ok": false, "duration_ms": 3746.67, "target_tool": "regex_log_grep", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 8800, "tool": "create_tool", "ok": false, "duration_ms": 3079.66, "target_tool": "simple_log_grep", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 3177, "tool": "create_tool", "ok": false, "duration_ms": 134.07, "target_tool": "simple_log_grep", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 6487, "tool": "create_tool", "ok": false, "duration_ms": 3752.8, "target_tool": "simple_log_grep", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 6370, "tool": "create_tool", "ok": false, "duration_ms": 3605.36, "target_tool": "log_grep_tool", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 8303, "tool": "create_tool", "ok": false, "duration_ms": 4355.91, "target_tool": "log_grep_tool_v2", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 7855, "tool": "create_tool", "ok": false, "duration_ms": 4739.91, "target_tool": "log_grep_tool_v3", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 7824, "cycle": 10}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5936, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 34507, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 7181, "tool": "create_tool", "ok": false, "duration_ms": 3238.36, "target_tool": "log_grep_tool", "attempts_remaining": 1}
+{"event": "llm_call_failed", "timing_gap_ms": 2948, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 8274, "tool": "create_tool", "ok": false, "duration_ms": 3387.14, "target_tool": "log_grep_tool_pkg", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 11276, "cycle": 11}
+{"event": "tool_result", "timing_gap_ms": 35531, "tool": "create_tool", "ok": false, "duration_ms": 172.75, "target_tool": "log_grep_tool", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 3822, "tool": "create_tool", "ok": false, "duration_ms": 40.83, "target_tool": "log_grep_tool", "attempts_remaining": 0}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3478, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4485, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 34097, "cycle": 12}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 26995, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3030, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3437, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 31839, "tool": "create_tool", "ok": false, "duration_ms": 3743.66, "target_tool": "log_grep", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 5818, "tool": "create_tool", "ok": false, "duration_ms": 43.35, "target_tool": "log_grep", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 7034, "tool": "create_tool", "ok": false, "duration_ms": 3694.29, "target_tool": "log_grep", "attempts_remaining": 0}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 49760, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 11042, "tool": "create_tool", "ok": false, "duration_ms": 58.11, "target_tool": "log_grep", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 6963, "tool": "read_file", "ok": false, "duration_ms": 0.35}
+{"event": "cycle_completed", "timing_gap_ms": 27110, "cycle": 13}
+{"event": "llm_call_failed", "timing_gap_ms": 105259, "error_type": "APIConnectionError", "retryable": false}
+{"event": "tool_result", "timing_gap_ms": 30317, "tool": "list_dir", "ok": false, "duration_ms": 0.29}
+{"event": "tool_result", "timing_gap_ms": 3318, "tool": "list_dir", "ok": false, "duration_ms": 5.34}
+{"event": "tool_result", "timing_gap_ms": 2992, "tool": "list_dir", "ok": false, "duration_ms": 0.29}
+{"event": "tool_result", "timing_gap_ms": 57828, "tool": "create_tool", "ok": false, "duration_ms": 39.08, "target_tool": "grep_log", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 67997, "tool": "create_tool", "ok": false, "duration_ms": 5804.83, "target_tool": "grep_log", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 20411, "tool": "create_tool", "ok": false, "duration_ms": 10576.69, "target_tool": "grep_log", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 11839, "tool": "create_tool", "ok": false, "duration_ms": 57.95, "target_tool": "grep_log", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 18922, "tool": "list_dir", "ok": false, "duration_ms": 0.17}
+{"event": "tool_result", "timing_gap_ms": 8527, "tool": "list_dir", "ok": false, "duration_ms": 0.25}
+{"event": "cycle_completed", "timing_gap_ms": 95535, "cycle": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 10927, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 238646, "tool": "list_dir", "ok": false, "duration_ms": 0.26}
+{"event": "tool_result", "timing_gap_ms": 2505, "tool": "list_dir", "ok": false, "duration_ms": 0.29}
+{"event": "tool_result", "timing_gap_ms": 8137, "tool": "create_tool", "ok": false, "duration_ms": 3716.11, "target_tool": "log_grep", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 8570, "tool": "create_tool", "ok": false, "duration_ms": 5222.08, "target_tool": "log_grep", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 3936, "tool": "create_tool", "ok": false, "duration_ms": 156.03, "target_tool": "log_grep", "attempts_remaining": 0}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3307, "tool": "create_tool", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 39105, "cycle": 2}
+{"event": "tool_result", "timing_gap_ms": 3905, "tool": "list_dir", "ok": false, "duration_ms": 0.25}
+{"event": "tool_result", "timing_gap_ms": 24287, "tool": "create_tool", "ok": false, "duration_ms": 278.4, "target_tool": "log_grep", "attempts_remaining": 0}
+{"event": "cycle_completed", "timing_gap_ms": 8750, "cycle": 3}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 12485, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 14226, "tool": "create_tool", "ok": false, "duration_ms": 280.29, "target_tool": "log_grep", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 2748, "tool": "read_file", "ok": false, "duration_ms": 5.7}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 2711, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 16234, "cycle": 4}
+{"event": "tool_result", "timing_gap_ms": 15592, "tool": "read_file", "ok": false, "duration_ms": 5.68}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3068, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3385, "tool": "list_dir", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 90746, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 302198, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 47912, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 7351, "tool": "create_tool", "ok": false, "duration_ms": 134.56, "target_tool": "log_grep", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 4991, "tool": "create_tool", "ok": false, "duration_ms": 113.94, "target_tool": "log_grep", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 10694, "tool": "create_tool", "ok": false, "duration_ms": 6793.99, "target_tool": "log_grep", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 6208, "tool": "create_tool", "ok": false, "duration_ms": 42.31, "target_tool": "log_grep", "attempts_remaining": 0}
+{"event": "llm_call_failed", "timing_gap_ms": 38396, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8842, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 29550, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 11465, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 13100, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8009, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 13941, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12490, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8136, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 11890, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12479, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 7616, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 11922, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8879, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 7649, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12045, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 9027, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12857, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8070, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 14010, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8951, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 13059, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8394, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8986, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8494, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 13043, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8476, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 11987, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 7974, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12480, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8055, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12519, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8046, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12000, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8943, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12426, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8038, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8537, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12230, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8252, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 9029, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12410, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12180, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8558, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8319, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12475, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 13344, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12684, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 11928, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12516, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12515, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12019, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12683, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12792, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12560, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 13188, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 13380, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 7872, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 9045, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8515, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 7489, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8504, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12033, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8903, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 7550, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8072, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8953, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 13018, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8452, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12596, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8039, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 13358, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 7600, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8865, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 130179, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 135519, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 129487, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 134288, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 134222, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 130343, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 130512, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 130091, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 33584, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 130883, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 130765, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 130524, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12473, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 129925, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 9486, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 42698, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 131409, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 129906, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 130570, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 129352, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 129887, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 129876, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 129507, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 129650, "error_type": "APITimeoutError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 112662, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 15058, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 5533, "tool": "create_tool", "ok": false, "duration_ms": 122.53, "target_tool": "search_files", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 6822, "tool": "create_tool", "ok": false, "duration_ms": 3251.74, "target_tool": "search_files", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 8314, "tool": "create_tool", "ok": false, "duration_ms": 3714.35, "target_tool": "search_files", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 3992, "tool": "create_tool", "ok": false, "duration_ms": 63.64, "target_tool": "search_files", "attempts_remaining": 0}
+{"event": "cycle_completed", "timing_gap_ms": 8980, "cycle": 1}
+{"event": "llm_call_failed", "timing_gap_ms": 26714, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 8852, "tool": "create_tool", "ok": false, "duration_ms": 107.6, "target_tool": "grep_file", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 7232, "tool": "create_tool", "ok": false, "duration_ms": 4312.83, "target_tool": "grep_file", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 5304, "tool": "create_tool", "ok": false, "duration_ms": 127.07, "target_tool": "grep_file", "attempts_remaining": 0}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3363, "tool": "create_tool", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 6935, "cycle": 2}
+{"event": "tool_result", "timing_gap_ms": 26834, "tool": "create_tool", "ok": false, "duration_ms": 5261.92, "target_tool": "grep_tool", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 12046, "tool": "create_tool", "ok": false, "duration_ms": 3934.29, "target_tool": "grep_tool", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 12942, "tool": "create_tool", "ok": false, "duration_ms": 6240.29, "target_tool": "file_grep", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 17758, "tool": "read_file", "ok": false, "duration_ms": 11.36}
+{"event": "tool_result", "timing_gap_ms": 13678, "tool": "create_tool", "ok": false, "duration_ms": 3582.74, "target_tool": "len_tool", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 13099, "tool": "run_shell", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 7979, "tool": "create_tool", "ok": false, "duration_ms": 3920.66, "target_tool": "grep_tool_v2", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 10556, "tool": "run_shell", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 7377, "cycle": 3}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6115, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 17468, "tool": "read_file", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 6601, "tool": "create_tool", "ok": false, "duration_ms": 74.85, "target_tool": "file_grep", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 5054, "tool": "create_tool", "ok": false, "duration_ms": 2741.58, "target_tool": "file_grep", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 2863, "tool": "create_tool", "ok": false, "duration_ms": 27.87, "target_tool": "file_grep", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 4086, "tool": "create_tool", "ok": false, "duration_ms": 46.11, "target_tool": "file_grep", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 4998890, "tool": "create_tool", "ok": false, "duration_ms": 3756.27, "target_tool": "file_grep", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 44015, "tool": "create_tool", "ok": false, "duration_ms": 6495.21, "target_tool": "file_grep", "attempts_remaining": 1}
+{"event": "cycle_completed", "timing_gap_ms": 90352, "cycle": 1}
+{"event": "cycle_completed", "timing_gap_ms": 106770, "cycle": 2}
+{"event": "tool_result", "timing_gap_ms": 42271, "tool": "create_tool", "ok": false, "duration_ms": 5519.81, "target_tool": "list_systemd_wants", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 15959, "tool": "create_tool", "ok": false, "duration_ms": 6395.09, "target_tool": "list_systemd_wants", "attempts_remaining": 1}
+{"event": "cycle_completed", "timing_gap_ms": 85333, "cycle": 3}
+{"event": "llm_call_failed", "timing_gap_ms": 52381, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 24177, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 61600, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9442, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 23246, "cycle": 4}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 7193, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 168496, "tool": "list_systemd_wants", "ok": false, "duration_ms": 1045.85}
+{"event": "cycle_completed", "timing_gap_ms": 93834, "cycle": 5}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 118167, "tool": "list_dir", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 17432, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 96212, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 16819, "cycle": 6}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 14181, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 18568, "tool": "search_pattern", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 1086540, "cycle": 1}
+{"event": "tool_result", "timing_gap_ms": 76629, "tool": "list_dir", "ok": false, "duration_ms": 13.29}
+{"event": "cycle_completed", "timing_gap_ms": 12209, "cycle": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5423, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6071, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 3504, "tool": "read_file", "ok": false, "duration_ms": 5.55}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3275, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 2369, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3529, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 10437, "tool": "parse_systemd_service", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 12198, "tool": "read_file", "ok": false, "duration_ms": 5.53}
+{"event": "llm_call_failed", "timing_gap_ms": 17058, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 5274, "cycle": 3}
+{"event": "tool_result", "timing_gap_ms": 35379, "tool": "list_dir", "ok": false, "duration_ms": 0.57}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6627, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3339, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 56097, "cycle": 4}
+{"event": "tool_result", "timing_gap_ms": 34350, "tool": "list_dir", "ok": false, "duration_ms": 5.65}
+{"event": "tool_result", "timing_gap_ms": 4578, "tool": "list_dir", "ok": false, "duration_ms": 0.25}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3662, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 4462, "tool": "list_dir", "ok": false, "duration_ms": 0.33}
+{"event": "tool_result", "timing_gap_ms": 6145, "tool": "list_dir", "ok": false, "duration_ms": 0.43}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 14735, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 32972, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3290, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 5740, "cycle": 5}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 37661, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 25745, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 12546, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 63571, "cycle": 6}
+{"event": "tool_result", "timing_gap_ms": 46782, "tool": "list_dir", "ok": false, "duration_ms": 5.44}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 21505, "tool": "update_environment_map", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 15978, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 5655, "cycle": 7}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6306, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 99632, "cycle": 8}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5578, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 53638, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 12713, "tool": "parse_systemd_service", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4112, "tool": "parse_systemd_service", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 2838, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 28647, "cycle": 9}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8832, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5137, "tool": "read_file", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 10964, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 71544, "tool": "list_dir", "ok": false, "duration_ms": 0.28}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 25132, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3868, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 11753, "cycle": 10}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9372, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9035, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 35856, "tool": "read_file", "ok": false, "duration_ms": 0.32}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9973, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 18837, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 41993, "tool": "parse_systemd_service", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 13859, "cycle": 11}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8472, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 18973, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 74403, "cycle": 12}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6492, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 64955, "tool": "parse_systemd_service", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 2847, "tool": "parse_systemd_service", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 35456, "tool": "read_file", "ok": false, "duration_ms": 0.3}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4727, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 4356, "tool": "read_file", "ok": false, "duration_ms": 0.58}
+{"event": "cycle_completed", "timing_gap_ms": 50588, "cycle": 13}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 11149, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 69311, "cycle": 14}
+{"event": "tool_result", "timing_gap_ms": 9692, "tool": "list_dir", "ok": false, "duration_ms": 5.81}
+{"event": "tool_result", "timing_gap_ms": 20882, "tool": "create_tool", "ok": false, "duration_ms": 109.41, "target_tool": "list_all_units", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 11293, "tool": "create_tool", "ok": false, "duration_ms": 5501.58, "target_tool": "list_all_units", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 10486, "tool": "create_tool", "ok": false, "duration_ms": 5572.38, "target_tool": "list_all_units", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 7460, "tool": "create_tool", "ok": false, "duration_ms": 61.83, "target_tool": "list_all_units", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 13964, "tool": "list_dir", "ok": false, "duration_ms": 6.24}
+{"event": "cycle_completed", "timing_gap_ms": 30763, "cycle": 15}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 38684, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 5585, "tool": "read_file", "ok": false, "duration_ms": 5.87}
+{"event": "cycle_completed", "timing_gap_ms": 53706, "cycle": 16}
+{"event": "cycle_completed", "timing_gap_ms": 1625203, "cycle": 1}
+{"event": "cycle_completed", "timing_gap_ms": 102061, "cycle": 2}
+{"event": "llm_call_failed", "timing_gap_ms": 8380, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 29073, "tool": "parse_systemd_service", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 14299, "tool": "parse_systemd_service", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 15617, "tool": "create_tool", "ok": false, "duration_ms": 5499.84, "target_tool": "bulk_systemd_service_parser", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 13472, "tool": "create_tool", "ok": false, "duration_ms": 4553.0, "target_tool": "bulk_systemd_service_parser", "attempts_remaining": 1}
+{"event": "cycle_completed", "timing_gap_ms": 93552, "cycle": 3}
+{"event": "tool_result", "timing_gap_ms": 2260859, "tool": "create_tool", "ok": false, "duration_ms": 6153.69, "target_tool": "bulk_systemd_service_parser", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 12569, "tool": "create_tool", "ok": false, "duration_ms": 5763.69, "target_tool": "bulk_systemd_service_parser", "attempts_remaining": 1}
+{"event": "llm_call_failed", "timing_gap_ms": 20484, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 23906, "tool": "create_tool", "ok": false, "duration_ms": 6667.67, "target_tool": "bulk_systemd_timer_parser", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 12680, "tool": "create_tool", "ok": false, "duration_ms": 4090.91, "target_tool": "bulk_systemd_timer_parser", "attempts_remaining": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3702, "tool": "parse_systemd_timer", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 10672, "tool": "parse_systemd_timer", "ok": false, "duration_ms": 1010.72}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 14000, "tool": "parse_systemd_timer", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 81179, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 1983, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6282, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 4465, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 1377, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 7885, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 4874, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 875, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 7014, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5156, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 800, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8457, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5614, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 1037, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8222, "error_type": "APIConnectionError", "retryable": false}
+{"event": "tool_result", "timing_gap_ms": 1281745, "tool": "update_environment_map", "ok": false, "duration_ms": 6.7}
+{"event": "cycle_completed", "timing_gap_ms": 6608, "cycle": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4413, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 28625, "cycle": 2}
+{"event": "tool_result", "timing_gap_ms": 8438, "tool": "list_dir", "ok": false, "duration_ms": 5.37}
+{"event": "tool_result", "timing_gap_ms": 1501, "tool": "list_dir", "ok": false, "duration_ms": 5.37}
+{"event": "tool_result", "timing_gap_ms": 1450, "tool": "list_dir", "ok": false, "duration_ms": 5.28}
+{"event": "cycle_completed", "timing_gap_ms": 15629, "cycle": 3}
+{"event": "tool_result", "timing_gap_ms": 11127, "tool": "create_tool", "ok": false, "duration_ms": 107.82, "target_tool": "list_installed_packages", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 6124, "tool": "create_tool", "ok": false, "duration_ms": 2363.25, "target_tool": "list_installed_packages", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 6637, "tool": "create_tool", "ok": false, "duration_ms": 3865.37, "target_tool": "list_installed_packages", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 2680, "tool": "create_tool", "ok": false, "duration_ms": 35.35, "target_tool": "list_installed_packages", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 10076, "tool": "create_tool", "ok": false, "duration_ms": 3101.35, "target_tool": "read_installed_packages", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 28390, "cycle": 4}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 12777, "tool": "parse_systemd_service", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 5067, "tool": "list_dir", "ok": false, "duration_ms": 5.34}
+{"event": "tool_result", "timing_gap_ms": 45460, "tool": "create_tool", "ok": false, "duration_ms": 5252.42, "target_tool": "get_service_execstart", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 15452, "cycle": 5}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 41731, "tool": "read_file", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 10192, "tool": "create_tool", "ok": false, "duration_ms": 3190.52, "target_tool": "get_timer_schedule", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 14570, "cycle": 6}
+{"event": "llm_call_failed", "timing_gap_ms": 22164, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8876, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 32955, "cycle": 7}
+{"event": "tool_result", "timing_gap_ms": 11095, "tool": "create_tool", "ok": false, "duration_ms": 3377.37, "target_tool": "get_service_user", "attempts_remaining": 2}
+{"event": "llm_call_failed", "timing_gap_ms": 32865, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 6349, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 1185198, "tool": "dpkg_list_packages", "ok": false, "duration_ms": 581.34}
+{"event": "tool_result", "timing_gap_ms": 38603, "tool": "create_tool", "ok": false, "duration_ms": 5776.77, "target_tool": "file_grep", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 13601, "tool": "file_grep", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 25583, "cycle": 1}
+{"event": "tool_result", "timing_gap_ms": 9034, "tool": "create_tool", "ok": false, "duration_ms": 64.02, "target_tool": "grep_dir_tool", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 29885, "cycle": 2}
+{"event": "cycle_completed", "timing_gap_ms": 6566, "cycle": 3}
+{"event": "tool_result", "timing_gap_ms": 1723915, "tool": "dpkg_list_packages", "ok": false, "duration_ms": 1454.54}
+{"event": "cycle_completed", "timing_gap_ms": 89634, "cycle": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 60404, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4450, "tool": "dpkg_list_packages", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 31170, "cycle": 2}
+{"event": "cycle_completed", "timing_gap_ms": 102759, "cycle": 3}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9177, "tool": "file_grep", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 72884, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 11352, "tool": "update_environment_map", "ok": false, "duration_ms": 54.13}
+{"event": "llm_call_failed", "timing_gap_ms": 11773, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 10310, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 10901, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 209611, "tool": "dpkg_list_packages", "ok": false, "duration_ms": 1546.12}
+{"event": "llm_call_failed", "timing_gap_ms": 20020, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 30161, "cycle": 1}
+{"event": "tool_result", "timing_gap_ms": 72296, "tool": "list_dir", "ok": false, "duration_ms": 5.76}
+{"event": "cycle_completed", "timing_gap_ms": 78057, "cycle": 2}
+{"event": "tool_result", "timing_gap_ms": 14208, "tool": "create_tool", "ok": false, "duration_ms": 4945.59, "target_tool": "list_system_users", "attempts_remaining": 2}
+{"event": "llm_call_failed", "timing_gap_ms": 18746, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 15503, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 33933, "cycle": 3}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 105084, "tool": "get_service_execstart", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 6190, "cycle": 4}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 16630, "tool": "get_service_execstart", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5377, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 87364, "cycle": 5}
+{"event": "cycle_completed", "timing_gap_ms": 49510, "cycle": 6}
+{"event": "tool_result", "timing_gap_ms": 45187, "tool": "list_dir", "ok": false, "duration_ms": 7.37}
+{"event": "cycle_completed", "timing_gap_ms": 22250, "cycle": 7}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 10463, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6136, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4977, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5314, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 49638, "tool": "list_dir", "ok": false, "duration_ms": 5.59}
+{"event": "tool_result", "timing_gap_ms": 8163, "tool": "list_dir", "ok": false, "duration_ms": 0.28}
+{"event": "tool_result", "timing_gap_ms": 5162, "tool": "list_dir", "ok": false, "duration_ms": 5.42}
+{"event": "tool_result", "timing_gap_ms": 6006, "tool": "list_dir", "ok": false, "duration_ms": 5.39}
+{"event": "tool_result", "timing_gap_ms": 5217, "tool": "list_dir", "ok": false, "duration_ms": 5.48}
+{"event": "cycle_completed", "timing_gap_ms": 53050, "cycle": 8}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 24452, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6402, "tool": "parse_systemd_service", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6046, "tool": "parse_systemd_service", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 14013, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 12936, "tool": "list_dir", "ok": false, "duration_ms": 5.55}
+{"event": "cycle_completed", "timing_gap_ms": 10281, "cycle": 9}
+{"event": "tool_result", "timing_gap_ms": 18669, "tool": "create_tool", "ok": false, "duration_ms": 4265.82, "target_tool": "log_grep", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 21086, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6103, "tool": "parse_systemd_service", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8691, "tool": "get_service_execstart", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5074, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 102264, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 45749, "tool": "log_grep", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 9199, "cycle": 10}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 71710, "tool": "parse_systemd_service", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 45201, "tool": "list_dir", "ok": false, "duration_ms": 0.22}
+{"event": "tool_result", "timing_gap_ms": 6000, "tool": "list_dir", "ok": false, "duration_ms": 5.95}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 184650, "tool": "get_timer_schedule", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 117609, "cycle": 11}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 14830, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6284, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 94083, "tool": "get_timer_schedule", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 38187, "cycle": 12}
+{"event": "llm_call_failed", "timing_gap_ms": 17449, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 8130, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 117837, "tool": "create_tool", "ok": false, "duration_ms": 7795.07, "target_tool": "timer_service_schedule_map", "attempts_remaining": 2}
+{"event": "llm_call_failed", "timing_gap_ms": 20187, "error_type": "APIConnectionError", "retryable": false}
+{"event": "tool_result", "timing_gap_ms": 210684, "tool": "list_system_users", "ok": false, "duration_ms": 991.66}
+{"event": "tool_result", "timing_gap_ms": 59395, "tool": "create_tool", "ok": false, "duration_ms": 5992.81, "target_tool": "timer_service_map", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 16546, "tool": "create_tool", "ok": false, "duration_ms": 7536.75, "target_tool": "timer_service_map", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 8585, "tool": "create_tool", "ok": false, "duration_ms": 78.49, "target_tool": "timer_service_map"}
+{"event": "tool_result", "timing_gap_ms": 15283, "tool": "create_tool", "ok": false, "duration_ms": 61.61, "target_tool": "timer_service_map", "attempts_remaining": 0}
+{"event": "cycle_completed", "timing_gap_ms": 9737, "cycle": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 10129, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 126378, "cycle": 2}
+{"event": "tool_result", "timing_gap_ms": 27942, "tool": "create_tool", "ok": false, "duration_ms": 12.02, "target_tool": "timer_service_map", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 5719, "tool": "create_tool", "ok": false, "duration_ms": 15.69, "target_tool": "timer_service_map", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 5410, "tool": "create_tool", "ok": false, "duration_ms": 6.12, "target_tool": "timer_service_map", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 5029, "tool": "create_tool", "ok": false, "duration_ms": 16.68, "target_tool": "timer_service_map", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 4977, "tool": "create_tool", "ok": false, "duration_ms": 23.95, "target_tool": "timer_service_map", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 5872, "tool": "create_tool", "ok": false, "duration_ms": 12.45, "target_tool": "timer_service_map", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 13402, "tool": "create_tool", "ok": false, "duration_ms": 20.24, "target_tool": "timer_service_map", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 5363, "tool": "create_tool", "ok": false, "duration_ms": 16.73, "target_tool": "timer_service_map", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 5347, "tool": "create_tool", "ok": false, "duration_ms": 16.53, "target_tool": "timer_service_map", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 4817, "tool": "create_tool", "ok": false, "duration_ms": 18.09, "target_tool": "timer_service_map", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 6043, "tool": "create_tool", "ok": false, "duration_ms": 16.05, "target_tool": "timer_service_map", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 9988, "tool": "create_tool", "ok": false, "duration_ms": 13.81, "target_tool": "timer_service_map", "attempts_remaining": 0}
+{"event": "llm_call_failed", "timing_gap_ms": 23057, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 18780, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 5079, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 6377, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 1576697, "tool": "dpkg_list_packages", "ok": false, "duration_ms": 1870.85}
+{"event": "cycle_completed", "timing_gap_ms": 29146, "cycle": 1}
+{"event": "cycle_completed", "timing_gap_ms": 92341, "cycle": 2}
+{"event": "tool_result", "timing_gap_ms": 17620, "tool": "create_tool", "ok": false, "duration_ms": 127.48, "target_tool": "todo_tool", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 6934, "tool": "create_tool", "ok": false, "duration_ms": 138.12, "target_tool": "todo_tool", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 7197, "tool": "create_tool", "ok": false, "duration_ms": 131.35, "target_tool": "todo_tool", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 6633, "tool": "create_tool", "ok": false, "duration_ms": 40.84, "target_tool": "todo_tool", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 7149, "tool": "create_tool", "ok": false, "duration_ms": 60.6, "target_tool": "todo_tool", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 6227, "tool": "create_tool", "ok": false, "duration_ms": 17.81, "target_tool": "todo_tool", "attempts_remaining": 0}
+{"event": "cycle_completed", "timing_gap_ms": 36877, "cycle": 3}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 30361, "tool": "get_service_execstart", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 35961, "tool": "parse_systemd_service", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 13967, "cycle": 4}
+{"event": "tool_result", "timing_gap_ms": 76351, "tool": "create_tool", "ok": false, "duration_ms": 3120.53, "target_tool": "parse_mounts", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 38691, "cycle": 5}
+{"event": "llm_call_failed", "timing_gap_ms": 25226, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 19964, "tool": "list_dir", "ok": false, "duration_ms": 5.86}
+{"event": "tool_result", "timing_gap_ms": 6797, "tool": "list_dir", "ok": false, "duration_ms": 5.41}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 14978, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 238157, "cycle": 6}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 25432, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 8731, "cycle": 7}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 10964, "tool": "parse_df", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 24570, "cycle": 8}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 31532, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 52901, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 25202, "cycle": 9}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 10664, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8269, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5005, "tool": "parse_systemd_service", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 85677, "cycle": 10}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 12969, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 15674, "tool": "parse_systemd_service", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5692, "tool": "get_service_execstart", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 96660, "cycle": 11}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 19064, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 91873, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 78710, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 21573, "cycle": 12}
+{"event": "llm_call_failed", "timing_gap_ms": 19733934, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 14557, "tool": "dpkg_list_packages", "ok": false, "duration_ms": 1733.55}
+{"event": "cycle_completed", "timing_gap_ms": 19219, "cycle": 1}
+{"event": "tool_result", "timing_gap_ms": 150617, "tool": "create_tool", "ok": false, "duration_ms": 4614.6, "target_tool": "timer_service_info", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 68837, "cycle": 2}
+{"event": "tool_result", "timing_gap_ms": 15834, "tool": "list_systemd_wants", "ok": false, "duration_ms": 1829.16}
+{"event": "tool_result", "timing_gap_ms": 6791, "tool": "list_dir", "ok": false, "duration_ms": 4.22}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5529, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 28114, "tool": "create_tool", "ok": false, "duration_ms": 5086.25, "target_tool": "timer_service_info", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 24111, "tool": "list_dir", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6123, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6466, "tool": "list_systemd_wants", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 57840, "cycle": 3}
+{"event": "tool_result", "timing_gap_ms": 23523, "tool": "create_tool", "ok": false, "duration_ms": 5019.51, "target_tool": "timer_service_info2", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 27642, "tool": "list_systemd_wants", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 49994, "cycle": 4}
+{"event": "cycle_completed", "timing_gap_ms": 12740, "cycle": 5}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 10822, "tool": "list_system_users", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 44224, "tool": "run_shell", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 29819, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 58052, "tool": "run_shell", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 45271, "cycle": 6}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 79027, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5012, "tool": "list_systemd_wants", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 24052, "cycle": 7}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 32932, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 115004, "tool": "timer_service_info", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 75518, "cycle": 8}
+{"event": "cycle_completed", "timing_gap_ms": 27023, "cycle": 9}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 7781, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5239, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 24758, "tool": "list_systemd_wants", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 24087, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 25456, "cycle": 10}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8380, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 40390, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 10148, "cycle": 11}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8013, "tool": "list_systemd_wants", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3756, "tool": "list_systemd_wants", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6895, "tool": "list_systemd_wants", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4137, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 4757, "tool": "list_dir", "ok": false, "duration_ms": 0.3}
+{"event": "cycle_completed", "timing_gap_ms": 37998, "cycle": 12}
+{"event": "tool_result", "timing_gap_ms": 16152, "tool": "list_dir", "ok": false, "duration_ms": 0.34}
+{"event": "tool_result", "timing_gap_ms": 3785, "tool": "list_dir", "ok": false, "duration_ms": 0.35}
+{"event": "tool_result", "timing_gap_ms": 4890, "tool": "list_dir", "ok": false, "duration_ms": 0.31}
+{"event": "tool_result", "timing_gap_ms": 22752, "tool": "list_dir", "ok": false, "duration_ms": 0.32}
+{"event": "cycle_completed", "timing_gap_ms": 6105, "cycle": 13}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8154, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 7461, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 17941, "tool": "read_file", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 10575, "tool": "update_environment_map", "ok": false, "duration_ms": 15.32}
+{"event": "cycle_completed", "timing_gap_ms": 4693, "cycle": 14}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6237, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 38445, "tool": "list_system_users", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 64577, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4042, "tool": "timer_service_info", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 15455, "cycle": 15}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 7266, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4202, "tool": "read_file", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12417, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 43080, "tool": "parse_ifconfig", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 22837, "tool": "timer_service_info", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8908, "tool": "list_systemd_wants", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4093, "tool": "list_systemd_wants", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 8559, "cycle": 16}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6918, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 48330, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 5872, "cycle": 17}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 7808, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4571, "tool": "list_systemd_wants", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9388, "tool": "get_service_execstart", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4169, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 8509, "cycle": 18}
+{"event": "tool_result", "timing_gap_ms": 5972, "tool": "probe_local_ollama", "ok": false, "duration_ms": 140.4}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3800, "tool": "read_file", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 13712, "tool": "read_file", "ok": false, "duration_ms": 0.58}
+{"event": "tool_result", "timing_gap_ms": 3687, "tool": "list_dir", "ok": false, "duration_ms": 0.53}
+{"event": "llm_call_failed", "timing_gap_ms": 23218, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 12197, "tool": "parse_mounts", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 30716, "cycle": 19}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 7977, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4069, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 46279, "cycle": 20}
+{"event": "cycle_completed", "timing_gap_ms": 7543, "cycle": 21}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6021, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 16783, "tool": "parse_service_execstarts", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3870, "tool": "dpkg_list_packages", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8599, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4148, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 8933, "cycle": 22}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 11289, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 12444, "tool": "create_tool", "ok": false, "duration_ms": 2771.98, "target_tool": "get_env_var", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 7151, "tool": "create_tool", "ok": false, "duration_ms": 2314.14, "target_tool": "list_env_vars", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 26021, "tool": "dpkg_list_packages", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 5797, "cycle": 23}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 15614, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4521, "tool": "parse_service_execstarts", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4167, "tool": "read_file", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 10889, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 19716, "tool": "get_service_execstart", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 6961, "cycle": 24}
+{"event": "cycle_completed", "timing_gap_ms": 6593, "cycle": 25}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 7909, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 28567, "tool": "parse_service_execstarts", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3817, "tool": "list_installed_packages", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 15218, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 14617, "tool": "list_system_users", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 5295, "cycle": 26}
+{"event": "cycle_completed", "timing_gap_ms": 5661, "cycle": 27}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6427, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3512, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 34961, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 15763, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 16430, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 6333, "cycle": 28}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8978, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9217, "tool": "timer_service_info", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 18061, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4449, "tool": "run_shell", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5080, "tool": "list_systemd_wants", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4969, "tool": "list_systemd_wants", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 10142, "tool": "create_tool", "ok": false, "duration_ms": 2440.13, "target_tool": "list_timers", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 18884, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4245, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 11193, "cycle": 29}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 24786, "tool": "run_tool", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4523, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 28167, "cycle": 30}
+{"event": "cycle_completed", "timing_gap_ms": 8883, "cycle": 31}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9125, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9210, "tool": "list_env_vars", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 28986, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 16823, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 5085, "cycle": 32}
+{"event": "llm_call_failed", "timing_gap_ms": 37576, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 5669, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 1000058, "cycle": 1}
+{"event": "tool_result", "timing_gap_ms": 18030, "tool": "read_file", "ok": false, "duration_ms": 0.6}
+{"event": "tool_result", "timing_gap_ms": 51560, "tool": "list_dir", "ok": false, "duration_ms": 6.31}
+{"event": "tool_result", "timing_gap_ms": 6821, "tool": "list_dir", "ok": false, "duration_ms": 0.66}
+{"event": "cycle_completed", "timing_gap_ms": 60308, "cycle": 1}
+{"event": "tool_result", "timing_gap_ms": 15769, "tool": "create_tool", "ok": false, "duration_ms": 3010.46, "target_tool": "list_installed_debian_packages", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 11142, "tool": "create_tool", "ok": false, "duration_ms": 4879.29, "target_tool": "list_installed_debian_packages", "attempts_remaining": 1}
+{"event": "cycle_completed", "timing_gap_ms": 40862, "cycle": 1}
+{"event": "cycle_completed", "timing_gap_ms": 470889, "cycle": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 107499, "tool": "list_system_groups", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 24438, "cycle": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 21792, "tool": "list_system_groups", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6770, "tool": "list_system_groups", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 25331, "tool": "list_env_vars", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 31554, "cycle": 3}
+{"event": "tool_result", "timing_gap_ms": 11813, "tool": "list_system_users", "ok": false, "duration_ms": 1242.63}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4726, "tool": "list_system_users", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 58061, "tool": "list_systemd_wants", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 46407, "cycle": 4}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 21688, "tool": "list_systemd_wants", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6480, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5799, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 30023, "tool": "create_tool", "ok": false, "duration_ms": 4814.24, "target_tool": "list_installed_packages_custom", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 13355, "tool": "create_tool", "ok": false, "duration_ms": 4231.22, "target_tool": "list_installed_packages_custom", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 11154, "tool": "create_tool", "ok": false, "duration_ms": 3521.5, "target_tool": "list_installed_packages_custom", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 6594, "tool": "create_tool", "ok": false, "duration_ms": 52.8, "target_tool": "list_installed_packages_custom", "attempts_remaining": 0}
+{"event": "cycle_completed", "timing_gap_ms": 25636, "cycle": 5}
+{"event": "tool_result", "timing_gap_ms": 31629, "tool": "create_tool", "ok": false, "duration_ms": 4246.29, "target_tool": "list_installed_packages_simple", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 44361, "tool": "list_systemd_wants", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 44135, "cycle": 6}
+{"event": "tool_result", "timing_gap_ms": 71201, "tool": "update_environment_map", "ok": false, "duration_ms": 0.13}
+{"event": "cycle_completed", "timing_gap_ms": 19618, "cycle": 7}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 14220, "tool": "list_systemd_wants", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 10929, "tool": "list_systemd_wants", "ok": false, "duration_ms": 1821.63}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9040, "tool": "list_systemd_wants", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 16667, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 52322, "tool": "list_system_users", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 25829, "cycle": 8}
+{"event": "tool_result", "timing_gap_ms": 15941, "tool": "list_systemd_wants", "ok": false, "duration_ms": 2034.12}
+{"event": "tool_result", "timing_gap_ms": 10100, "tool": "list_systemd_wants", "ok": false, "duration_ms": 1908.24}
+{"event": "cycle_completed", "timing_gap_ms": 43641, "cycle": 9}
+{"event": "tool_result", "timing_gap_ms": 62191, "tool": "create_tool", "ok": false, "duration_ms": 4528.46, "target_tool": "retry_shell", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 40565, "cycle": 10}
+{"event": "cycle_completed", "timing_gap_ms": 313989, "cycle": 1}
+{"event": "llm_call_failed", "timing_gap_ms": 247478, "error_type": "APITimeoutError", "retryable": false}
+{"event": "cycle_completed", "timing_gap_ms": 104461, "cycle": 1}
+{"event": "llm_call_failed", "timing_gap_ms": 91673, "error_type": "APIConnectionError", "retryable": false}
+{"event": "tool_result", "timing_gap_ms": 123745, "tool": "dpkg_list_packages", "ok": false, "duration_ms": 1979.91}
+{"event": "cycle_completed", "timing_gap_ms": 12867, "cycle": 1}
+{"event": "tool_result", "timing_gap_ms": 23358, "tool": "create_tool", "ok": false, "duration_ms": 4657.58, "target_tool": "parse_systemd_timer", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 14036, "tool": "create_tool", "ok": false, "duration_ms": 4264.64, "target_tool": "parse_systemd_timer", "attempts_remaining": 1}
+{"event": "cycle_completed", "timing_gap_ms": 121458, "cycle": 2}
+{"event": "tool_result", "timing_gap_ms": 25456, "tool": "create_tool", "ok": false, "duration_ms": 126.64, "target_tool": "parse_systemd_timer", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 115763, "cycle": 3}
+{"event": "cycle_completed", "timing_gap_ms": 31977, "cycle": 4}
+{"event": "cycle_completed", "timing_gap_ms": 13065, "cycle": 5}
+{"event": "cycle_completed", "timing_gap_ms": 11965, "cycle": 6}
+{"event": "llm_call_failed", "timing_gap_ms": 56578, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 102967, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 7604, "cycle": 7}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 23962, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 7704, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 7917, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 52848, "cycle": 8}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 10942, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 25481, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5626, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5432, "tool": "read_file", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 18260, "tool": "list_dir", "ok": false, "duration_ms": 3.69}
+{"event": "tool_result", "timing_gap_ms": 9268, "tool": "list_dir", "ok": false, "duration_ms": 6.31}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 18700, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6553, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 32052, "cycle": 9}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 12143, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 32654, "cycle": 10}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 15006, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 51466, "tool": "parse_service_execstarts", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 106563, "cycle": 11}
+{"event": "tool_result", "timing_gap_ms": 25695, "tool": "create_tool", "ok": false, "duration_ms": 5455.97, "target_tool": "parse_timer_file", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 29853, "tool": "create_tool", "ok": false, "duration_ms": 4871.33, "target_tool": "web_search_url", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 24716, "cycle": 12}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 59054, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 14927, "cycle": 13}
+{"event": "llm_call_failed", "timing_gap_ms": 17645, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 5845, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 7925, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 41564, "tool": "list_dir", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 28008, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 26509, "cycle": 1}
+{"event": "llm_call_failed", "timing_gap_ms": 42540, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 62839, "cycle": 2}
+{"event": "cycle_completed", "timing_gap_ms": 77510, "cycle": 3}
+{"event": "tool_result", "timing_gap_ms": 15876, "tool": "create_tool", "ok": false, "duration_ms": 4489.23, "target_tool": "parse_all_timer_schedules", "attempts_remaining": 2}
+{"event": "llm_call_failed", "timing_gap_ms": 35954, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 18906, "cycle": 4}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 17670, "tool": "get_service_execstart", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 17152, "cycle": 5}
+{"event": "tool_result", "timing_gap_ms": 60245, "tool": "create_tool", "ok": false, "duration_ms": 84.01, "target_tool": "run_with_retry", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 8827, "tool": "create_tool", "ok": false, "duration_ms": 108.18, "target_tool": "run_with_retry", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 8087, "tool": "create_tool", "ok": false, "duration_ms": 3433.4, "target_tool": "run_with_retry", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 7584, "tool": "create_tool", "ok": false, "duration_ms": 61.89, "target_tool": "run_with_retry", "attempts_remaining": 0}
+{"event": "cycle_completed", "timing_gap_ms": 6790, "cycle": 6}
+{"event": "tool_result", "timing_gap_ms": 11438, "tool": "run_shell", "ok": false, "duration_ms": 0.13}
+{"event": "tool_result", "timing_gap_ms": 6010, "tool": "run_shell", "ok": false, "duration_ms": 0.07}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8968, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 12092, "tool": "read_file", "ok": false, "duration_ms": 5.48}
+{"event": "cycle_completed", "timing_gap_ms": 31878, "cycle": 7}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 21618, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5161, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 24196, "tool": "read_file", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 23219, "tool": "create_tool", "ok": false, "duration_ms": 84.01, "target_tool": "parse_proc_net_tcp", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 15098, "tool": "create_tool", "ok": false, "duration_ms": 3701.69, "target_tool": "parse_proc_net_tcp", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 10148, "tool": "create_tool", "ok": false, "duration_ms": 5351.25, "target_tool": "parse_proc_net_tcp", "attempts_remaining": 0}
+{"event": "cycle_completed", "timing_gap_ms": 5537, "cycle": 8}
+{"event": "tool_result", "timing_gap_ms": 11506, "tool": "create_tool", "ok": false, "duration_ms": 54.02, "target_tool": "parse_proc_net_tcp", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 10594, "tool": "create_tool", "ok": false, "duration_ms": 4611.81, "target_tool": "proc_net_tcp_parser", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 14110, "tool": "create_tool", "ok": false, "duration_ms": 5716.3, "target_tool": "proc_net_tcp_parser2", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 58305, "cycle": 9}
+{"event": "tool_result", "timing_gap_ms": 15525, "tool": "create_tool", "ok": false, "duration_ms": 90.6, "target_tool": "timer_next_run", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 8108, "tool": "create_tool", "ok": false, "duration_ms": 111.78, "target_tool": "timer_next_run", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 7743, "tool": "create_tool", "ok": false, "duration_ms": 507.55, "target_tool": "timer_next_run", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 6302, "tool": "create_tool", "ok": false, "duration_ms": 60.66, "target_tool": "timer_next_run", "attempts_remaining": 0}
+{"event": "llm_call_failed", "timing_gap_ms": 18524, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 5917, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 7974, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 25450, "cycle": 1}
+{"event": "llm_call_failed", "timing_gap_ms": 93019, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 8434, "cycle": 2}
+{"event": "tool_result", "timing_gap_ms": 24006, "tool": "list_dir", "ok": false, "duration_ms": 5.34}
+{"event": "tool_result", "timing_gap_ms": 4657, "tool": "list_dir", "ok": false, "duration_ms": 0.18}
+{"event": "tool_result", "timing_gap_ms": 4249, "tool": "list_dir", "ok": false, "duration_ms": 2.36}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 28083, "tool": "proc_tcp_parser", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 31508, "cycle": 3}
+{"event": "tool_result", "timing_gap_ms": 12161, "tool": "create_tool", "ok": false, "duration_ms": 27.37, "target_tool": "timer_next_run", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 12825, "tool": "create_tool", "ok": false, "duration_ms": 4426.49, "target_tool": "timer_next_run", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 9651, "tool": "create_tool", "ok": false, "duration_ms": 4421.37, "target_tool": "timer_next_run", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 9032, "tool": "create_tool", "ok": false, "duration_ms": 57.68, "target_tool": "timer_next_run", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 11577, "tool": "create_tool", "ok": false, "duration_ms": 4605.22, "target_tool": "next_run_e2scrub", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 73259, "cycle": 4}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 11387, "tool": "parse_all_service_deps", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5172, "tool": "proc_tcp_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 10458, "tool": "read_file", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 72998265, "tool": "create_tool", "ok": false, "duration_ms": 65.25, "target_tool": "read_multiple_files", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 7513, "tool": "create_tool", "ok": false, "duration_ms": 2335.19, "target_tool": "read_multiple_files", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 7237, "tool": "create_tool", "ok": false, "duration_ms": 3065.53, "target_tool": "read_multiple_files", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 5479, "tool": "create_tool", "ok": false, "duration_ms": 30.11, "target_tool": "read_multiple_files", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 4465, "tool": "read_file", "ok": false, "duration_ms": 5.33}
+{"event": "cycle_completed", "timing_gap_ms": 23558, "cycle": 1}
+{"event": "tool_result", "timing_gap_ms": 14037, "tool": "dpkg_list_packages", "ok": false, "duration_ms": 1008.41}
+{"event": "cycle_completed", "timing_gap_ms": 16026, "cycle": 2}
+{"event": "tool_result", "timing_gap_ms": 12822, "tool": "list_dir", "ok": false, "duration_ms": 0.16}
+{"event": "cycle_completed", "timing_gap_ms": 44540, "cycle": 3}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8579, "tool": "run_shell", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 26388, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 3067, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 16302, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 17593, "cycle": 4}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 29523, "tool": "list_env_vars", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 5007, "cycle": 5}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 7194, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 49294, "cycle": 6}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9145, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4955, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 48900, "cycle": 7}
+{"event": "cycle_completed", "timing_gap_ms": 6927, "cycle": 8}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9143, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 15443, "tool": "list_timers", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9003, "tool": "dpkg_list_packages", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 7050, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 12931, "cycle": 9}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 7031, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3525, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 2909, "tool": "read_file", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 6060, "tool": "create_tool", "ok": false, "duration_ms": 0.05}
+{"event": "tool_result", "timing_gap_ms": 4309, "tool": "create_tool", "ok": false, "duration_ms": 51.16, "target_tool": "parse_cron_dir", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 9211, "tool": "create_tool", "ok": false, "duration_ms": 3487.45, "target_tool": "parse_cron_dir", "attempts_remaining": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 16007, "tool": "parse_cron_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 5913, "cycle": 10}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8548, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3182, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 37448, "tool": "parse_service_execstarts", "ok": false, "duration_ms": 628.14}
+{"event": "cycle_completed", "timing_gap_ms": 14358, "cycle": 11}
+{"event": "cycle_completed", "timing_gap_ms": 33499, "cycle": 12}
+{"event": "tool_result", "timing_gap_ms": 25244, "tool": "create_tool", "ok": false, "duration_ms": 0.07}
+{"event": "tool_result", "timing_gap_ms": 9445, "tool": "create_tool", "ok": false, "duration_ms": 3592.46, "target_tool": "parse_cron_dir", "attempts_remaining": 2}
+{"event": "llm_call_failed", "timing_gap_ms": 32284, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 1591, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 11723, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8062, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 792, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6800, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6029, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 1108, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 10786, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5592, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 1003, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6933, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5323, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 1217, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6427, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 9607, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 914, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 7112, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5157, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 1329, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6837, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6757, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 1047, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6259, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5287, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 1482, "error_type": "APIConnectionError", "retryable": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 33742, "tool": "list_installed_debian_packages", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 56082, "tool": "read_file", "ok": false, "duration_ms": 6.08}
+{"event": "tool_result", "timing_gap_ms": 3715, "tool": "read_file", "ok": false, "duration_ms": 5.87}
+{"event": "cycle_completed", "timing_gap_ms": 49435, "cycle": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 32515, "tool": "parse_ifconfig", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 4265, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 52517, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 17399, "cycle": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 10955, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 17659, "tool": "create_tool", "ok": false, "duration_ms": 2419.85, "target_tool": "parse_installed_packages", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 16611, "tool": "run_tool", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 10991, "tool": "read_file", "ok": false, "duration_ms": 0.15}
+{"event": "tool_result", "timing_gap_ms": 10466, "tool": "read_file", "ok": false, "duration_ms": 0.19}
+{"event": "cycle_completed", "timing_gap_ms": 6542, "cycle": 3}
+{"event": "cycle_completed", "timing_gap_ms": 7242, "cycle": 4}
+{"event": "cycle_completed", "timing_gap_ms": 32987, "cycle": 5}
+{"event": "tool_result", "timing_gap_ms": 16678, "tool": "create_tool", "ok": false, "duration_ms": 2959.88, "target_tool": "get_passwd_entries", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 55881, "cycle": 6}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 39632, "tool": "list_dir", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 18421, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 4030, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 72890, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 823, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 13111, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 10685, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 1391, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 7851, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6849, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 1163, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 10973, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5833, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 676, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6890, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 9555, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 1064, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6467, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5493, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5463, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6949, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5417, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 1150, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 11069, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5411, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 1464, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 7095, "error_type": "APIConnectionError", "retryable": false}
+{"event": "tool_result", "timing_gap_ms": 19735, "tool": "create_tool", "ok": false, "duration_ms": 4927.58, "target_tool": "list_dir_recursive", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 6251, "tool": "create_tool", "ok": false, "duration_ms": 106.77, "target_tool": "list_dir_recursive", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 10812, "tool": "create_tool", "ok": false, "duration_ms": 4485.26, "target_tool": "list_dir_recursive", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 6976, "tool": "create_tool", "ok": false, "duration_ms": 391.96, "target_tool": "list_dir_recursive", "attempts_remaining": 0}
+{"event": "cycle_completed", "timing_gap_ms": 34384, "cycle": 1}
+{"event": "llm_call_failed", "timing_gap_ms": 23300, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 5930, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 6324, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 26189, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 9879, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5113, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 10622, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 9380, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5248, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 11304, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 9917, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5026, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 11565, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 9425, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5394, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 10693, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 9319, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 4669, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 10980, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 9486, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5479, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 10865, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 10240, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5333, "error_type": "APIConnectionError", "retryable": false}
+{"event": "tool_result", "timing_gap_ms": 31537, "tool": "create_tool", "ok": false, "duration_ms": 5064.81, "target_tool": "list_dir_recursive", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 8702, "tool": "create_tool", "ok": false, "duration_ms": 3765.07, "target_tool": "list_dir_recursive", "attempts_remaining": 1}
+{"event": "cycle_completed", "timing_gap_ms": 38703, "cycle": 1}
+{"event": "llm_call_failed", "timing_gap_ms": 123938, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8565, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 11251, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 13453, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5606, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 11002, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 13363, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 2793, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 14758, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 935399, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8289, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 14720, "error_type": "APIConnectionError", "retryable": false}
+{"event": "tool_result", "timing_gap_ms": 32625, "tool": "create_tool", "ok": false, "duration_ms": 4519.71, "target_tool": "list_dir_recursive", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 14581, "tool": "create_tool", "ok": false, "duration_ms": 5553.95, "target_tool": "list_dir_recursive", "attempts_remaining": 1}
+{"event": "cycle_completed", "timing_gap_ms": 203949, "cycle": 1}
+{"event": "cycle_completed", "timing_gap_ms": 18101, "cycle": 2}
+{"event": "tool_result", "timing_gap_ms": 117729, "tool": "parse_service_execstarts", "ok": false, "duration_ms": 2517.73}
+{"event": "cycle_completed", "timing_gap_ms": 135619, "cycle": 3}
+{"event": "tool_result", "timing_gap_ms": 72037, "tool": "create_tool", "ok": false, "duration_ms": 8108.02, "target_tool": "list_dir_recursive_safe", "attempts_remaining": 2}
+{"event": "llm_call_failed", "timing_gap_ms": 94518, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 8043, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 16309, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 16973, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6533, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 93224, "error_type": "APIConnectionError", "retryable": false}
+{"event": "tool_result", "timing_gap_ms": 97, "tool": "create_tool", "ok": false, "duration_ms": 20809.65, "target_tool": "env_vars"}
+{"event": "llm_call_failed", "timing_gap_ms": 6073, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 4001, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 20556, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 18523, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6561, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 18391, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 16484, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6042, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 16763, "error_type": "APIConnectionError", "retryable": false}
+{"event": "tool_result", "timing_gap_ms": 37678, "tool": "create_tool", "ok": false, "duration_ms": 8703.07, "target_tool": "list_files_recursive", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 17338, "tool": "create_tool", "ok": false, "duration_ms": 5344.27, "target_tool": "list_files_recursive", "attempts_remaining": 1}
+{"event": "llm_call_failed", "timing_gap_ms": 58405, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 5537, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 16575, "tool": "list_files_safe", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 37422, "cycle": 1}
+{"event": "tool_result", "timing_gap_ms": 73793, "tool": "create_tool", "ok": false, "duration_ms": 7874.73, "target_tool": "list_files_safe", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 258563, "cycle": 2}
+{"event": "cycle_completed", "timing_gap_ms": 18914, "cycle": 3}
+{"event": "cycle_completed", "timing_gap_ms": 19136, "cycle": 4}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 85211, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 9373, "cycle": 5}
+{"event": "tool_result", "timing_gap_ms": 80742, "tool": "list_dir", "ok": false, "duration_ms": 5.91}
+{"event": "tool_result", "timing_gap_ms": 25965, "tool": "create_tool", "ok": false, "duration_ms": 6903.22, "target_tool": "python_code_analysis", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 79757, "cycle": 6}
+{"event": "cycle_completed", "timing_gap_ms": 23295, "cycle": 7}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 114018, "tool": "list_env_vars", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 13995, "cycle": 8}
+{"event": "llm_call_failed", "timing_gap_ms": 75982, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 233741, "tool": "read_file", "ok": false, "duration_ms": 6.05}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 10557, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 12269, "cycle": 9}
+{"event": "cycle_completed", "timing_gap_ms": 19293, "cycle": 10}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 35682, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 23609, "tool": "list_env_vars", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 83928, "cycle": 11}
+{"event": "cycle_completed", "timing_gap_ms": 20618, "cycle": 12}
+{"event": "cycle_completed", "timing_gap_ms": 16513, "cycle": 13}
+{"event": "tool_result", "timing_gap_ms": 43452, "tool": "create_tool", "ok": false, "duration_ms": 9217.09, "target_tool": "list_all_files", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 20094, "tool": "create_tool", "ok": false, "duration_ms": 5113.51, "target_tool": "list_all_files", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 22114, "tool": "create_tool", "ok": false, "duration_ms": 6778.85, "target_tool": "list_all_files", "attempts_remaining": 0}
+{"event": "llm_call_failed", "timing_gap_ms": 30511, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 92329, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 4723, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 165185, "cycle": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 18421, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 24432, "tool": "parse_all_service_deps", "ok": false, "duration_ms": 3191.82}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8697, "tool": "parse_all_service_deps", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 114704, "cycle": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 75497, "tool": "parse_all_service_deps", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8289, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 105366, "cycle": 3}
+{"event": "cycle_completed", "timing_gap_ms": 280277, "cycle": 4}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 20255, "tool": "list_dir", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 338877, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 1340595, "error_type": "NotFoundError", "retryable": false}
+{"event": "tool_result", "timing_gap_ms": 243, "tool": "probe_model", "ok": false, "duration_ms": 1641.91}
+{"event": "llm_call_failed", "timing_gap_ms": 19710, "error_type": "NotFoundError", "retryable": false}
+{"event": "tool_result", "timing_gap_ms": 218, "tool": "probe_model", "ok": false, "duration_ms": 1622.06}
+{"event": "llm_call_failed", "timing_gap_ms": 50407, "error_type": "APIConnectionError", "retryable": false}
+{"event": "cycle_completed", "timing_gap_ms": 44076, "cycle": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 34307, "tool": "list_installed_debian_packages", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 13726, "tool": "create_tool", "ok": false, "duration_ms": 3266.99, "target_tool": "recursive_list_dir", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 14414, "tool": "create_tool", "ok": false, "duration_ms": 4129.64, "target_tool": "recursive_list_dir", "attempts_remaining": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 33813, "tool": "recursive_list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 5901041, "tool": "ask_model", "ok": false, "duration_ms": 0.19}
+{"event": "tool_result", "timing_gap_ms": 4990, "tool": "ask_model", "ok": false, "duration_ms": 31.66}
+{"event": "cycle_completed", "timing_gap_ms": 67992, "cycle": 1}
+{"event": "cycle_completed", "timing_gap_ms": 69461, "cycle": 2}
+{"event": "cycle_completed", "timing_gap_ms": 94667, "cycle": 3}
+{"event": "tool_result", "timing_gap_ms": 8751, "tool": "list_systemd_wants", "ok": false, "duration_ms": 1600.92}
+{"event": "tool_result", "timing_gap_ms": 30820, "tool": "create_tool", "ok": false, "duration_ms": 5047.78, "target_tool": "build_service_timer_graph", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 11787, "tool": "create_tool", "ok": false, "duration_ms": 5037.87, "target_tool": "build_service_timer_graph", "attempts_remaining": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 42158, "tool": "build_service_timer_graph", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 5323, "cycle": 4}
+{"event": "tool_result", "timing_gap_ms": 28000, "tool": "read_file", "ok": false, "duration_ms": 5.49}
+{"event": "llm_call_failed", "timing_gap_ms": 14518, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 12045, "tool": "read_file", "ok": false, "duration_ms": 0.36}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3990, "tool": "read_file", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5654, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 6180, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 11120, "tool": "search", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 12994, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 14057, "tool": "create_tool", "ok": false, "duration_ms": 4319.82, "target_tool": "combine_timer_service_info", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 12401, "tool": "create_tool", "ok": false, "duration_ms": 6012.62, "target_tool": "combine_timer_service_info", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 18293, "tool": "ask_model", "ok": false, "duration_ms": 56.32}
+{"event": "tool_result", "timing_gap_ms": 6700, "tool": "update_environment_map", "ok": false, "duration_ms": 0.06}
+{"event": "cycle_completed", "timing_gap_ms": 11048, "cycle": 5}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8200, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5549, "tool": "read_file", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 25278, "tool": "ask_model", "ok": false, "duration_ms": 8.74}
+{"event": "cycle_completed", "timing_gap_ms": 17480, "cycle": 6}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 12573, "tool": "read_file", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 18138, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 35598, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6910, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 17785, "cycle": 7}
+{"event": "tool_result", "timing_gap_ms": 32947, "tool": "create_tool", "ok": false, "duration_ms": 5462.25, "target_tool": "extract_service_after", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 17575, "tool": "ask_model", "ok": false, "duration_ms": 60.56}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5499, "tool": "list_models", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 32534, "tool": "ask_model", "ok": false, "duration_ms": 77.29}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 22436, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 34101, "cycle": 8}
+{"event": "tool_result", "timing_gap_ms": 15663, "tool": "create_tool", "ok": false, "duration_ms": 3834.31, "target_tool": "extract_service_after", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 14547, "tool": "read_file", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 65035, "tool": "create_tool", "ok": false, "duration_ms": 3534.83, "target_tool": "merge_timer_full_info", "attempts_remaining": 2}
+{"event": "llm_call_failed", "timing_gap_ms": 52616, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 6223, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 54578, "cycle": 9}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 17301, "tool": "read_file", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 58919, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 10855, "cycle": 10}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 10755, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 12333, "tool": "read_file", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 47522, "tool": "create_tool", "ok": false, "duration_ms": 5013.74, "target_tool": "timer_summary", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 55116, "cycle": 11}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8966, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5865, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 10989, "tool": "read_file", "ok": false, "duration_ms": 6.62}
+{"event": "cycle_completed", "timing_gap_ms": 33623, "cycle": 12}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 11062, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6051, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 28918, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6952, "tool": "run_shell", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4999, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 48746, "tool": "create_tool", "ok": false, "duration_ms": 0.06}
+{"event": "cycle_completed", "timing_gap_ms": 8760, "cycle": 13}
+{"event": "tool_result", "timing_gap_ms": 29916, "tool": "create_tool", "ok": false, "duration_ms": 4738.2, "target_tool": "recursive_list_dir", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 26568, "tool": "recursive_list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 56552, "cycle": 14}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9111, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 55143, "cycle": 15}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 48185, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4482, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 19915, "tool": "create_tool", "ok": false, "duration_ms": 6312.72, "target_tool": "get_service_info", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 21782, "tool": "ask_model", "ok": false, "duration_ms": 29.61}
+{"event": "cycle_completed", "timing_gap_ms": 29661, "cycle": 16}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8713, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 24416, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5025, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5376, "tool": "read_file", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 34826, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 6391, "tool": "update_environment_map", "ok": false, "duration_ms": 0.07}
+{"event": "cycle_completed", "timing_gap_ms": 40874, "cycle": 17}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 17576, "tool": "list_systemd_units", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5029, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5818, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 12043, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 10987, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 3433, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 52563, "tool": "read_file", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 17065, "tool": "create_tool", "ok": false, "duration_ms": 0.06}
+{"event": "tool_result", "timing_gap_ms": 10613, "tool": "create_tool", "ok": false, "duration_ms": 5012.0, "target_tool": "service_dep_query", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 10311, "tool": "create_tool", "ok": false, "duration_ms": 3868.01, "target_tool": "service_dep_query", "attempts_remaining": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 4101, "tool": "read_file", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 71309, "tool": "create_tool", "ok": false, "duration_ms": 4681.95, "target_tool": "service_dep_query", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 6909, "tool": "create_tool", "ok": false, "duration_ms": 51.36, "target_tool": "service_dep_query", "attempts_remaining": 0}
+{"event": "cycle_completed", "timing_gap_ms": 15447, "cycle": 18}
+{"event": "tool_result", "timing_gap_ms": 13560, "tool": "create_tool", "ok": false, "duration_ms": 61.26, "target_tool": "service_dep_query", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 9424, "tool": "create_tool", "ok": false, "duration_ms": 36.09, "target_tool": "service_dep_query", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 11362, "tool": "create_tool", "ok": false, "duration_ms": 4698.97, "target_tool": "read_json", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 89478, "tool": "create_tool", "ok": false, "duration_ms": 5365.08, "target_tool": "service_dep_graph_to_dot", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 30544, "cycle": 19}
+{"event": "tool_result", "timing_gap_ms": 20429, "tool": "create_tool", "ok": false, "duration_ms": 5566.49, "target_tool": "read_json", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 35060, "tool": "read_file", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 33047, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 14086, "cycle": 20}
+{"event": "cycle_completed", "timing_gap_ms": 11636, "cycle": 21}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 39203, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6258, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 42033, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 12636, "tool": "create_tool", "ok": false, "duration_ms": 3605.24, "target_tool": "service_dep_graph_to_dot", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 20181, "tool": "ask_model", "ok": false, "duration_ms": 66.01}
+{"event": "cycle_completed", "timing_gap_ms": 27825, "cycle": 22}
+{"event": "tool_result", "timing_gap_ms": 23236, "tool": "create_tool", "ok": false, "duration_ms": 5443.01, "target_tool": "service_dep_graph_to_dot", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 11752, "tool": "create_tool", "ok": false, "duration_ms": 5338.5, "target_tool": "service_dep_graph_to_dot", "attempts_remaining": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5585, "tool": "list_dir", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 22044368, "error_type": "APIConnectionError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 88895, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 26220, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 14837, "tool": "create_tool", "ok": false, "duration_ms": 6591.67, "target_tool": "env_mapper", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 27820, "tool": "ask_model", "ok": false, "duration_ms": 0.12}
+{"event": "cycle_completed", "timing_gap_ms": 85438, "cycle": 1}
+{"event": "tool_result", "timing_gap_ms": 98653, "tool": "read_file", "ok": false, "duration_ms": 0.13}
+{"event": "llm_call_failed", "timing_gap_ms": 25261, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 138649, "cycle": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 13845, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 18069, "tool": "read_file", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 49538, "tool": "create_tool", "ok": false, "duration_ms": 6894.6, "target_tool": "mount_summary", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 41730, "tool": "create_tool", "ok": false, "duration_ms": 32277.69, "target_tool": "mount_summary", "attempts_remaining": 1}
+{"event": "llm_call_failed", "timing_gap_ms": 26582, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 95759, "cycle": 3}
+{"event": "tool_result", "timing_gap_ms": 64717, "tool": "list_systemd_wants", "ok": false, "duration_ms": 2648.64}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 7972, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 78174, "tool": "list_env_vars", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 69645, "cycle": 4}
+{"event": "cycle_completed", "timing_gap_ms": 131964, "cycle": 5}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 17121, "tool": "parse_all_service_deps", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 34082, "tool": "create_tool", "ok": false, "duration_ms": 10576.68, "target_tool": "parse_service_full", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 42392, "tool": "list_dir", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 18452, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 28776, "tool": "list_models", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 7731, "tool": "parse_service_full", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 9721, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 19338, "tool": "update_environment_map", "ok": false, "duration_ms": 0.23}
+{"event": "tool_result", "timing_gap_ms": 14167, "tool": "update_environment_map", "ok": false, "duration_ms": 0.24}
+{"event": "tool_result", "timing_gap_ms": 10387, "tool": "update_environment_map", "ok": false, "duration_ms": 0.18}
+{"event": "cycle_completed", "timing_gap_ms": 22824, "cycle": 6}
+{"event": "tool_result", "timing_gap_ms": 83606, "tool": "create_tool", "ok": false, "duration_ms": 118.23, "target_tool": "environment_summary_markdown", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 19731, "tool": "create_tool", "ok": false, "duration_ms": 9149.98, "target_tool": "environment_summary_markdown", "attempts_remaining": 1}
+{"event": "cycle_completed", "timing_gap_ms": 80798, "cycle": 7}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 17439, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 18013, "tool": "read_file", "ok": false, "duration_ms": 0.13}
+{"event": "tool_result", "timing_gap_ms": 14557, "tool": "create_tool", "ok": false, "duration_ms": 0.11}
+{"event": "llm_call_failed", "timing_gap_ms": 11029, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 18400, "tool": "create_tool", "ok": false, "duration_ms": 9386.84, "target_tool": "environment_summary_markdown", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 63289, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 46285, "cycle": 8}
+{"event": "tool_result", "timing_gap_ms": 44908, "tool": "create_tool", "ok": false, "duration_ms": 7437.98, "target_tool": "recursive_list_dir", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 18402, "tool": "create_tool", "ok": false, "duration_ms": 7271.54, "target_tool": "recursive_list_dir", "attempts_remaining": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 36457, "tool": "recursive_list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 63239, "cycle": 9}
+{"event": "cycle_completed", "timing_gap_ms": 17014, "cycle": 10}
+{"event": "tool_result", "timing_gap_ms": 26382, "tool": "create_tool", "ok": false, "duration_ms": 6034.31, "target_tool": "recursive_list_dir", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 19176, "tool": "create_tool", "ok": false, "duration_ms": 7611.87, "target_tool": "recursive_list_dir", "attempts_remaining": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 35312, "tool": "recursive_list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 9706, "cycle": 11}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 131349, "tool": "list_env_vars_tool", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 21793, "cycle": 12}
+{"event": "cycle_completed", "timing_gap_ms": 36294, "cycle": 13}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 39849, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9321, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 92461, "cycle": 14}
+{"event": "cycle_completed", "timing_gap_ms": 83645, "cycle": 15}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 109686, "tool": "list_env_vars", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 110867, "cycle": 16}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 19202, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8183, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 19040, "tool": "list_env_vars", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9656, "tool": "read_file", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 17388, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 37537, "tool": "file_grep", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 10330, "cycle": 17}
+{"event": "tool_result", "timing_gap_ms": 14157, "tool": "list_dir", "ok": false, "duration_ms": 5.93}
+{"event": "tool_result", "timing_gap_ms": 11012, "tool": "list_dir", "ok": false, "duration_ms": 5.4}
+{"event": "cycle_completed", "timing_gap_ms": 144690, "cycle": 18}
+{"event": "tool_result", "timing_gap_ms": 28113, "tool": "read_file", "ok": false, "duration_ms": 5.56}
+{"event": "cycle_completed", "timing_gap_ms": 118495, "cycle": 19}
+{"event": "tool_result", "timing_gap_ms": 23558, "tool": "create_tool", "ok": false, "duration_ms": 6063.65, "target_tool": "safe_recursive_list", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 91428, "cycle": 20}
+{"event": "tool_result", "timing_gap_ms": 16044, "tool": "create_tool", "ok": false, "duration_ms": 74.65, "target_tool": "safe_recursive_list", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 18728, "tool": "create_tool", "ok": false, "duration_ms": 6614.5, "target_tool": "safe_recursive_list", "attempts_remaining": 1}
+{"event": "cycle_completed", "timing_gap_ms": 183223, "cycle": 21}
+{"event": "tool_result", "timing_gap_ms": 18357, "tool": "create_tool", "ok": false, "duration_ms": 135.98, "target_tool": "safe_recursive_list", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 19724, "tool": "create_tool", "ok": false, "duration_ms": 7932.84, "target_tool": "safe_recursive_list", "attempts_remaining": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 82050, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 68797, "cycle": 22}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 17472, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 95163, "tool": "run_tool", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 66964, "tool": "list_models", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 13914, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 10492, "tool": "run_shell", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 22104, "cycle": 23}
+{"event": "tool_result", "timing_gap_ms": 28932, "tool": "create_tool", "ok": false, "duration_ms": 6606.47, "target_tool": "diff_json", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 34567, "tool": "run_tool", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 17537, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 20581, "tool": "create_tool", "ok": false, "duration_ms": 7574.59, "target_tool": "etc_recursive_list", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 173744, "cycle": 24}
+{"event": "tool_result", "timing_gap_ms": 54012, "tool": "diff_json", "ok": false, "duration_ms": 2711.48}
+{"event": "tool_result", "timing_gap_ms": 59400, "tool": "diff_json", "ok": false, "duration_ms": 3172.9}
+{"event": "cycle_completed", "timing_gap_ms": 38158, "cycle": 25}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 16207, "tool": "safe_recursive_list", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 59879, "tool": "diff_json", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 48159, "cycle": 26}
+{"event": "llm_call_failed", "timing_gap_ms": 14078, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5860, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 14979, "tool": "safe_recursive_list", "ok": false, "duration_ms": 2655.17}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 75341, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 27530, "cycle": 27}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 21764, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 29661, "tool": "list_models", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 17903, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 33691, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 106242, "tool": "safe_recursive_list", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 9670, "cycle": 28}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 37678, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9485, "tool": "read_file", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 24057, "tool": "create_tool", "ok": false, "duration_ms": 8818.7, "target_tool": "list_dir_json", "attempts_remaining": 2}
+{"event": "llm_call_failed", "timing_gap_ms": 51497, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 63293, "tool": "json_diff", "ok": false, "duration_ms": 2497.47}
+{"event": "cycle_completed", "timing_gap_ms": 30355, "cycle": 29}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 16729, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 23555, "tool": "list_dir_json", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 21360, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 57564, "tool": "list_dir", "ok": false, "duration_ms": 0.26}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 10387, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 15498, "tool": "json_diff", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 52567, "cycle": 30}
+{"event": "tool_result", "timing_gap_ms": 29158, "tool": "create_tool", "ok": false, "duration_ms": 8125.75, "target_tool": "diff_json_to_file", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 31297, "tool": "read_file", "ok": false, "duration_ms": 6.26}
+{"event": "tool_result", "timing_gap_ms": 26864, "tool": "read_file", "ok": false, "duration_ms": 8.13}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 125812, "tool": "list_dir", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 208033, "cycle": 31}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 18848, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9604, "tool": "read_file", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 57081, "tool": "list_dir_json", "ok": false, "duration_ms": 3685.67}
+{"event": "tool_result", "timing_gap_ms": 23139, "tool": "create_tool", "ok": false, "duration_ms": 9742.84, "target_tool": "list_dir_json_to_file", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 22553, "tool": "create_tool", "ok": false, "duration_ms": 10221.96, "target_tool": "list_dir_json_to_file", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 20895, "tool": "create_tool", "ok": false, "duration_ms": 7589.5, "target_tool": "list_dir_json_to_file", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 12217, "tool": "create_tool", "ok": false, "duration_ms": 26.04, "target_tool": "list_dir_json_to_file", "attempts_remaining": 0}
+{"event": "cycle_completed", "timing_gap_ms": 112422, "cycle": 32}
+{"event": "cycle_completed", "timing_gap_ms": 344884, "cycle": 33}
+{"event": "cycle_completed", "timing_gap_ms": 20612, "cycle": 34}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 119732, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 9709, "tool": "list_env_vars", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 37636, "cycle": 35}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 17254, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 11452, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 26813, "tool": "create_tool", "ok": false, "duration_ms": 52.21, "target_tool": "environment_report", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 18517, "tool": "create_tool", "ok": false, "duration_ms": 136.13, "target_tool": "environment_report", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 14022, "tool": "create_tool", "ok": false, "duration_ms": 88.69, "target_tool": "environment_report", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 15838, "tool": "create_tool", "ok": false, "duration_ms": 58.74, "target_tool": "environment_report", "attempts_remaining": 0}
+{"event": "cycle_completed", "timing_gap_ms": 57464, "cycle": 36}
+{"event": "tool_result", "timing_gap_ms": 47330, "tool": "update_environment_map", "ok": false, "duration_ms": 0.12}
+{"event": "tool_result", "timing_gap_ms": 78903, "tool": "write_file", "ok": false, "duration_ms": 0.12}
+{"event": "tool_result", "timing_gap_ms": 34165, "tool": "create_tool", "ok": false, "duration_ms": 7074.05, "target_tool": "list_map_keys", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 20126, "tool": "create_tool", "ok": false, "duration_ms": 6704.28, "target_tool": "list_map_keys", "attempts_remaining": 1}
+{"event": "cycle_completed", "timing_gap_ms": 35244, "cycle": 37}
+{"event": "tool_result", "timing_gap_ms": 44939, "tool": "ask_model", "ok": false, "duration_ms": 73.7}
+{"event": "cycle_completed", "timing_gap_ms": 68886, "cycle": 38}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 31369, "tool": "list_models", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8496, "tool": "list_env_vars", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 60742, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 8755, "tool": "list_dir", "ok": false, "duration_ms": 0.13}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 12549, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 29956, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 100735, "cycle": 39}
+{"event": "tool_result", "timing_gap_ms": 86393, "tool": "create_tool", "ok": false, "duration_ms": 7406.78, "target_tool": "list_dir_recursive", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 24318, "tool": "create_tool", "ok": false, "duration_ms": 7004.17, "target_tool": "list_dir_recursive", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 21067, "tool": "create_tool", "ok": false, "duration_ms": 9233.84, "target_tool": "list_dir_recursive", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 17658, "tool": "create_tool", "ok": false, "duration_ms": 68.07, "target_tool": "list_dir_recursive", "attempts_remaining": 0}
+{"event": "llm_call_failed", "timing_gap_ms": 16382, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 40916, "tool": "update_environment_map", "ok": false, "duration_ms": 0.13}
+{"event": "llm_call_failed", "timing_gap_ms": 11606, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 8192, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 23123, "tool": "parse_systemd_service_deps", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 14625, "cycle": 40}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 88351, "tool": "list_models", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 11363, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 16694, "tool": "list_dir_json", "ok": false, "duration_ms": 2588.87}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 15447, "tool": "list_dir_json", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 22473, "tool": "list_env_vars", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 8671, "tool": "get_service_info", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 21297, "cycle": 41}
+{"event": "tool_result", "timing_gap_ms": 42759, "tool": "create_tool", "ok": false, "duration_ms": 20042.36, "target_tool": "list_dir_recursive_custom", "attempts_remaining": 2}
+{"event": "llm_call_failed", "timing_gap_ms": 145678, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 13869, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 14365, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 91043, "tool": "create_tool", "ok": false, "duration_ms": 14017.51, "target_tool": "list_dir_recursive_depth", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 26963, "tool": "create_tool", "ok": false, "duration_ms": 12166.49, "target_tool": "list_dir_recursive_depth", "attempts_remaining": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 47725, "tool": "list_dir_recursive_depth", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 19074, "tool": "list_dir_recursive_depth", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 155303, "tool": "record_delegation_outcome", "ok": false, "duration_ms": 0.05}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 6029, "tool": "record_delegation_outcome", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 7258, "cycle": 1}
+{"event": "tool_result", "timing_gap_ms": 30197, "tool": "create_tool", "ok": false, "duration_ms": 9480.86, "target_tool": "recursive_list_dir", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 78993, "cycle": 2}
+{"event": "llm_call_failed", "timing_gap_ms": 18741, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 6221, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 6415, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 74699, "tool": "update_environment_map", "ok": false, "duration_ms": 0.08}
+{"event": "tool_result", "timing_gap_ms": 23083, "tool": "parse_service_execstarts", "ok": false, "duration_ms": 2084.04}
+{"event": "cycle_completed", "timing_gap_ms": 34821, "cycle": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 81133, "tool": "list_dir", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 103413, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 26317, "tool": "list_installed_debian_packages", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 26713, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 5623, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 9797, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 210704, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 18697, "tool": "create_tool", "ok": false, "duration_ms": 11685.98, "target_tool": "parse_netstat", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 24773, "tool": "create_tool", "ok": false, "duration_ms": 12654.46, "target_tool": "parse_netstat", "attempts_remaining": 1}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 36824, "tool": "parse_netstat", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 10919, "cycle": 1}
+{"event": "llm_call_failed", "timing_gap_ms": 126122, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 25813, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 46472, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 78255, "tool": "parse_netstat", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 5355, "tool": "run_shell", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 94758, "cycle": 2}
+{"event": "cycle_completed", "timing_gap_ms": 19867, "cycle": 3}
+{"event": "tool_result", "timing_gap_ms": 94608, "tool": "create_tool", "ok": false, "duration_ms": 9070.52, "target_tool": "list_dir_recursive_custom", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 24429, "tool": "create_tool", "ok": false, "duration_ms": 8609.08, "target_tool": "list_dir_recursive_custom", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 18805, "tool": "create_tool", "ok": false, "duration_ms": 8906.08, "target_tool": "list_dir_recursive_custom", "attempts_remaining": 0}
+{"event": "cycle_completed", "timing_gap_ms": 38532, "cycle": 4}
+{"event": "llm_call_failed", "timing_gap_ms": 30590, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 31699, "tool": "list_dir", "ok": false, "duration_ms": 0.21}
+{"event": "cycle_completed", "timing_gap_ms": 47729, "cycle": 5}
+{"event": "tool_result", "timing_gap_ms": 20762, "tool": "create_tool", "ok": false, "duration_ms": 57.31, "target_tool": "list_dir_recursive_custom", "attempts_remaining": 0}
+{"event": "llm_call_failed", "timing_gap_ms": 60501, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 20667, "tool": "run_shell", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 23998, "cycle": 6}
+{"event": "cycle_completed", "timing_gap_ms": 186480, "cycle": 7}
+{"event": "cycle_completed", "timing_gap_ms": 12797, "cycle": 8}
+{"event": "llm_call_failed", "timing_gap_ms": 25266, "error_type": "InternalServerError", "retryable": true}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 12554, "tool": "list_dir_recursive", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 7245, "tool": "list_dir_json", "ok": false, "duration_ms": 1594.38}
+{"event": "tool_result", "timing_gap_ms": 36563, "tool": "create_tool", "ok": false, "duration_ms": 7393.47, "target_tool": "recursive_list_dir", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 33005, "tool": "recursive_list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 10119, "tool": "update_environment_map", "ok": false, "duration_ms": 0.08}
+{"event": "cycle_completed", "timing_gap_ms": 12873, "cycle": 9}
+{"event": "cycle_completed", "timing_gap_ms": 8432, "cycle": 10}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 25839, "tool": "run_tool", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 12602, "tool": "ask_model", "ok": false, "duration_ms": 72.83}
+{"event": "tool_result", "timing_gap_ms": 11056, "tool": "ask_model", "ok": false, "duration_ms": 72.31}
+{"event": "llm_call_failed", "timing_gap_ms": 57702, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 25172, "tool": "create_tool", "ok": false, "duration_ms": 8113.98, "target_tool": "recursive_ls", "attempts_remaining": 2}
+{"event": "cycle_completed", "timing_gap_ms": 52889, "cycle": 11}
+{"event": "cycle_completed", "timing_gap_ms": 22975, "cycle": 12}
+{"event": "cycle_completed", "timing_gap_ms": 20748, "cycle": 13}
+{"event": "tool_result", "timing_gap_ms": 69452, "tool": "update_environment_map", "ok": false, "duration_ms": 0.08}
+{"event": "cycle_completed", "timing_gap_ms": 61095, "cycle": 14}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 27164, "tool": "run_tool", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 87261, "tool": "update_environment_map", "ok": false, "duration_ms": 0.07}
+{"event": "cycle_completed", "timing_gap_ms": 33339, "cycle": 15}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 13565, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 13856, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 17540, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 14288, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 11705, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 35618, "cycle": 16}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 13148, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 67321, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 17405, "cycle": 17}
+{"event": "tool_result", "timing_gap_ms": 17469, "tool": "parse_all_service_deps", "ok": false, "duration_ms": 1481.53}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 14447, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 7196, "tool": "read_file", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6450, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 15041, "tool": "update_environment_map", "ok": false, "duration_ms": 0.08}
+{"event": "tool_result", "timing_gap_ms": 8007, "tool": "update_environment_map", "ok": false, "duration_ms": 0.09}
+{"event": "cycle_completed", "timing_gap_ms": 25817, "cycle": 18}
+{"event": "tool_result", "timing_gap_ms": 23307, "tool": "create_tool", "ok": false, "duration_ms": 7642.1, "target_tool": "parse_all_service_details", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 39359, "tool": "run_tool", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 15699, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 18198, "cycle": 19}
+{"event": "tool_result", "timing_gap_ms": 23984, "tool": "create_tool", "ok": false, "duration_ms": 0.05}
+{"event": "tool_result", "timing_gap_ms": 15451, "tool": "create_tool", "ok": false, "duration_ms": 3814.56, "target_tool": "parse_all_service_details", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 38537, "tool": "update_environment_map", "ok": false, "duration_ms": 0.07}
+{"event": "cycle_completed", "timing_gap_ms": 38900, "cycle": 20}
+{"event": "cycle_completed", "timing_gap_ms": 42248, "cycle": 21}
+{"event": "tool_result", "timing_gap_ms": 48040, "tool": "create_tool", "ok": false, "duration_ms": 11149.94, "target_tool": "parse_all_service_details", "attempts_remaining": 2}
+{"event": "llm_call_failed", "timing_gap_ms": 92775, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 6402, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 6658, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 172522, "tool": "write_file", "ok": false, "duration_ms": 0.12}
+{"event": "tool_result", "timing_gap_ms": 43658, "tool": "create_tool", "ok": false, "duration_ms": 125.43, "target_tool": "service_full_info", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 21519, "tool": "create_tool", "ok": false, "duration_ms": 156.73, "target_tool": "service_full_info", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 32102, "tool": "create_tool", "ok": false, "duration_ms": 12930.44, "target_tool": "service_full_info", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 22325, "tool": "create_tool", "ok": false, "duration_ms": 38.35, "target_tool": "service_full_info", "attempts_remaining": 0}
+{"event": "cycle_completed", "timing_gap_ms": 18700, "cycle": 1}
+{"event": "tool_result", "timing_gap_ms": 83707, "tool": "create_tool", "ok": false, "duration_ms": 12912.6, "target_tool": "service_dependency_extractor", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 30677, "tool": "create_tool", "ok": false, "duration_ms": 12767.18, "target_tool": "service_dependency_extractor", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 29752, "tool": "create_tool", "ok": false, "duration_ms": 12078.93, "target_tool": "service_dependency_extractor", "attempts_remaining": 0}
+{"event": "cycle_completed", "timing_gap_ms": 88221, "cycle": 2}
+{"event": "tool_result", "timing_gap_ms": 111771, "tool": "read_file", "ok": false, "duration_ms": 6.3}
+{"event": "tool_result", "timing_gap_ms": 35491, "tool": "read_file", "ok": false, "duration_ms": 6.5}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 14865, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 64133, "tool": "run_tool", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 52208, "tool": "run_tool", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 49438, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 67187, "cycle": 3}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 25036, "tool": "read_file", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 111791, "tool": "create_tool", "ok": false, "duration_ms": 35498.29, "target_tool": "timer_service_dot", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 29585, "tool": "create_tool", "ok": false, "duration_ms": 8900.18, "target_tool": "timer_service_dot", "attempts_remaining": 1}
+{"event": "cycle_completed", "timing_gap_ms": 411053, "cycle": 4}
+{"event": "cycle_completed", "timing_gap_ms": 23725, "cycle": 5}
+{"event": "tool_result", "timing_gap_ms": 43221, "tool": "create_tool", "ok": false, "duration_ms": 13136.57, "target_tool": "list_dir_recursive", "attempts_remaining": 2}
+{"event": "llm_call_failed", "timing_gap_ms": 240287, "error_type": "RateLimitError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 5353, "error_type": "RateLimitError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 707, "error_type": "RateLimitError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 20998, "error_type": "RateLimitError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 28430, "error_type": "RateLimitError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 6703, "error_type": "RateLimitError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 707, "error_type": "RateLimitError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 16968, "error_type": "RateLimitError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 24536, "error_type": "RateLimitError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 7688, "error_type": "RateLimitError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 642, "error_type": "RateLimitError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 21639, "error_type": "RateLimitError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 25436, "error_type": "RateLimitError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 11010, "error_type": "RateLimitError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 670, "error_type": "RateLimitError", "retryable": false}
+{"event": "tool_result", "timing_gap_ms": 1002488, "tool": "record_model_assessment", "ok": false, "duration_ms": 0.22}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 389331, "tool": "get_service_execstart", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 72079, "cycle": 1}
+{"event": "cycle_completed", "timing_gap_ms": 21493, "cycle": 2}
+{"event": "tool_result", "timing_gap_ms": 116655, "tool": "list_dir", "ok": false, "duration_ms": 6.62}
+{"event": "cycle_completed", "timing_gap_ms": 86216, "cycle": 3}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 15296, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 12354, "tool": "list_dir", "ok": false}
+{"event": "llm_call_failed", "timing_gap_ms": 27798, "error_type": "InternalServerError", "retryable": true}
+{"event": "tool_result", "timing_gap_ms": 8201, "tool": "read_file", "ok": false, "duration_ms": 1.33}
+{"event": "tool_result", "timing_gap_ms": 39018, "tool": "create_tool", "ok": false, "duration_ms": 12868.68, "target_tool": "list_dir_recursive", "attempts_remaining": 2}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 63615, "tool": "search_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 37984, "tool": "read_file", "ok": false, "duration_ms": 7.64}
+{"event": "tool_result", "timing_gap_ms": 42868, "tool": "read_file", "ok": false, "duration_ms": 7.77}
+{"event": "tool_result", "timing_gap_ms": 25909, "tool": "read_file", "ok": false, "duration_ms": 0.13}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 11940, "tool": "list_dir", "ok": false}
+{"event": "tool_result", "timing_gap_ms": 98252, "tool": "read_file", "ok": false, "duration_ms": 0.15}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 14329, "tool": "read_file", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 42403, "tool": "search_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 40110, "tool": "read_file", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 30522, "cycle": 4}
+{"event": "tool_result", "timing_gap_ms": 35037, "tool": "create_tool", "ok": false, "duration_ms": 11010.82, "target_tool": "list_dir_recursive_json", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 22344, "tool": "create_tool", "ok": false, "duration_ms": 7227.08, "target_tool": "list_dir_recursive_json", "attempts_remaining": 1}
+{"event": "tool_result", "timing_gap_ms": 24632, "tool": "create_tool", "ok": false, "duration_ms": 9059.58, "target_tool": "list_dir_recursive_json", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 13475, "tool": "create_tool", "ok": false, "duration_ms": 358.55, "target_tool": "list_dir_recursive_json", "attempts_remaining": 0}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 14758, "tool": "bulk_systemd_service_parser", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 31766, "cycle": 5}
+{"event": "llm_call_failed", "timing_gap_ms": 38543, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 23010, "cycle": 6}
+{"event": "cycle_completed", "timing_gap_ms": 482597, "cycle": 7}
+{"event": "llm_call_failed", "timing_gap_ms": 197787, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 6813, "cycle": 8}
+{"event": "tool_result", "timing_gap_ms": 21695, "tool": "create_tool", "ok": false, "duration_ms": 66.51, "target_tool": "list_dir_recursive_json", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 38966, "tool": "create_tool", "ok": false, "duration_ms": 19930.82, "target_tool": "list_dir_recursive_json2", "attempts_remaining": 2}
+{"event": "tool_result", "timing_gap_ms": 27335, "tool": "create_tool", "ok": false, "duration_ms": 11689.58, "target_tool": "list_dir_recursive_json2", "attempts_remaining": 1}
+{"event": "cycle_completed", "timing_gap_ms": 86196, "cycle": 9}
+{"event": "tool_result", "timing_gap_ms": 12736, "tool": "create_tool", "ok": false, "duration_ms": 8.08, "target_tool": "list_dir_recursive_json", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 9060, "tool": "create_tool", "ok": false, "duration_ms": 33.25, "target_tool": "list_dir_recursive_json", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 7058, "tool": "create_tool", "ok": false, "duration_ms": 52.58, "target_tool": "list_dir_recursive_json", "attempts_remaining": 0}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 7202, "tool": "create_tool", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 22974, "tool": "list_dir", "ok": false}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 12014, "tool": "list_dir_json", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 16576, "cycle": 10}
+{"event": "cycle_completed", "timing_gap_ms": 12631, "cycle": 11}
+{"event": "llm_call_failed", "timing_gap_ms": 18462, "error_type": "InternalServerError", "retryable": true}
+{"event": "llm_call_failed", "timing_gap_ms": 4699, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 108770, "cycle": 12}
+{"event": "cycle_completed", "timing_gap_ms": 9956, "cycle": 13}
+{"event": "tool_result", "timing_gap_ms": 16131, "tool": "create_tool", "ok": false, "duration_ms": 261.0, "target_tool": "list_dir_recursive_json", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 11470, "tool": "create_tool", "ok": false, "duration_ms": 52.92, "target_tool": "list_dir_recursive_json", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 8259, "tool": "create_tool", "ok": false, "duration_ms": 52.62, "target_tool": "list_dir_recursive_json", "attempts_remaining": 0}
+{"event": "repeated_tool_action_blocked", "timing_gap_ms": 7889, "tool": "create_tool", "ok": false}
+{"event": "cycle_completed", "timing_gap_ms": 40754, "cycle": 14}
+{"event": "tool_result", "timing_gap_ms": 14921, "tool": "create_tool", "ok": false, "duration_ms": 61.09, "target_tool": "list_dir_recursive_json", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 9778, "tool": "create_tool", "ok": false, "duration_ms": 21.45, "target_tool": "list_dir_recursive_json", "attempts_remaining": 0}
+{"event": "tool_result", "timing_gap_ms": 8226, "tool": "create_tool", "ok": false, "duration_ms": 8.01, "target_tool": "list_dir_recursive_json", "attempts_remaining": 0}
+{"event": "llm_call_failed", "timing_gap_ms": 16467, "error_type": "InternalServerError", "retryable": true}
+{"event": "cycle_completed", "timing_gap_ms": 113744, "cycle": 15}
+{"event": "tool_result", "timing_gap_ms": 23085, "tool": "create_tool", "ok": false, "duration_ms": 9512.53, "target_tool": "recursive_dir_json", "attempts_remaining": 2}
+{"event": "llm_call_failed", "timing_gap_ms": 81263, "error_type": "RateLimitError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 2472, "error_type": "RateLimitError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 858, "error_type": "RateLimitError", "retryable": false}
+{"event": "llm_call_failed", "timing_gap_ms": 82925, "error_type": "RateLimitError", "retryable": false}
