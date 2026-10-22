@@ -252,7 +252,7 @@ class AgentLoopTests(unittest.TestCase):
                 d["used_tokens"] = 0
                 ledger._write(d)
 
-            with patch("time.sleep", side_effect=_fake_sleep):
+            with patch("agent.runtime.loop.time.sleep", side_effect=_fake_sleep):
                 loop._pause_until_daily_reset()
 
             self.assertEqual(sleep_calls, 1)
