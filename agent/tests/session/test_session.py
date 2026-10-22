@@ -438,6 +438,32 @@ class SessionTests(unittest.TestCase):
             count = handoff_text.count("Session complete after")
             self.assertLessEqual(count, 1, f"Repeated 'Session complete after' count: {count}")
 
+    def test_load_handoff_bounds_oversized_legacy_handoff_on_wake(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            state = root / "state"
+            state.mkdir(parents=True)
+            # Create an oversized legacy handoff (> 6,000 chars)
+            oversized_data = {
+                "summary": "Old run summary. " * 300,
+                "plan": [{"step": "Explore", "why": "Initial", "priority": 1, "status": "todo"}],
+                "long_term_summary": "Detailed narrative. " * 200,
+            }
+            oversized_json = json.dumps(oversized_data)
+            self.assertGreater(len(oversized_json), 6_000)
+            (state / "handoff.json").write_text(oversized_json, encoding="utf-8")
+
+            coordinator = WakeCoordinator(root, llm_client=WakeFakeLLM())
+            coordinator.boot()
+
+            # Verify bounded handoff on disk
+            bounded_text = (state / "handoff.json").read_text(encoding="utf-8")
+            self.assertLessEqual(len(bounded_text.encode("utf-8")), 6_000)
+            # Verify overflow archive exists
+            overflow_file = state / "handoff_overflow.json"
+            self.assertTrue(overflow_file.exists())
+            self.assertGreater(len(overflow_file.read_text(encoding="utf-8")), 6_000)
+
 
 if __name__ == "__main__":
     unittest.main()

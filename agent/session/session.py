@@ -97,10 +97,20 @@ class SessionStore:
         """Load a resumable handoff record, if one exists."""
         value = self._read_json(self.handoff)
         if value is not None:
+            encoded = json.dumps(self.logger.redactor.value(value), ensure_ascii=False)
+            if len(encoded.encode("utf-8")) > self.handoff_cap:
+                bounded = self._bounded_handoff(value)
+                self._atomic_json(self.handoff, bounded)
+                return bounded, False
             return value, False
         backup = self._read_json(self.handoff_backup)
         if backup is not None:
             self.logger.log("handoff_recovered_from_backup")
+            encoded = json.dumps(self.logger.redactor.value(backup), ensure_ascii=False)
+            if len(encoded.encode("utf-8")) > self.handoff_cap:
+                bounded = self._bounded_handoff(backup)
+                self._atomic_json(self.handoff, bounded)
+                return bounded, True
             return backup, True
         return {}, self.handoff.exists()
 
