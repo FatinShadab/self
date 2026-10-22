@@ -417,6 +417,27 @@ class SessionTests(unittest.TestCase):
             self.assertIn("mapping", coordinator.conversation_context())
             self.assertIn("soft cultural/style cue", coordinator.conversation_context())
 
+    def test_handoff_summary_does_not_multiply_session_complete_headers(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            # Run session 1
+            first = WakeCoordinator(root, max_iterations=1, token_budget=10_000, llm_client=WakeFakeLLM())
+            first.run()
+
+            # Run session 2 with failing LLM so it uses fallback reflection
+            class FailingLLM:
+                def call(self, **kwargs: Any) -> LLMResult:
+                    raise RuntimeError("provider unavailable")
+
+            second = WakeCoordinator(root, max_iterations=1, token_budget=10_000, llm_client=FailingLLM())
+            second.run()
+
+            handoff_path = root / "state" / "handoff.json"
+            self.assertTrue(handoff_path.exists())
+            handoff_text = handoff_path.read_text(encoding="utf-8")
+            count = handoff_text.count("Session complete after")
+            self.assertLessEqual(count, 1, f"Repeated 'Session complete after' count: {count}")
+
 
 if __name__ == "__main__":
     unittest.main()
