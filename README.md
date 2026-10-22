@@ -112,7 +112,7 @@ flowchart TD
     H --> I["Authorize via PermissionBroker (L0-L3)"]
     I --> J["Execute Action & Append Observation"]
     J --> F
-    G -->|No (Text Report)| K["Review Plan & Purge Done/Dropped Goals"]
+    G -->|No / Text Report| K["Review Plan & Purge Done/Dropped Goals"]
     K --> L["Settle Daily Token Ledger"]
     L --> M["Persist Atomic Run Checkpoint"]
     M --> N["Schedule Background Reflection"]
