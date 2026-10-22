@@ -20,12 +20,18 @@ RUN apt-get update \
         sqlite3 \
         python3-venv \
         python3-pip \
+        ca-certificates \
     && rm -rf /var/lib/apt/lists/*
 
 # Create unprivileged entity user (uid 1000) for the hardened profile
 RUN useradd -m -u 1000 -s /bin/bash entity \
     && mkdir -p /home/entity \
     && chown -R entity:entity /home/entity
+
+# Create unprivileged opencode user (uid 1001) for running opencode processes
+RUN useradd -m -u 1001 -s /bin/bash opencode \
+    && mkdir -p /home/opencode \
+    && chown -R opencode:opencode /home/opencode
 
 WORKDIR /home/entity
 
@@ -38,6 +44,12 @@ COPY agent/ /opt/agent/
 COPY VERSION /opt/agent/VERSION
 COPY docs/plugins/ /opt/agent/docs/plugins/
 COPY plugins/_template /opt/agent/plugins/_template/
+
+# Opencode installer: copy scripts and run --build (non-strict by default so
+# the image still builds if the download fails or we are offline).
+COPY scripts/opencode/ /opt/scripts/opencode/
+RUN python /opt/scripts/opencode/install_opencode.py --build \
+    || echo "[opencode] Build-time install failed (non-strict); will retry at startup."
 
 # Keep the full package tree image-owned and read-only.  The legacy core
 # citations used by identity explanations resolve to the moved sources.
@@ -57,4 +69,8 @@ RUN mkdir -p /opt/agent/core \
 # inside its own namespace, while Docker remains the security boundary.
 USER root
 
-ENTRYPOINT ["python", "-m", "agent.wake"]
+# Container entrypoint: runs opencode --ensure (never blocks), then starts the agent.
+COPY entrypoint.sh /opt/entrypoint.sh
+RUN chmod +x /opt/entrypoint.sh
+
+ENTRYPOINT ["/opt/entrypoint.sh"]

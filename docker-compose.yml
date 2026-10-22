@@ -12,6 +12,11 @@ services:
     tty: true
     env_file:
       - .env
+    environment:
+      - OPENCODE_GROQ_API_KEY=${OPENCODE_GROQ_API_KEY:-}
+      - OPENCODE_GOOGLE_API_KEY=${OPENCODE_GOOGLE_API_KEY:-}
+      - OPENCODE_HF_TOKEN=${OPENCODE_HF_TOKEN:-}
+      - OPENCODE_SMOKE_LIVE=${OPENCODE_SMOKE_LIVE:-}
     volumes:
       - type: bind
         source: ${SELF_WORKSPACE_DIR:-./workspace}
@@ -81,6 +86,10 @@ services:
       - https_proxy=http://egress-proxy:8080
       - NO_PROXY=localhost,127.0.0.1
       - no_proxy=localhost,127.0.0.1
+      - OPENCODE_GROQ_API_KEY=${OPENCODE_GROQ_API_KEY:-}
+      - OPENCODE_GOOGLE_API_KEY=${OPENCODE_GOOGLE_API_KEY:-}
+      - OPENCODE_HF_TOKEN=${OPENCODE_HF_TOKEN:-}
+      - OPENCODE_SMOKE_LIVE=${OPENCODE_SMOKE_LIVE:-}
     env_file:
       - .env
     volumes:
