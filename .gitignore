@@ -237,6 +237,6 @@ __marimo__/
 .codex-tmp
 
 workspace*/
-prompts/
+/prompts/
 
 .freebuff/
