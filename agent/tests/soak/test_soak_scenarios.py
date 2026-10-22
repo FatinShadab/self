@@ -33,6 +33,8 @@ from agent.tests.soak.harness import (
 class SoakScenariosTests(unittest.TestCase):
     """Execution of deterministic 30+ cycle soak scenarios."""
 
+    last_b6_metrics: list = []
+
     def setUp(self) -> None:
         self.temp_dir = tempfile.mkdtemp(prefix="soak_scenarios_")
         self.workspace = Path(self.temp_dir)
@@ -252,6 +254,7 @@ class SoakScenariosTests(unittest.TestCase):
         runner = SoakRunner(workspace=self.workspace, provider=provider, max_iterations=target_iterations, seed=107)
         res = runner.run()
         runner.close()
+        SoakScenariosTests.last_b6_metrics = res.metrics
 
         self.assertTrue(res.invariants_passed, msg=res.error)
         self.assertGreaterEqual(len(res.metrics), target_iterations)

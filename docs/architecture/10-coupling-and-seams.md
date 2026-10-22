@@ -252,3 +252,22 @@ When a body or specialization plugin (e.g. an antivirus scanner or sensor plugin
    - Starter template in `plugins/_template` is ignored during normal discovery and hash checking, and is copied under custom names for development.
 4. **SDK Documentation:**
    - Developer guides in `docs/plugins/` are shipped read-only to `/opt/agent/docs/plugins` for agent self-authoring.
+
+---
+
+## 7. Soak Simulation & Replay Seams (Prompt 20)
+
+`[read] agent/tests/soak/harness.py:1-600`:
+To verify the agent's multi-cycle stability without real LLM token expenditure or wall-clock delays, the architecture introduces deterministic simulation seams:
+
+1. **Provider Adapter Seam (`ScriptedProvider` & `ReplayProvider`):**
+   - Implements `LLMClient.call()` and `LLMClient.call_stream()` abstractions.
+   - Decouples loop execution from external network endpoints and live API credentials.
+   - Emulates provider responses, deliberate fault injections (`FaultSchedule`), and scrubbed historical action traces (`ReplayProvider`).
+2. **Temporal Clock Seam (`FakeClock`):**
+   - Replaces wall-clock dependencies (`time.time()`, `datetime.now(timezone.utc)`) with synthetic virtual time.
+   - Enables instant simulation of daily token ledger rollover boundaries and backoff pauses without process sleeping.
+3. **Workspace Invariant Seam (`Invariants`):**
+   - Non-invasive read-only inspection of disk state at cycle boundaries.
+   - Validates handoff bounding (`HANDOFF_CAP <= 6,000`), recursive framing avoidance (`"Session complete after" <= 1`), plan integrity, tool churn limits, and active token reservation releases (`reserved_tokens == 0`).
+

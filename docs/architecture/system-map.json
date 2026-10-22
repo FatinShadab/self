@@ -452,7 +452,7 @@
     {
       "name": "agent_step",
       "emitters": [
-        "agent/runtime/loop.py:373"
+        "agent/runtime/loop.py:381"
       ],
       "fields": [
         "message"
@@ -611,7 +611,7 @@
     {
       "name": "cycle_completed",
       "emitters": [
-        "agent/runtime/loop.py:842",
+        "agent/runtime/loop.py:850",
         "agent/tests/reporting/test_analyze_run.py:218",
         "agent/tests/reporting/test_analyze_run.py:219"
       ],
@@ -657,7 +657,7 @@
     {
       "name": "daily_token_limit_paused",
       "emitters": [
-        "agent/runtime/loop.py:349"
+        "agent/runtime/loop.py:351"
       ],
       "fields": [
         "session_id"
@@ -666,7 +666,7 @@
     {
       "name": "daily_token_limit_resumed",
       "emitters": [
-        "agent/runtime/loop.py:353"
+        "agent/runtime/loop.py:361"
       ],
       "fields": [
         "session_id"
@@ -744,7 +744,7 @@
     {
       "name": "handoff_compacted",
       "emitters": [
-        "agent/session/session.py:198"
+        "agent/session/session.py:208"
       ],
       "fields": [
         "overflow_path"
@@ -753,7 +753,7 @@
     {
       "name": "handoff_recovered_from_backup",
       "emitters": [
-        "agent/session/session.py:103"
+        "agent/session/session.py:108"
       ],
       "fields": []
     },
@@ -804,7 +804,7 @@
     {
       "name": "identity_context_fallback",
       "emitters": [
-        "agent/runtime/loop.py:490"
+        "agent/runtime/loop.py:498"
       ],
       "fields": [
         "error_type"
@@ -851,9 +851,11 @@
     {
       "name": "llm_call_failed",
       "emitters": [
-        "agent/llm/llm.py:317"
+        "agent/llm/llm.py:317",
+        "agent/tests/soak/harness.py:345"
       ],
       "fields": [
+        "cycle",
         "effective_cap",
         "error",
         "error_type",
@@ -1105,7 +1107,7 @@
     {
       "name": "plugin_critic_failed",
       "emitters": [
-        "agent/plugins/self_dev.py:790"
+        "agent/plugins/self_dev.py:793"
       ],
       "fields": [
         "error",
@@ -1164,8 +1166,8 @@
     {
       "name": "plugin_project_review",
       "emitters": [
-        "agent/runtime/loop.py:794",
-        "agent/tools/base_tools.py:694"
+        "agent/runtime/loop.py:802",
+        "agent/tools/base_tools.py:705"
       ],
       "fields": [
         "cycle_estimate",
@@ -1181,7 +1183,7 @@
     {
       "name": "plugin_promoted",
       "emitters": [
-        "agent/plugins/self_dev.py:894"
+        "agent/plugins/self_dev.py:897"
       ],
       "fields": [
         "name",
@@ -1191,7 +1193,7 @@
     {
       "name": "plugin_proposed",
       "emitters": [
-        "agent/plugins/self_dev.py:326"
+        "agent/plugins/self_dev.py:329"
       ],
       "fields": [
         "cycle_estimate",
@@ -1215,7 +1217,7 @@
     {
       "name": "plugin_review_completed",
       "emitters": [
-        "agent/plugins/self_dev.py:807",
+        "agent/plugins/self_dev.py:810",
         "agent/tests/plugins/test_self_plugins.py:400",
         "agent/tests/plugins/test_self_plugins.py:651"
       ],
@@ -1231,7 +1233,7 @@
     {
       "name": "plugin_scaffolded",
       "emitters": [
-        "agent/plugins/self_dev.py:396"
+        "agent/plugins/self_dev.py:399"
       ],
       "fields": [
         "name",
@@ -1241,7 +1243,7 @@
     {
       "name": "plugin_tested",
       "emitters": [
-        "agent/plugins/self_dev.py:682"
+        "agent/plugins/self_dev.py:685"
       ],
       "fields": [
         "exit_code",
@@ -1254,7 +1256,7 @@
     {
       "name": "plugin_validated",
       "emitters": [
-        "agent/plugins/self_dev.py:590"
+        "agent/plugins/self_dev.py:593"
       ],
       "fields": [
         "error_count",
@@ -1456,7 +1458,7 @@
     {
       "name": "repeated_tool_action_blocked",
       "emitters": [
-        "agent/runtime/loop.py:770",
+        "agent/runtime/loop.py:778",
         "agent/tests/reporting/test_analyze_run.py:214"
       ],
       "fields": [
@@ -1477,7 +1479,7 @@
     {
       "name": "run_completed",
       "emitters": [
-        "agent/runtime/loop.py:873"
+        "agent/runtime/loop.py:881"
       ],
       "fields": [
         "iterations",
@@ -1488,8 +1490,8 @@
     {
       "name": "run_failed",
       "emitters": [
-        "agent/runtime/loop.py:960",
-        "agent/runtime/loop.py:736"
+        "agent/runtime/loop.py:968",
+        "agent/runtime/loop.py:744"
       ],
       "fields": [
         "error",
@@ -1500,7 +1502,7 @@
     {
       "name": "run_started",
       "emitters": [
-        "agent/runtime/loop.py:557"
+        "agent/runtime/loop.py:565"
       ],
       "fields": [
         "curriculum",
@@ -1519,8 +1521,8 @@
         "agent/runtime/loop.py:295",
         "agent/runtime/loop.py:299",
         "agent/runtime/loop.py:303",
-        "agent/runtime/loop.py:956",
-        "agent/runtime/loop.py:592"
+        "agent/runtime/loop.py:964",
+        "agent/runtime/loop.py:600"
       ],
       "fields": [
         "reason"
@@ -1538,7 +1540,7 @@
     {
       "name": "session_crash_recovered",
       "emitters": [
-        "agent/session/session.py:119"
+        "agent/session/session.py:129"
       ],
       "fields": [
         "session_id"
@@ -1547,7 +1549,7 @@
     {
       "name": "session_finished",
       "emitters": [
-        "agent/session/session.py:142"
+        "agent/session/session.py:152"
       ],
       "fields": [
         "end_reason",
@@ -1558,7 +1560,7 @@
     {
       "name": "session_handoff_checkpoint",
       "emitters": [
-        "agent/session/session.py:133"
+        "agent/session/session.py:143"
       ],
       "fields": [
         "iteration_count",
@@ -1588,7 +1590,7 @@
     {
       "name": "session_started",
       "emitters": [
-        "agent/session/session.py:124"
+        "agent/session/session.py:134"
       ],
       "fields": [
         "recovered_crash",
@@ -1599,7 +1601,7 @@
     {
       "name": "session_summary",
       "emitters": [
-        "agent/session/coordinator.py:1121"
+        "agent/session/coordinator.py:1125"
       ],
       "fields": [
         "message"
@@ -1608,7 +1610,7 @@
     {
       "name": "session_unexpected_exception",
       "emitters": [
-        "agent/session/coordinator.py:1134"
+        "agent/session/coordinator.py:1138"
       ],
       "fields": []
     },
@@ -1628,7 +1630,7 @@
     {
       "name": "stale_budget_plan_recovered",
       "emitters": [
-        "agent/session/coordinator.py:875"
+        "agent/session/coordinator.py:876"
       ],
       "fields": [
         "available_daily_tokens"
@@ -1727,7 +1729,7 @@
       "name": "tool_call",
       "emitters": [
         "agent/tests/identity/test_identity.py:66",
-        "agent/tools/base_tools.py:524"
+        "agent/tools/base_tools.py:525"
       ],
       "fields": [
         "arguments",
@@ -1811,7 +1813,7 @@
       "name": "tool_result",
       "emitters": [
         "agent/tests/identity/test_identity.py:67",
-        "agent/tools/base_tools.py:655"
+        "agent/tools/base_tools.py:656"
       ],
       "fields": [
         "duration_ms",
@@ -1857,7 +1859,7 @@
     {
       "name": "zero_cycle_session_preserved",
       "emitters": [
-        "agent/session/coordinator.py:1090"
+        "agent/session/coordinator.py:1093"
       ],
       "fields": [
         "end_reason",
