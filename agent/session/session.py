@@ -14,7 +14,7 @@ from agent.infra.event_log import EventLogger
 from agent.learning.plan import consolidate_plan_items
 
 
-HANDOFF_CAP = 12_000
+HANDOFF_CAP = 6_000
 
 
 def now() -> str:
