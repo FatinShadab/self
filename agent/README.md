@@ -4,7 +4,7 @@ SELF is an image-owned Python harness that runs a bounded model and tool loop in
 
 ## Layer order
 
-Imports point downward in this order: `infra` → `llm` → `tools`, `learning`, `helper_models`, `identity` → `runtime` → `session`, `reporting` → `ui`. `identity` sits below `runtime` because `AgentLoop` constructs `IdentityStore`; the requested target order placed identity above runtime, which would require a behavior change to inject that dependency. The import guard checks the actual order and cycles.
+Imports point downward in this order: `infra`, `prompts` → `llm`, `body` → `tools`, `learning`, `helper_models`, `identity`, `plugins` → `runtime` → `session`, `reporting` → `ui`. `prompts` sits at Layer 0 as pure standard library string constants and builders with zero internal dependencies. `identity` sits below `runtime` because `AgentLoop` constructs `IdentityStore`; the requested target order placed identity above runtime, which would require a behavior change to inject that dependency. The import guard checks the actual order and cycles.
 
 ```mermaid
 flowchart TD
@@ -18,11 +18,16 @@ flowchart TD
   Helpers --> LLM[llm: clients and providers]
   Tools --> LLM
   LLM --> Infra[infra: logging, locks, limits]
+  Runtime --> Prompts[prompts: prompt constants and templates]
+  Session --> Prompts
+  Helpers --> Prompts
+  Tools --> Prompts
+  Identity --> Prompts
 ```
 
 ## Newcomer reading order
 
-Read [infra](infra/README.md) for event and state safety, [llm](llm/README.md) for calls and budgets, [tools](tools/README.md) and [learning](learning/README.md) for actions and memory, [helper_models](helper_models/README.md) for delegated work, [identity](identity/README.md) for durable self description, [runtime](runtime/README.md) for the action cycle, [session](session/README.md) for recovery, [ui](ui/README.md) for the terminal experience, and [reporting](reporting/README.md) for summaries.
+Read [infra](infra/README.md) for event and state safety, [prompts](prompts/README.md) for prompt text and templates, [llm](llm/README.md) for calls and budgets, [tools](tools/README.md) and [learning](learning/README.md) for actions and memory, [helper_models](helper_models/README.md) for delegated work, [identity](identity/README.md) for durable self description, [runtime](runtime/README.md) for the action cycle, [session](session/README.md) for recovery, [ui](ui/README.md) for the terminal experience, and [reporting](reporting/README.md) for summaries.
 
 ## Root README phase map
 

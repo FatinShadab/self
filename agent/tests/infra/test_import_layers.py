@@ -12,6 +12,7 @@ from pathlib import Path
 # exposes environmental capabilities and sensing to tools and runtime.
 LAYER = {
     "infra": 0,
+    "prompts": 0,
     "llm": 1,
     "body": 1,
     "tools": 2,
