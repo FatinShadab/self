@@ -75,7 +75,9 @@ python -m unittest discover -s agent/tests -v
 ```
 
 > [!NOTE]
-> Evaluation tests under `eval/tests/` depend on POSIX system interfaces (`fcntl`) and container file paths (`/etc/os-release`), and require execution inside the Linux Docker container.
+> - **Harness Collection:** Unittest discovery collects **337 harness test methods** across all 12 Python packages. In Linux container CI, all 337 pass.
+> - **Windows Host Differences:** On a Windows host, 334 pass, 2 fail, and 1 encounters an error due to Windows platform behaviors: subprocess pipe buffering before the 0.2s timeout in `test_output_cap_and_timeout_remain_bounded`, Windows file locking on temp directory `rmdir` while a background process exits in `test_shell_background_child_cannot_hold_pipe_forever`, and host vs container environment detection in `test_container_never_reads_supplied_eval_files`.
+> - **Evaluation Suite:** The 20 tests under `eval/tests/` depend on POSIX system interfaces (`fcntl`) and Linux container paths (`/etc/os-release`), and require execution inside the Linux Docker container. On Windows host, 14 are collected and 2 fail with environment errors. Container run: NOT RUN if Docker is unavailable.
 
 ---
 
@@ -92,7 +94,7 @@ The soak test suite executes long multi-cycle runs using a deterministic `Script
 ```
 
 What the soak suite checks on every cycle:
-1. **Token Budget Invariant:** Active reservations never exceed available daily balance in `token_ledger.json`.
+1. **Token Budget Invariant:** Active reservations never exceed available daily balance in `daily_token_budget.json` (or fallback `token_ledger.json`).
 2. **Handoff Boundedness Invariant:** `state/handoff.json` length remains strictly ≤ 6,000 characters.
 3. **No Header Duplication Invariant:** The string `"Session complete after"` appears at most once in handoff summaries.
 4. **Plan Hygiene Invariant:** Goals with status `done` or `dropped` are purged from `state/plan.json` at cycle end.
@@ -216,3 +218,30 @@ The script restores all pre-migration files and validates that restored SHA-256 
 4. Run `python -m unittest agent.tests.plugins.test_docs_and_image` -> exit code 0.
 5. Run full CI test suite: `.\scripts\run-tests.ps1` -> exit code 0.
 6. Run soak test suite: `.\scripts\soak.ps1 -Seed 42` -> exit code 0.
+
+---
+
+## 10. Branch Merge Status & Operator Integration Order
+
+### Current Branch Topology
+- **Merged Historical Branches (`p11..p20`):** All local feature and hardening branches (`p11-plugins`, `p12-safety`, `p13-sim-and-scoring`, `p14-tagged-state`, `p14b-verify`, `p14c-summaries`, `p15-plugin-sdk`, `p16-pet-demo`, `p17-self-plugins`, `p18-release`, `p19-rc-hardening`, `p20-soak`) are ancestors of `main` and have already been merged into `main` (verified by `git branch --merged main`).
+- **Unmerged Branches (`p21-docs`, `p22-doc-fixes`):** Only `p21-docs` and `p22-doc-fixes` are not yet merged to `main` (verified by `git branch --no-merged main`).
+- **Supersession:** `p22-doc-fixes` was branched directly from the HEAD of `p21-docs` and contains the complete P21 documentation overhaul plus all P22 accuracy corrections.
+
+### Operator Merge Sequence
+The human operator can integrate documentation into `main` with the following clean fast-forward or merge:
+
+```powershell
+# 1. Switch to main
+git checkout main
+
+# 2. Merge p22-doc-fixes (incorporates all p21 and p22 work)
+git merge p22-doc-fixes
+
+# 3. Verify documentation and architecture integrity
+python scripts/check_architecture_docs.py
+python scripts/check_docs_claims.py
+python -m unittest agent.tests.infra.test_import_layers
+```
+
+*Note: Do not re-merge p11 through p20, as their commits are already reachable from main.*

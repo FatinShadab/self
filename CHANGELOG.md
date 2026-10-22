@@ -16,11 +16,11 @@ and this project adheres to [Semantic Versioning](https://semver.org/spec/v2.0.0
   - Per-cycle invariant verification checking daily token budget balance, bounded handoffs (≤ 6,000 chars), plan hygiene, header deduplication, and absence of tight spins.
   - Historical replay fixture and `ReplayProvider` running reproducible 30-cycle execution traces (`agent/tests/soak/test_soak_30_cycles_replay.py`).
   - Pre-live soak gate invariant validator (`scripts/live-soak-gate.ps1` and `scripts/live_soak_gate.py`).
-  - Strict daily ledger monitoring on canonical `state/token_ledger.json` and active reservations.
+  - Strict daily ledger monitoring on canonical `state/daily_token_budget.json` (with `token_ledger.json` fallback) and active reservations.
 
 ### Fixed
 - **Tight Spin Prevention**: Fixed tight spinning loop in `AgentLoop._pause_until_daily_reset` when remaining token balance was lower than minimal model call size.
-- **Recursive Handoff Header Accumulation**: Prevented recursive accumulation of `"Session complete after X cycles"` in `SessionCoordinator`.
+- **Recursive Handoff Header Accumulation**: Prevented recursive accumulation of `"Session complete after X cycles"` in `WakeCoordinator`.
 - **Legacy Handoff Bounding on Load**: Ensured oversized legacy handoffs are bounded and archived to `handoff_overflow.json` immediately upon load in `SessionStore`.
 - **Indented JSON Handoff Length Measurement**: Fixed handoff character count checks to evaluate `indent=2` JSON formatting matching disk persistence.
 

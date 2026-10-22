@@ -13,7 +13,7 @@ However, the default container has outbound network access via Docker bridge net
 ### What does it cost to run?
 **Offline tests and soak suites cost \$0.00.** All unit tests, integration tests, and the deterministic 60–200 cycle soak suite run entirely offline against local mocks, simulated bodies (`SimBody`), and scripted replay providers.
 
-**Live autonomous runs cost real API tokens with your configured provider.** To protect against runaway costs, SELF includes an enforced `DailyTokenLedger` (`agent/infra/hardening.py:55`). The ledger persists spending in `workspace/state/token_ledger.json` against `SELF_MAX_TOKENS_PER_DAY` (default: 200,000 tokens, resetting at UTC midnight). When the limit is reached, SELF pauses execution cleanly and waits for UTC midnight reset or an operator limit increase. Set `SELF_MAX_TOKENS_PER_DAY` in `.env` to match your budget before running live.
+**Live autonomous runs cost real API tokens with your configured provider.** To protect against runaway costs, SELF includes an enforced `DailyTokenLedger` (`agent/infra/hardening.py:49`). The ledger persists spending in `workspace/state/daily_token_budget.json` against `SELF_MAX_TOKENS_PER_DAY` (default: 200,000 tokens, resetting at UTC midnight). When the limit is reached, SELF pauses execution cleanly and waits for UTC midnight reset or an operator limit increase. Set `SELF_MAX_TOKENS_PER_DAY` in `.env` to match your budget before running live.
 
 ### What can SELF do right now?
 - **Explore its container environment:** Inspect OS files, directory trees, installed Python packages, CPU/RAM limits, and hardware metrics.
