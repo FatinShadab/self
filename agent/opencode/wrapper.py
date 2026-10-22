@@ -54,6 +54,7 @@ class OpencodeDelegator:
         sandboxes_dir: str | Path | None = None,
         allowed_roots: list[str] | None = None,
         runner_fn: Callable[..., subprocess.CompletedProcess] | None = None,
+        model_decisions: Any | None = None,
     ) -> None:
         self.workspace = Path(workspace) if workspace else Path.cwd()
         self.config_path = (
@@ -63,6 +64,7 @@ class OpencodeDelegator:
         )
         self.binary_path = binary_path
         self.runner_fn = runner_fn or subprocess.run
+        self.model_decisions = model_decisions
 
         # Initialize status tracker
         self.status_tracker = OpencodeStatusTracker(
@@ -128,11 +130,40 @@ class OpencodeDelegator:
             delegations[record["delegation_id"]] = record
             self._write_delegations(delegations)
 
+    def _ensure_model_decisions(self) -> Any:
+        """Lazily initialize ModelDecisions for recording build routes and outcomes."""
+        if self.model_decisions is None:
+            from agent.helper_models.model_decisions import ModelDecisions
+            from agent.infra.event_log import EventLogger
+
+            logger = EventLogger(self.workspace / "logs" / "actions.jsonl")
+            self.model_decisions = ModelDecisions(self.workspace, logger, None, None, "delegation")
+        return self.model_decisions
+
+    def is_installed(self) -> bool:
+        """Check if opencode executable is present and accessible."""
+        p = Path(self.binary_path)
+        if p.exists():
+            return True
+        import shutil
+        return shutil.which(str(self.binary_path)) is not None
+
     def status(self) -> dict[str, Any]:
         """Return system usability status without network access or probing."""
+        installed = self.is_installed()
+        if not installed:
+            return {
+                "ok": True,
+                "installed": False,
+                "usable": False,
+                "reason": "opencode not installed",
+                "earliest_retry": None,
+                "providers": {},
+            }
         u = self.status_tracker.usability()
         return {
             "ok": True,
+            "installed": True,
             "usable": u["usable"],
             "reason": u["reason"],
             "earliest_retry": u["earliest_retry"],
@@ -210,6 +241,46 @@ class OpencodeDelegator:
                 "error": "route_reasons is required free text explaining why Self chose to delegate.",
             }
 
+        # Auto-record build route decision (route "opencode", origin "agent")
+        try:
+            self._ensure_model_decisions().record_build_route(
+                task=spec,
+                route="opencode",
+                reasons=route_reasons,
+                expected_effort="delegated",
+                forced_by=None,
+            )
+        except Exception as exc:
+            logger.warning("Failed to record build route decision: %s", exc)
+
+        # Check installation
+        if not self.is_installed():
+            try:
+                self._ensure_model_decisions().record_build_outcome(
+                    task_id=spec[:80],
+                    result="unavailable",
+                    notes="opencode not installed",
+                    acceptance_passed=False,
+                    duration=0.0,
+                    retries=0,
+                )
+            except Exception:
+                pass
+            msg = (
+                "opencode is not installed. "
+                "You should do the work yourself. "
+                "Call record_build_route with forced_by=opencode_unavailable so this is not mistaken for a preference."
+            )
+            return {
+                "ok": False,
+                "status": "unavailable",
+                "reason": "opencode not installed",
+                "earliest_retry": None,
+                "providers": {},
+                "message": msg,
+                "error": msg,
+            }
+
         # 2. Validate target_dirs (must be inside allowed write roots)
         allowed_normalized = [r.replace("\\", "/").strip("/") for r in self.sandbox_manager.allowed_roots]
         for tdir in target_dirs:
@@ -237,24 +308,37 @@ class OpencodeDelegator:
 
         # Re-check usability after probes
         u = self.status_tracker.usability()
-        if not u["usable"]:
-            return {
-                "ok": False,
-                "status": "unavailable",
-                "reason": u["reason"],
-                "earliest_retry": u["earliest_retry"],
-                "providers": u["providers"],
-            }
+        candidates = self._resolve_provider_candidates(model, u["providers"]) if u["usable"] else []
 
-        # 5. Order candidate providers and models
-        candidates = self._resolve_provider_candidates(model, u["providers"])
-        if not candidates:
+        if not u["usable"] or not candidates:
+            reason_text = u["reason"] if not u["usable"] else "No usable providers or models found."
+            earliest_time = u.get("earliest_retry") or "an unknown time"
+            try:
+                self._ensure_model_decisions().record_build_outcome(
+                    task_id=spec[:80],
+                    result="unavailable",
+                    notes=f"Opencode unavailable: {reason_text}",
+                    acceptance_passed=False,
+                    duration=0.0,
+                    retries=0,
+                )
+            except Exception as exc:
+                logger.warning("Failed to record build outcome on unavailable: %s", exc)
+
+            msg = (
+                f"opencode is unavailable until about {earliest_time} ({reason_text}). "
+                "You should either do the work yourself or postpone. "
+                "If you do it yourself, call record_build_route with forced_by=opencode_unavailable "
+                "so this is not mistaken for a preference."
+            )
             return {
                 "ok": False,
                 "status": "unavailable",
-                "reason": "No usable providers or models found.",
+                "reason": reason_text,
                 "earliest_retry": u["earliest_retry"],
                 "providers": u["providers"],
+                "message": msg,
+                "error": msg,
             }
 
         # 6. Create sandbox
@@ -337,6 +421,20 @@ class OpencodeDelegator:
             final_status = "timeout" if last_failure_category == "timeout" else (
                 "throttled" if last_failure_category in ("throttled", "quota_daily") else "error"
             )
+            try:
+                self._ensure_model_decisions().record_build_outcome(
+                    task_id=delegation_id,
+                    result="failed",
+                    notes=f"opencode execution failed with status: {final_status}",
+                    acceptance_passed=False,
+                    duration=duration,
+                    retries=max(0, len(providers_tried) - 1),
+                    provider=chosen_provider,
+                    model=chosen_model,
+                )
+            except Exception as exc:
+                logger.warning("Failed to record build outcome on failure: %s", exc)
+
             record = {
                 "delegation_id": delegation_id,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -372,6 +470,20 @@ class OpencodeDelegator:
         # 9. Scope check
         is_clean, changed_files = self.sandbox_manager.check_scope(sandbox_path, initial_manifest)
         if not is_clean:
+            try:
+                self._ensure_model_decisions().record_build_outcome(
+                    task_id=delegation_id,
+                    result="rejected",
+                    notes="Changes detected outside allowed target directories; delegation rejected.",
+                    acceptance_passed=False,
+                    duration=duration,
+                    retries=max(0, len(providers_tried) - 1),
+                    provider=chosen_provider,
+                    model=chosen_model,
+                )
+            except Exception as exc:
+                logger.warning("Failed to record build outcome on rejected_scope: %s", exc)
+
             record = {
                 "delegation_id": delegation_id,
                 "timestamp": datetime.now(timezone.utc).isoformat(),
@@ -417,6 +529,20 @@ class OpencodeDelegator:
         check_out = (check_res.stdout or "") + "\n" + (check_res.stderr or "")
 
         final_status = "completed" if check_res.returncode == 0 else "check_failed"
+        if final_status == "check_failed":
+            try:
+                self._ensure_model_decisions().record_build_outcome(
+                    task_id=delegation_id,
+                    result="failed",
+                    notes="Acceptance check failed inside sandbox.",
+                    acceptance_passed=False,
+                    duration=duration,
+                    retries=max(0, len(providers_tried) - 1),
+                    provider=chosen_provider,
+                    model=chosen_model,
+                )
+            except Exception as exc:
+                logger.warning("Failed to record build outcome on check_failed: %s", exc)
 
         record = {
             "delegation_id": delegation_id,
@@ -547,6 +673,19 @@ class OpencodeDelegator:
                 if res.returncode != 0:
                     rollback()
                     logger.warning("Acceptance check failed against real tree; changes rolled back.")
+                    try:
+                        self._ensure_model_decisions().record_build_outcome(
+                            task_id=delegation_id,
+                            result="failed",
+                            notes="Acceptance check failed against real tree; changes rolled back.",
+                            acceptance_passed=False,
+                            duration=float(record.get("duration_seconds", 0.0) or 0.0),
+                            retries=max(0, len(record.get("providers_tried", [])) - 1),
+                            provider=record.get("provider_used"),
+                            model=record.get("model_used"),
+                        )
+                    except Exception as exc:
+                        logger.warning("Failed to record build outcome on apply failure: %s", exc)
                     return {
                         "ok": False,
                         "applied": False,
@@ -555,6 +694,19 @@ class OpencodeDelegator:
                     }
             except Exception as exc:
                 rollback()
+                try:
+                    self._ensure_model_decisions().record_build_outcome(
+                        task_id=delegation_id,
+                        result="failed",
+                        notes=f"Acceptance check error against real tree: {exc}; changes rolled back.",
+                        acceptance_passed=False,
+                        duration=float(record.get("duration_seconds", 0.0) or 0.0),
+                        retries=max(0, len(record.get("providers_tried", [])) - 1),
+                        provider=record.get("provider_used"),
+                        model=record.get("model_used"),
+                    )
+                except Exception:
+                    pass
                 return {
                     "ok": False,
                     "applied": False,
@@ -565,6 +717,20 @@ class OpencodeDelegator:
         record["applied"] = True
         record["applied_at"] = datetime.now(timezone.utc).isoformat()
         self._save_delegation(record)
+
+        try:
+            self._ensure_model_decisions().record_build_outcome(
+                task_id=delegation_id,
+                result="accepted",
+                notes="Delegation changes applied and verified against real tree.",
+                acceptance_passed=True,
+                duration=float(record.get("duration_seconds", 0.0) or 0.0),
+                retries=max(0, len(record.get("providers_tried", [])) - 1),
+                provider=record.get("provider_used"),
+                model=record.get("model_used"),
+            )
+        except Exception as exc:
+            logger.warning("Failed to record build outcome on apply: %s", exc)
 
         return {
             "ok": True,
@@ -587,6 +753,20 @@ class OpencodeDelegator:
         record["discarded"] = True
         record["discarded_at"] = datetime.now(timezone.utc).isoformat()
         self._save_delegation(record)
+
+        try:
+            self._ensure_model_decisions().record_build_outcome(
+                task_id=delegation_id,
+                result="abandoned",
+                notes="Delegation discarded by agent.",
+                acceptance_passed=False,
+                duration=float(record.get("duration_seconds", 0.0) or 0.0),
+                retries=max(0, len(record.get("providers_tried", [])) - 1),
+                provider=record.get("provider_used"),
+                model=record.get("model_used"),
+            )
+        except Exception as exc:
+            logger.warning("Failed to record build outcome on discard: %s", exc)
 
         return {
             "ok": True,

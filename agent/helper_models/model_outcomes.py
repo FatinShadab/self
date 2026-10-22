@@ -14,6 +14,105 @@ from agent.infra.file_lock import locked_file
 
 SELF_REPORTED_USEFULNESS = {"used", "partly_used", "not_used", "wrong"}
 
+VALID_BUILD_RESULTS = {"accepted", "rejected", "failed", "abandoned", "unavailable"}
+VALID_BUILD_ROUTES = {"self", "opencode"}
+
+
+class BuildOutcomes:
+    """Store outcome observations associated with build route choices (self vs opencode)."""
+
+    def __init__(self, workspace: str | Path, logger: EventLogger | None = None) -> None:
+        self.workspace = Path(workspace)
+        self.path = self.workspace / "state" / "build_outcomes.jsonl"
+        self.alt_path = self.workspace / "state" / "build_outcomes"
+        self.lock_path = self.workspace / "state" / "build_outcomes.lock"
+        if logger is None:
+            self.logger = EventLogger(self.workspace / "logs" / "actions.jsonl")
+        else:
+            self.logger = logger
+
+    def append(
+        self,
+        task_id: str,
+        route: str,
+        reasons: str,
+        expected_effort: str,
+        result: str,
+        acceptance_passed: bool | None,
+        duration: float,
+        retries: int = 0,
+        provider: str | None = None,
+        model: str | None = None,
+        forced_by: str | None = None,
+        notes: str | None = None,
+        *,
+        session_id: str | None = None,
+    ) -> dict[str, Any]:
+        """Append a validated, redacted build outcome record to the log."""
+        route_clean = str(route).strip().lower()
+        if route_clean not in VALID_BUILD_ROUTES:
+            raise ValueError(f"Build route must be one of {sorted(VALID_BUILD_ROUTES)}, got {route!r}")
+        result_clean = str(result).strip().lower()
+        if result_clean not in VALID_BUILD_RESULTS:
+            raise ValueError(f"Build result must be one of {sorted(VALID_BUILD_RESULTS)}, got {result!r}")
+
+        row = {
+            "task_id": str(task_id),
+            "route": route_clean,
+            "reasons": str(reasons or ""),
+            "expected_effort": str(expected_effort or ""),
+            "result": result_clean,
+            "acceptance_passed": acceptance_passed,
+            "duration": round(float(duration or 0.0), 3),
+            "retries": int(retries or 0),
+            "provider": provider,
+            "model": model,
+            "forced_by": forced_by,
+            "notes": notes,
+            "session_id": session_id or "",
+            "timestamp": datetime.now(timezone.utc).isoformat(),
+        }
+
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        safe_row = self.logger.redactor.value(row)
+        line = json.dumps(safe_row, ensure_ascii=False) + "\n"
+
+        with locked_file(self.lock_path):
+            with self.path.open("a", encoding="utf-8") as handle:
+                handle.write(line)
+            try:
+                with self.alt_path.open("a", encoding="utf-8") as handle:
+                    handle.write(line)
+            except OSError:
+                pass
+
+        return safe_row
+
+    def last_outcomes(self, limit: int | None = 10) -> list[dict[str, Any]]:
+        """Return the most recent persisted build outcomes."""
+        from collections import deque
+
+        rows: deque[dict[str, Any]] = deque(maxlen=limit)
+        target = self.path if self.path.exists() else self.alt_path
+        if not target.exists():
+            return []
+        with locked_file(self.lock_path):
+            try:
+                with target.open("r", encoding="utf-8") as handle:
+                    for line in handle:
+                        line = line.strip()
+                        if not line:
+                            continue
+                        try:
+                            row = json.loads(line)
+                            if isinstance(row, dict) and "route" in row:
+                                rows.append(row)
+                        except json.JSONDecodeError:
+                            continue
+            except OSError:
+                pass
+        return list(rows)
+
 
 class ModelOutcomes:
     """Store outcome signals associated with model choices."""

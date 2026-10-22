@@ -38,8 +38,11 @@ TOOL_PERMISSION_LEVELS: dict[str, PermissionLevel] = {
     "benchmark_providers": PermissionLevel.L0,
     # L0: observe
     "opencode_status": PermissionLevel.L0,
+    "build_route_stats": PermissionLevel.L0,
     # L1: reversible change
     "discard_delegation": PermissionLevel.L1,
+    "record_build_route": PermissionLevel.L1,
+    "record_build_outcome": PermissionLevel.L1,
     "update_plan": PermissionLevel.L1,
     "update_environment_map": PermissionLevel.L1,
     "record_model_assessment": PermissionLevel.L1,
@@ -634,7 +637,15 @@ class ToolRunner:
                     result = self.propose_core_patch(**arguments)
                 elif name in {definition["name"] for definition in TOOL_DEFINITIONS}:
                     result = getattr(self, name)(**arguments)
-                elif name in {"opencode_status", "delegate_coding", "apply_delegation", "discard_delegation"}:
+                elif name in {
+                    "opencode_status",
+                    "delegate_coding",
+                    "apply_delegation",
+                    "discard_delegation",
+                    "record_build_route",
+                    "record_build_outcome",
+                    "build_route_stats",
+                }:
                     result = getattr(self, name)(**arguments)
                 elif self.plugins is not None and self.plugins.is_plugin_tool(name):
                     result = self.plugins.execute_plugin_tool(name, arguments)
@@ -879,8 +890,21 @@ class ToolRunner:
         """Lazily initialize OpencodeDelegator if not already set."""
         if self.opencode is None:
             from agent.opencode.wrapper import OpencodeDelegator
-            self.opencode = OpencodeDelegator(workspace=self.workspace)
+            self.opencode = OpencodeDelegator(
+                workspace=self.workspace,
+                model_decisions=self._ensure_model_decisions(),
+            )
         return self.opencode
+
+    def _ensure_model_decisions(self) -> Any:
+        """Lazily initialize ModelDecisions for recording build routes and outcomes."""
+        if self.model_decisions is None:
+            from agent.helper_models.model_decisions import ModelDecisions
+            from agent.infra.event_log import EventLogger
+
+            logger = getattr(self, "logger", None) or EventLogger(self.workspace / "logs" / "actions.jsonl")
+            self.model_decisions = ModelDecisions(self.workspace, logger, None, None, "default_session")
+        return self.model_decisions
 
     def opencode_status(self) -> dict[str, Any]:
         """Check opencode availability status."""
@@ -897,6 +921,21 @@ class ToolRunner:
     def discard_delegation(self, delegation_id: str) -> dict[str, Any]:
         """Discard a delegation record and delete its sandbox directory."""
         return self._ensure_opencode().discard_delegation(delegation_id)
+
+    def record_build_route(self, **kwargs: Any) -> dict[str, Any]:
+        """Record a build route choice (self or opencode)."""
+        return self._ensure_model_decisions().record_build_route(**kwargs)
+
+    def record_build_outcome(self, **kwargs: Any) -> dict[str, Any]:
+        """Record the final outcome of a build task."""
+        return self._ensure_model_decisions().record_build_outcome(**kwargs)
+
+    def build_route_stats(self, limit: int = 10) -> dict[str, Any]:
+        """Read recent build route history and statistics."""
+        return self._ensure_model_decisions().build_route_stats(
+            limit=limit,
+            opencode_status=self.opencode_status(),
+        )
 
     def get_opencode_tool_definitions(self) -> list[dict[str, Any]]:
         """Return schema definitions for opencode delegation tools."""

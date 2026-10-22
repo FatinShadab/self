@@ -93,11 +93,95 @@ OPENCODE_TOOL_DEFINITIONS: list[dict[str, Any]] = [
             "additionalProperties": False,
         },
     },
+    {
+        "name": "record_build_route",
+        "description": (
+            "Record a deliberate decision to build a capability directly ('self') or delegate to 'opencode'. "
+            "Writes a decision record using the checkpoint mechanism with origin label 'agent' (or 'forced:<reason>')."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "task": {
+                    "type": "string",
+                    "description": "Task description or capability being built.",
+                },
+                "route": {
+                    "type": "string",
+                    "enum": ["self", "opencode"],
+                    "description": "Route chosen: 'self' or 'opencode'.",
+                },
+                "reasons": {
+                    "type": "string",
+                    "description": "Reasoning explaining why this route was chosen.",
+                },
+                "expected_effort": {
+                    "type": "string",
+                    "description": "Estimated effort (e.g. 'low', 'medium', 'high', or token/cycle estimate).",
+                },
+                "forced_by": {
+                    "type": "string",
+                    "enum": ["opencode_unavailable", "human_request"],
+                    "description": "Optional reason if this route was forced rather than chosen.",
+                },
+            },
+            "required": ["task", "route", "reasons", "expected_effort"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "record_build_outcome",
+        "description": (
+            "Record the final outcome of a build task for route 'self' (e.g. accepted, failed, rejected). "
+            "Delegations to opencode record outcomes automatically on apply, discard, or failure."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "task_id": {
+                    "type": "string",
+                    "description": "Task ID matching the recorded build route decision.",
+                },
+                "result": {
+                    "type": "string",
+                    "enum": ["accepted", "rejected", "failed", "abandoned", "unavailable"],
+                    "description": "Final result of the build task.",
+                },
+                "notes": {
+                    "type": "string",
+                    "description": "Optional notes or details on the build outcome.",
+                },
+            },
+            "required": ["task_id", "result"],
+            "additionalProperties": False,
+        },
+    },
+    {
+        "name": "build_route_stats",
+        "description": (
+            "Read recent build route history, counts per route, pass rates, median durations, "
+            "current opencode usability, and route balance suggestions before choosing a build route."
+        ),
+        "input_schema": {
+            "type": "object",
+            "properties": {
+                "limit": {
+                    "type": "integer",
+                    "description": "Maximum number of recent records to return (default 10).",
+                    "default": 10,
+                },
+            },
+            "additionalProperties": False,
+        },
+    },
 ]
 
 OPENCODE_TOOL_PERMISSIONS: dict[str, PermissionLevel] = {
     "opencode_status": PermissionLevel.L0,
+    "build_route_stats": PermissionLevel.L0,
+    "record_build_route": PermissionLevel.L1,
+    "record_build_outcome": PermissionLevel.L1,
+    "discard_delegation": PermissionLevel.L1,
     "delegate_coding": PermissionLevel.L2,
     "apply_delegation": PermissionLevel.L2,
-    "discard_delegation": PermissionLevel.L1,
 }
