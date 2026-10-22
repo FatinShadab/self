@@ -172,6 +172,8 @@ eval/ab/results/
 eval/ab/*-latest.txt
 data/
 logs/
+state/opencode_install.json
+scripts/opencode/state/
 
 # Spyder project settings
 .spyderproject
