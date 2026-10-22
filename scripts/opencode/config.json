@@ -1,5 +1,5 @@
 {
-    "_comment": "Opencode installer configuration.",
+    "_comment": "Opencode installer configuration. Edit version and models manually.",
     "opencode_version": "v2.0.30",
     "github_repo": "anomalyco/opencode",
     "install_dir": "/opt/opencode",
@@ -13,5 +13,24 @@
         "linux-x64-musl": ["linux", "x64"],
         "linux-arm64-glibc": ["linux", "arm64"],
         "linux-arm64-musl": ["linux", "arm64"]
+    },
+    "models": [
+        "_PLACEHOLDER: replace with provider/model strings, e.g. groq/llama-3.3-70b-versatile",
+        "_PLACEHOLDER: run install_opencode.py --list-models after install to see available models"
+    ],
+    "providers": {
+        "_comment": "Maps opencode provider names to the standard env var each provider expects inside the opencode process. The Self wrapper will map OPENCODE_* namespaced env vars to these at runtime.",
+        "groq": {
+            "env_var_opencode_expects": "GROQ_API_KEY",
+            "env_var_self_namespace": "OPENCODE_GROQ_API_KEY"
+        },
+        "google": {
+            "env_var_opencode_expects": "GEMINI_API_KEY",
+            "env_var_self_namespace": "OPENCODE_GOOGLE_API_KEY"
+        },
+        "huggingface": {
+            "env_var_opencode_expects": "HF_TOKEN",
+            "env_var_self_namespace": "OPENCODE_HF_TOKEN"
+        }
     }
 }
