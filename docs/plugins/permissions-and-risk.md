@@ -80,3 +80,21 @@ What the code actually enforces:
 
 Planned but not yet implemented:
 - **Interactive Mid-Turn Human Approval:** A dynamic human-in-the-loop prompt pausing the agent mid-cycle to request real-time human authorization for individual tool invocations is planned for future releases. Currently, all grants must be pre-configured in `/config/permissions.json`.
+
+---
+
+## 6. Limits of Validation
+
+Static analysis and schema checks in `validate_plugin` are strictly advisory:
+- **Bypassable static checks:** Static AST parsing and text regexes cannot detect obfuscated or dynamic behavior, including:
+  - Dynamic imports (such as `__import__("socket")` or `importlib.import_module(...)`).
+  - Dynamic attribute access on modules (such as `getattr(sys.modules["os"], "system")`).
+  - Runtime string construction for secret filenames or sensitive endpoints (e.g. `"".join(["/", "etc", "/", "shadow"])` or base64 decoding).
+- **The real security controls:** Because static checks are advisory, real enforcement relies on defense-in-depth:
+  1. **Human Governance:** Human review of diffs and explicit promotion via `/plugins promote` and `/plugins enable`.
+  2. **Cryptographic Hash Pinning:** Immutable SHA-256 content verification recorded in human-owned `/config/plugins.json`.
+  3. **Runtime Permission Broker:** Mandatory broker checks and L0-L3 permission verification on every action invocation.
+  4. **Container Isolation:** Unprivileged container runtime environment without host filesystem access or elevated capabilities.
+
+### 6.1 Audit Hooks vs. Container Security Boundary
+The in-process PEP 578 audit hook inside `test_plugin` intercepts standard Python socket creation and `.env` file open calls. However, in-process hooks are an advisory speed bump: subprocess execution (`subprocess.run(["curl", ...])`), `ctypes` foreign-function calls, symlinks, or low-level file descriptors can bypass in-process hooks. The true security enforcement boundary is the Docker container isolation: read-only filesystem mounts, non-root user, restricted network namespaces, absence of host credential mounts, and stripped child environments.

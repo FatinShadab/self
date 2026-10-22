@@ -10,7 +10,7 @@
 
 All events in SELF are emitted via `EventLogger.log(event_type, **kwargs)` and appended as newline-delimited JSON (JSONL) records to `workspace/logs/actions.jsonl` `[read] agent/infra/event_log.py:90-115`. Every record automatically includes an ISO 8601 UTC timestamp `ts` and the event identifier `event`.
 
-This catalog documents all **101** unique event types statically found across the codebase.
+This catalog documents all **135** unique event types statically found across the codebase.
 
 ---
 
@@ -20,8 +20,13 @@ This catalog documents all **101** unique event types statically found across th
 | :--- | :--- | :--- | :--- |
 | `about_human_line_deleted` | `[read] agent/identity/identity.py:571` | `line_number`, `removed_chars` | A line of volunteered human preferences was deleted by human command. |
 | `about_human_recorded` | `[read] agent/identity/identity.py:542` | `chars`, `session_id` | Volunteered information about the human was saved to state/about_human.md. |
+| `action_allowed` | `[read] agent/infra/permission_broker.py:285`<br>`[read] agent/infra/permission_broker.py:367` | `action`, `dry_run`, `reason`, `source` | An action request was evaluated and permitted by policy or dry-run simulation. |
+| `action_denied` | `[read] agent/infra/permission_broker.py:296`<br>`[read] agent/infra/permission_broker.py:318`<br>`[read] agent/infra/permission_broker.py:346` | `action`, `level`, `reason`, `source` | An action request was denied by permission policy, broker panic state, or rate limit. |
+| `action_executed` | `[read] agent/infra/permission_broker.py:386` | `action`, `dry_run`, `duration_ms`, `error`, `level`, `reversible`, `source`, `success` | Post-execution outcome and metrics recorded by permission broker for an authorized action. |
+| `action_requested` | `[read] agent/infra/permission_broker.py:268` | `action`, `dry_run`, `level`, `reversible`, `source` | An incoming action request submitted to the permission broker for authorization. |
 | `agent_step` | `[read] agent/runtime/loop.py:303` | `message` | A text message chunk emitted by the agent model during a cycle. |
 | `assumed_output_ceiling` | `[read] agent/llm/model_registry.py:296` | `ceiling`, `model`, `reason` | Logged when using fallback maximum output ceiling for an unconfigured model. |
+| `broker_panic` | `[read] agent/infra/permission_broker.py:407` | `reason` | Permission broker entered panic mode due to consecutive denials or execution failures. |
 | `capability_requested` | `[read] agent/infra/hardening.py:45` | `env_names`, `kind`, `official_page`, `provider` | A human request for external capability expansion was written to state/capability_requests.md. |
 | `code_version` | `[read] agent/ui/version_check.py:44` | `plan_store_present`, `source_hash` | Harness code SHA-256 and plan store presence logged on boot. |
 | `command_finished` | `[read] agent/tools/base_tools.py:457` | `exit_code`, `output_bytes`, `stream_id`, `timed_out`, `truncated` | A subprocess shell command finished with exit code, timing, and byte metrics. |

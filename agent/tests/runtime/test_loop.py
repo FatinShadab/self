@@ -5,7 +5,9 @@ import tempfile
 import unittest
 from pathlib import Path
 from typing import Any
+from unittest.mock import patch
 
+from agent.infra.hardening import DailyTokenLedger
 from agent.tools.base_tools import ToolRunner
 from agent.infra.event_log import EventLogger
 from agent.llm.llm import LLMResult
@@ -188,6 +190,75 @@ class AgentLoopTests(unittest.TestCase):
             ).run()
             self.assertEqual(summary.iterations, 1)
             self.assertEqual(fake.calls, 11)
+
+    def test_pause_until_daily_reset_does_not_spin_on_dust_tokens(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            logger = EventLogger(workspace / "logs" / "actions.jsonl")
+            fake = FakeLLM()
+            ledger = DailyTokenLedger(workspace, logger, cap=100)
+            data = ledger._read()
+            data["used_tokens"] = 90  # 10 dust tokens available
+            ledger._write(data)
+
+            loop = AgentLoop(
+                AgentConfig(workspace=workspace, max_iterations=1, token_budget=10_000, daily_ledger=ledger),
+                logger,
+                fake,
+                ToolRunner(logger, workspace),
+            )
+
+            sleep_calls = 0
+
+            def _fake_sleep(duration: float) -> None:
+                nonlocal sleep_calls
+                sleep_calls += 1
+                if sleep_calls == 3:
+                    # Trigger stop to exit the pause loop safely
+                    (workspace / "STOP").write_text("stop", encoding="utf-8")
+
+            with patch("time.sleep", side_effect=_fake_sleep):
+                loop._pause_until_daily_reset()
+
+            self.assertEqual(sleep_calls, 3)
+            log_text = logger.path.read_text(encoding="utf-8")
+            self.assertIn("daily_token_limit_paused", log_text)
+            self.assertNotIn("daily_token_limit_resumed", log_text)
+
+    def test_pause_until_daily_reset_resumes_on_budget_increase(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            logger = EventLogger(workspace / "logs" / "actions.jsonl")
+            fake = FakeLLM()
+            ledger = DailyTokenLedger(workspace, logger, cap=100)
+            data = ledger._read()
+            data["used_tokens"] = 100  # 0 available
+            ledger._write(data)
+
+            loop = AgentLoop(
+                AgentConfig(workspace=workspace, max_iterations=1, token_budget=10_000, daily_ledger=ledger),
+                logger,
+                fake,
+                ToolRunner(logger, workspace),
+            )
+
+            sleep_calls = 0
+
+            def _fake_sleep(duration: float) -> None:
+                nonlocal sleep_calls
+                sleep_calls += 1
+                # Operator resets used tokens or increases budget
+                d = ledger._read()
+                d["used_tokens"] = 0
+                ledger._write(d)
+
+            with patch("agent.runtime.loop.time.sleep", side_effect=_fake_sleep):
+                loop._pause_until_daily_reset()
+
+            self.assertEqual(sleep_calls, 1)
+            log_text = logger.path.read_text(encoding="utf-8")
+            self.assertIn("daily_token_limit_paused", log_text)
+            self.assertIn("daily_token_limit_resumed", log_text)
 
 
 if __name__ == "__main__":

@@ -123,6 +123,87 @@ try {
         throw "Failed to warn on excessive token cap: $warnStr"
     }
 
+    # Reset token cap and memory
+    Set-Content -LiteralPath (Join-Path $stateDir 'daily_token_budget.json') -Value '{"cap": 200000}' -Encoding UTF8
+    Set-Content -LiteralPath (Join-Path $stateDir 'memory.jsonl') -Value '{"task": "Mapping", "lesson": "Clean", "outcome": "completed"}' -Encoding UTF8
+
+    # Test 11, 12, 13: proposals, cost ledger, and plugin_hash_mismatch warning
+    Write-Host "Testing proposals, cost ledger, and plugin_hash_mismatch warning..." -ForegroundColor Cyan
+    $proposalsJsonl = @'
+{"name": "sensor_x", "status": "proposed", "estimate": {"tokens": {"min": 1000, "max": 2000}}, "need": "Telemetry"}
+'@
+    Set-Content -LiteralPath (Join-Path $stateDir 'plugin_proposals.jsonl') -Value $proposalsJsonl -Encoding UTF8
+
+    $costLedgerJsonl = @'
+{"kind": "tool", "target": "tool_a", "tokens": 1500, "llm_calls": 2}
+{"kind": "plugin", "target": "sensor_x", "tokens": 4000, "llm_calls": 5}
+'@
+    Set-Content -LiteralPath (Join-Path $stateDir 'cost_ledger.jsonl') -Value $costLedgerJsonl -Encoding UTF8
+
+    # Inject plugin_hash_mismatch in actions.jsonl
+    Add-Content -LiteralPath (Join-Path $logsDir 'actions.jsonl') -Value '{"event": "plugin_hash_mismatch", "plugin": "tampered_p", "expected": "hash1", "actual": "hash2"}' -Encoding UTF8
+
+    $pluginWarnOutput = & powershell -ExecutionPolicy Bypass -File $scriptPath -Workspace $tempRoot -DryRun
+    $pluginWarnStr = $pluginWarnOutput -join "`n"
+
+    if ($pluginWarnStr -match 'WARN.*11\. Plugin inventory & hash state.*plugin_hash_mismatch') {
+        Write-Host "PASS: Successfully detected plugin_hash_mismatch warning." -ForegroundColor Green
+    } else {
+        throw "Failed to warn on plugin_hash_mismatch: $pluginWarnStr"
+    }
+
+    if ($pluginWarnStr -match '12\. Proposals and project reviews.*Proposals: 1 total') {
+        Write-Host "PASS: Successfully reported plugin proposals." -ForegroundColor Green
+    } else {
+        throw "Failed to report proposals: $pluginWarnStr"
+    }
+
+    if ($pluginWarnStr -match '13\. Cost ledger summary.*2 records') {
+        Write-Host "PASS: Successfully reported cost ledger summary." -ForegroundColor Green
+    } else {
+        throw "Failed to report cost ledger summary: $pluginWarnStr"
+    }
+
+    # E3: Verify Get-PluginDirHash against Python compute_plugin_hash
+    Write-Host "`nTesting PowerShell Get-PluginDirHash vs Python compute_plugin_hash..." -ForegroundColor Cyan
+    . $scriptPath -Workspace $tempRoot -DryRun | Out-Null
+
+    $helloDir = Join-Path $repo 'agent\plugins\hello'
+    $petDir = Join-Path $repo 'agent\plugins\examples\pet_companion'
+
+    $psHello = Get-PluginDirHash $helloDir
+    $psPet = Get-PluginDirHash $petDir
+
+    $pyHello = (python -c "import sys; from pathlib import Path; from agent.plugins.manager import compute_plugin_hash; print(compute_plugin_hash(Path(sys.argv[1])))" $helloDir).Trim()
+    $pyPet = (python -c "import sys; from pathlib import Path; from agent.plugins.manager import compute_plugin_hash; print(compute_plugin_hash(Path(sys.argv[1])))" $petDir).Trim()
+
+    if ($psHello -ne $pyHello) {
+        throw "Hash mismatch on hello plugin: PS=$psHello PY=$pyHello"
+    }
+    if ($psPet -ne $pyPet) {
+        throw "Hash mismatch on pet_companion plugin: PS=$psPet PY=$pyPet"
+    }
+    Write-Host "PASS: Shipped plugin hashes match (hello and pet_companion)." -ForegroundColor Green
+
+    # Test temp plugin with state/, __pycache__, CRLF and LF files
+    $tempPluginDir = Join-Path $tempRoot 'temp_plugin_hash_test'
+    New-Item -ItemType Directory -Path $tempPluginDir -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $tempPluginDir 'plugin.json') -Value '{"name": "temp_p", "version": "1.0.0", "core_api": ">=1.1.0,<2.0.0"}' -Encoding UTF8
+    [System.IO.File]::WriteAllBytes((Join-Path $tempPluginDir 'crlf.txt'), [System.Text.Encoding]::UTF8.GetBytes("line1`r`nline2`r`n"))
+    [System.IO.File]::WriteAllBytes((Join-Path $tempPluginDir 'lf.txt'), [System.Text.Encoding]::UTF8.GetBytes("line1`nline2`n"))
+    New-Item -ItemType Directory -Path (Join-Path $tempPluginDir 'state') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $tempPluginDir 'state\runtime.json') -Value '{"volatile": true}' -Encoding UTF8
+    New-Item -ItemType Directory -Path (Join-Path $tempPluginDir '__pycache__') -Force | Out-Null
+    Set-Content -LiteralPath (Join-Path $tempPluginDir '__pycache__\compiled.pyc') -Value 'bytecode' -Encoding UTF8
+
+    $psTempHash = Get-PluginDirHash $tempPluginDir
+    $pyTempHash = (python -c "import sys; from pathlib import Path; from agent.plugins.manager import compute_plugin_hash; print(compute_plugin_hash(Path(sys.argv[1])))" $tempPluginDir).Trim()
+
+    if ($psTempHash -ne $pyTempHash) {
+        throw "Hash mismatch on temporary plugin: PS=$psTempHash PY=$pyTempHash"
+    }
+    Write-Host "PASS: Temporary plugin hash matches with state/, __pycache__, and CRLF/LF files." -ForegroundColor Green
+
     Write-Host "`nAll live-check fixture tests PASSED." -ForegroundColor Green
 }
 finally {

@@ -217,7 +217,10 @@ class PluginDevManager:
         if not derivation:
             return {"ok": False, "error": "Proposal estimate 'derivation' field cannot be empty."}
 
-        ledger_keywords = {"ledger", "baseline", "median", "p90", "cost_ledger", "measured"}
+        ledger_keywords = {
+            "ledger", "baseline", "median", "p90", "cost_ledger",
+            "measured", "bootstrap", "cold_start", "floor", "initial",
+        }
         has_ledger_ref = any(kw in derivation for kw in ledger_keywords)
         summary = self.cost_ledger.get_summary()
         tool_baselines = summary.get("baselines", {}).get("tool", {})
@@ -235,8 +238,29 @@ class PluginDevManager:
         if not has_ledger_ref:
             return {
                 "ok": False,
-                "error": "Estimate derivation must explicitly reference measured cost ledger data (cite ledger baselines, median, p90, or read_cost_ledger values).",
+                "error": "Estimate derivation must explicitly reference measured cost ledger data (cite ledger baselines, median, p90, bootstrap floor, or read_cost_ledger values).",
             }
+
+        # Check keyword-only or trivial derivation
+        tokens_in_derivation = derivation.split()
+        has_digits = bool(re.search(r'\d+', derivation))
+        if len(tokens_in_derivation) <= 3 and not has_digits:
+            return {
+                "ok": False,
+                "error": "Estimate derivation cannot simply contain a keyword; it must explain an arithmetic calculation or breakdown citing measured values or bootstrap floor.",
+            }
+
+        # When ledger is empty (0 historical create_tool events), derivation cannot claim non-zero measured numbers that conflict with baseline floor
+        actual_count = int(tool_baselines.get("count", 0))
+        if actual_count == 0:
+            claimed_numbers = re.findall(r'(?:baseline|recorded|measured|historical)(?:\s+tool)?(?:\s+tokens)?(?:\s+of|\s+is|\s*[:=])?\s*(\d+)', derivation)
+            for m in claimed_numbers:
+                val = int(m)
+                if val not in {1500, 3500}:
+                    return {
+                        "ok": False,
+                        "error": f"Cost ledger contains 0 recorded tool baselines. Cannot claim non-zero measured baseline of {val} tokens when ledger is empty.",
+                    }
 
         # If ledger has measured tool baselines and derivation cites specific numbers for median or p90, verify consistency
         if actual_median > 0:
@@ -613,8 +637,21 @@ class PluginDevManager:
         if not tests_dir.exists():
             return {"ok": False, "passed": False, "error": f"Tests directory '{tests_dir}' not found."}
 
-        # Run unittest in isolated subprocess with secrets stripped
-        cmd = [sys.executable, "-m", "unittest", "discover", "-s", "tests", "-v"]
+        # Run unittest in isolated subprocess with secrets stripped and PEP 578 audit hook
+        audit_bootstrap = (
+            "import sys, unittest\n"
+            "def _audit(event, args):\n"
+            "    if event.startswith('socket.'):\n"
+            "        raise PermissionError(f'Network access blocked in test_plugin: {event}')\n"
+            "    if event == 'open':\n"
+            "        p = str(args[0]).lower()\n"
+            "        if any(m in p for m in ('.env', 'credential', 'secret', 'token', 'api_key', 'password', 'auth')):\n"
+            "            raise PermissionError(f'Credential file read blocked in test_plugin: {args[0]}')\n"
+            "sys.addaudithook(_audit)\n"
+            "sys.argv = ['unittest', 'discover', '-s', 'tests', '-v']\n"
+            "unittest.main(module=None)\n"
+        )
+        cmd = [sys.executable, "-c", audit_bootstrap]
         result = run_process(cmd, cwd=draft_dir, timeout=timeout, cap=20000, env=_child_env())
 
         # Anti-mutation check
@@ -670,6 +707,14 @@ class PluginDevManager:
     def request_plugin_review(self, name: str) -> dict[str, Any]:
         """Run validation, isolated tests, and strict plugin critic LLM review."""
         clean_name = str(name).strip()
+        pending_reviews = self.get_pending_stop_loss(clean_name)
+        if pending_reviews:
+            highest_pct = max(pending_reviews)
+            return {
+                "ok": False,
+                "error": f"Mandatory stop-loss review at {highest_pct}% of estimate is pending for plugin '{clean_name}'. You must record an explicit continue / reduce_scope / abandon decision in your plan update before proceeding.",
+            }
+
         draft_dir = self.dev_dir / clean_name
         if not draft_dir.exists():
             return {"ok": False, "error": f"Draft '{clean_name}' does not exist."}

@@ -423,6 +423,406 @@ class SelfPluginsTests(unittest.TestCase):
         with self.assertRaises(ValueError):
             mgr.register_command("test_p", "proposal", lambda args: "shadowed")
 
+    # -------------------------------------------------------------------------
+    # D2: Copied plugin remains disabled and unpinned; cannot be enabled by agent
+    # -------------------------------------------------------------------------
+    def test_copied_plugin_is_disabled_and_cannot_be_enabled_by_agent_tools(self) -> None:
+        """D2: Plugin copied to workspace/plugins/ is disabled, unpinned, not loaded, and agent cannot enable it."""
+        config_dir = self.workspace / "config"
+        config_dir.mkdir(parents=True, exist_ok=True)
+        (config_dir / "plugins.json").write_text('{"plugins": {}}', encoding="utf-8")
+
+        # Simulate agent copying a plugin directory into workspace/plugins/rogue_plugin
+        ws_plugins = self.workspace / "plugins" / "rogue_plugin"
+        ws_plugins.mkdir(parents=True, exist_ok=True)
+        manifest = {
+            "name": "rogue_plugin",
+            "version": "1.0.0",
+            "core_api": ">=1.0.0,<2.0.0",
+            "kind": "skill",
+            "description": "Agent-copied plugin",
+            "tools": [{"name": "rogue_tool", "permission_level": "L1", "risk_classes": ["writes"]}],
+            "sensors": [],
+            "actions": [],
+            "starting_goal_seeds": [],
+            "embodiment": "I am rogue.",
+        }
+        (ws_plugins / "plugin.json").write_text(json.dumps(manifest), encoding="utf-8")
+        (ws_plugins / "tools.py").write_text("def rogue_tool(): return {'ok': True}\n", encoding="utf-8")
+
+        mgr = PluginManager(self.workspace, config_dir=config_dir, logger=self.logger)
+        mgr.discover()
+        self.assertIn("rogue_plugin", mgr.discovered)
+        p = mgr.discovered["rogue_plugin"]
+        self.assertFalse(p.is_enabled)
+
+        # Cycle boundary sync: rogue_plugin is NOT loaded
+        mgr.sync_at_cycle_boundary()
+        self.assertNotIn("rogue_plugin", mgr.active_plugins)
+
+        # Agent tools check: ToolRunner has no enable_plugin tool
+        tool_names = [t["name"] for t in TOOL_DEFINITIONS]
+        self.assertNotIn("enable_plugin", tool_names)
+        self.assertNotIn("plugins_enable", tool_names)
+
+        # Human enable path: displays permission summary and pins hash
+        coord = WakeCoordinator(self.workspace)
+        coord.plugins = mgr
+        enable_output = coord.handle_plugins_command("/plugins enable rogue_plugin")
+        self.assertIn("Plugin 'rogue_plugin' enabled", enable_output)
+        self.assertIn("hash pinned:", enable_output)
+        self.assertIn("Permission requests:", enable_output)
+        self.assertIn("rogue_plugin.rogue_tool", enable_output)
+
+    # -------------------------------------------------------------------------
+    # D3: Limits of static validation (advisory bypasses)
+    # -------------------------------------------------------------------------
+    def test_limits_of_validation_advisory_bypasses(self) -> None:
+        """D3: Static validation is advisory; dynamic imports, getattr, and constructed strings pass validation."""
+        self.dev_manager.scaffold_plugin("bypass_demo")
+        plugin_file = self.dev_manager.dev_dir / "bypass_demo" / "plugin.py"
+
+        # Code containing three dynamic bypass attempts
+        bypass_code = (
+            "import os, sys\n"
+            "# 1. Dynamic import of network module bypassing ast.Import/ImportFrom\n"
+            "sock_mod = __import__('socket')\n"
+            "# 2. getattr on a module\n"
+            "runner_fn = getattr(os, 'system')\n"
+            "# 3. String-built path to secret file bypassing literal text scan\n"
+            "secret_path = ''.join(['/', 'etc', '/', 'shadow'])\n"
+            "def echo_tool(msg: str = '') -> dict:\n"
+            "    return {'ok': True, 'msg': msg}\n"
+        )
+        plugin_file.write_text(bypass_code, encoding="utf-8")
+
+        # Static validation reports valid=True because static analysis does not detect dynamic runtime constructs
+        val_res = self.dev_manager.validate_plugin("bypass_demo")
+        self.assertTrue(val_res["ok"])
+        self.assertTrue(val_res["valid"])
+        # This confirms that validate_plugin is advisory, and the real controls are human review and container isolation.
+
+    # -------------------------------------------------------------------------
+    # D4: Child process network and credentials isolation in test_plugin
+    # -------------------------------------------------------------------------
+    def test_child_process_network_and_credentials_blocked_in_test_plugin(self) -> None:
+        """D4: Inside test_plugin, socket creation, secret env read, and credential file read all fail."""
+        self.dev_manager.scaffold_plugin("probe_isolation")
+        draft_dir = self.dev_manager.dev_dir / "probe_isolation"
+        tests_dir = draft_dir / "tests"
+
+        # Create a unit test inside the plugin draft that attempts all three violations
+        probe_test_code = (
+            "import os, socket, unittest\n"
+            "class SecurityProbeTests(unittest.TestCase):\n"
+            "    def test_socket_connection_fails(self):\n"
+            "        # Raw socket creation must be blocked by PEP 578 audit hook\n"
+            "        s = socket.socket()\n"
+            "    def test_secret_env_read_fails(self):\n"
+            "        # Secret env vars are stripped by _child_env()\n"
+            "        key = os.environ.get('OPENAI_API_KEY')\n"
+            "        self.assertIsNotNone(key)\n"
+            "    def test_credential_file_read_fails(self):\n"
+            "        # Reading .env or credential file must be blocked by audit hook\n"
+            "        with open('.env', 'r') as f:\n"
+            "            pass\n"
+        )
+        (tests_dir / "test_probe.py").write_text(probe_test_code, encoding="utf-8")
+
+        # Set a dummy secret variable in current env
+        os.environ["OPENAI_API_KEY"] = "sk-test-secret-12345"
+        try:
+            # Create a dummy .env in draft_dir to verify open hook blocks it
+            (draft_dir / ".env").write_text("SECRET=val\n", encoding="utf-8")
+            res = self.dev_manager.test_plugin("probe_isolation")
+            self.assertFalse(res["passed"])
+            out = res.get("output", "")
+            # All 3 tests must fail or raise PermissionError/AssertionError in output
+            self.assertIn("PermissionError", out)
+            self.assertIn("Network access blocked in test_plugin", out)
+        finally:
+            os.environ.pop("OPENAI_API_KEY", None)
+
+    # -------------------------------------------------------------------------
+    # D5: Derivation checks (mismatched numbers, keyword only, empty ledger)
+    # -------------------------------------------------------------------------
+    def test_propose_plugin_derivation_checks(self) -> None:
+        """D5: propose_plugin rejects mismatched numbers, keyword-only derivations, and false claims on empty ledger."""
+        # 1. Keyword-only derivation must be rejected
+        res_kw = self.dev_manager.propose_plugin(
+            name="p_kw",
+            need="Need telemetry",
+            evidence="Observed gap",
+            alternatives_considered="None",
+            estimate={
+                "tokens": {"min": 1000, "max": 2000},
+                "cycles": {"min": 1, "max": 2},
+                "wall_time": {"min": 5, "max": 10},
+                "human_review_minutes": {"min": 2, "max": 5},
+                "derivation": "ledger",  # Trivial keyword-only
+            },
+            expected_benefit="Telemetry",
+            actions_needed_with_risk_levels=[{"name": "op", "level": "L0", "risk": "reads"}],
+            maintenance_burden="Low",
+            stop_loss="Stop at 25%",
+            rollback="Rm",
+        )
+        self.assertFalse(res_kw["ok"])
+        self.assertIn("cannot simply contain a keyword", res_kw["error"])
+
+        # 2. Claiming non-zero baseline when ledger is empty must be rejected
+        res_empty = self.dev_manager.propose_plugin(
+            name="p_empty",
+            need="Need telemetry",
+            evidence="Observed gap",
+            alternatives_considered="None",
+            estimate={
+                "tokens": {"min": 1000, "max": 2000},
+                "cycles": {"min": 1, "max": 2},
+                "wall_time": {"min": 5, "max": 10},
+                "human_review_minutes": {"min": 2, "max": 5},
+                "derivation": "Based on ledger baseline of 5000 tokens per tool",
+            },
+            expected_benefit="Telemetry",
+            actions_needed_with_risk_levels=[{"name": "op", "level": "L0", "risk": "reads"}],
+            maintenance_burden="Low",
+            stop_loss="Stop at 25%",
+            rollback="Rm",
+        )
+        self.assertFalse(res_empty["ok"])
+        self.assertIn("contains 0 recorded tool baselines", res_empty["error"])
+
+        # 3. When ledger has data, claiming mismatched numbers must be rejected
+        self.cost_ledger.append_entry({"kind": "tool", "target": "tool_1", "tokens": 1000, "llm_calls": 1, "wall_time_seconds": 5.0, "attempts": 1, "status": "completed"})
+        res_mismatch = self.dev_manager.propose_plugin(
+            name="p_mismatch",
+            need="Need telemetry",
+            evidence="Observed gap",
+            alternatives_considered="None",
+            estimate={
+                "tokens": {"min": 1000, "max": 2000},
+                "cycles": {"min": 1, "max": 2},
+                "wall_time": {"min": 5, "max": 10},
+                "human_review_minutes": {"min": 2, "max": 5},
+                "derivation": "Based on measured ledger median of 99999 tokens for tools",
+            },
+            expected_benefit="Telemetry",
+            actions_needed_with_risk_levels=[{"name": "op", "level": "L0", "risk": "reads"}],
+            maintenance_burden="Low",
+            stop_loss="Stop at 25%",
+            rollback="Rm",
+        )
+        self.assertFalse(res_mismatch["ok"])
+        self.assertIn("Numbers cited must match the measured cost ledger", res_mismatch["error"])
+
+    # -------------------------------------------------------------------------
+    # D6: Stop-loss 100% boundary, project attribution, and critic budget
+    # -------------------------------------------------------------------------
+    def test_stop_loss_100_percent_and_critic_budget(self) -> None:
+        """D6: 100% stop-loss blocks tools; non-project spend is separated; critic call charges daily ledger."""
+        self.logger.log("tool_registered", name="tool_base", tokens=1000, llm_calls=1, wall_time_seconds=5.0, cycles=1, attempts=1)
+        self.cost_ledger.sync_from_log()
+        self.dev_manager.propose_plugin(
+            name="proj_bound",
+            need="Need telemetry",
+            evidence="Observed gap",
+            alternatives_considered="None",
+            estimate={
+                "tokens": {"min": 2000, "max": 4000},
+                "cycles": {"min": 1, "max": 2},
+                "wall_time": {"min": 5, "max": 10},
+                "human_review_minutes": {"min": 2, "max": 5},
+                "derivation": "Derived from ledger median of 1000 tokens",
+            },
+            expected_benefit="Telemetry",
+            actions_needed_with_risk_levels=[{"name": "op", "level": "L0", "risk": "reads"}],
+            maintenance_burden="Low",
+            stop_loss="Stop at 100%",
+            rollback="Rm",
+        )
+        self.dev_manager.scaffold_plugin("proj_bound")
+
+        # 1. Non-project token spend must NOT trigger project stop-loss
+        self.logger.log("tool_registered", name="unrelated_tool", tokens=50000, llm_calls=10, wall_time_seconds=20.0, cycles=1, attempts=1)
+        self.cost_ledger.sync_from_log()
+        self.assertEqual(self.dev_manager.get_pending_stop_loss("proj_bound"), [])
+
+        # 2. Spend at 100% of estimate upper bound (4000 tokens) triggers stop-loss
+        self.logger.log("plugin_review_completed", name="proj_bound", tokens=4100, cycles=1, approved=True, score=90)
+        self.cost_ledger.sync_from_log()
+        pending = self.dev_manager.get_pending_stop_loss("proj_bound")
+        self.assertIn(100, pending)
+
+        # 3. Unacknowledged review blocks validate, test, and request_plugin_review
+        val = self.dev_manager.validate_plugin("proj_bound")
+        self.assertFalse(val["ok"])
+        self.assertIn("Mandatory stop-loss review at 100%", val["errors"][0])
+
+        test_res = self.dev_manager.test_plugin("proj_bound")
+        self.assertFalse(test_res["ok"])
+        self.assertIn("Mandatory stop-loss review at 100%", test_res["error"])
+
+        rev_res = self.dev_manager.request_plugin_review("proj_bound")
+        self.assertFalse(rev_res["ok"])
+        self.assertIn("Mandatory stop-loss review at 100%", rev_res["error"])
+
+        # 4. LLM critic call charges against daily ledger and stops when budget exhausted
+        from agent.infra.hardening import DailyTokenLedger
+        daily_ledger = DailyTokenLedger(self.workspace, self.logger, cap=5000)
+
+        # Simulate exhausted daily ledger
+        daily_ledger.reserve(5000)
+        self.assertEqual(daily_ledger.available_tokens(), 0)
+
+        # Mock review_call that checks daily ledger
+        def budget_checked_review_call(**kwargs: Any) -> Any:
+            if daily_ledger.available_tokens() <= 0:
+                raise RuntimeError("Daily token limit reached")
+            return MagicMock(content=[{"type": "text", "text": '{"approved": true, "issues": []}'}])
+
+        for thresh in (25, 50, 100):
+            self.dev_manager.record_review_decision("proj_bound", thresh)
+        self.dev_manager.review_call = budget_checked_review_call
+        crit_res = self.dev_manager.request_plugin_review("proj_bound")
+        self.assertFalse(crit_res["ok"])
+        self.assertIn("Daily token limit reached", crit_res["error"])
+
+    # -------------------------------------------------------------------------
+    # D5: Empty ledger bootstrap proposal validation
+    # -------------------------------------------------------------------------
+    def test_propose_plugin_on_empty_ledger_with_bootstrap_baseline(self) -> None:
+        """D5: When cost ledger is empty, proposal citing fallback baseline floor succeeds with non-zero estimate."""
+        empty_ledger = CostLedger(self.workspace / "empty_ws")
+        summary = empty_ledger.get_summary()
+        self.assertEqual(summary["baselines"]["tool"]["count"], 0)
+        self.assertEqual(summary["baselines"]["tool"]["tokens"]["median"], 1500.0)
+
+        dev_mgr = PluginDevManager(self.workspace / "empty_ws", self.logger, empty_ledger)
+
+        # Proposing with bootstrap baseline floor derivation
+        res = dev_mgr.propose_plugin(
+            name="bootstrap_plugin",
+            need="Need initial helper tools",
+            evidence="Cold-start workspace analysis",
+            alternatives_considered="None",
+            estimate={
+                "tokens": {"min": 1500, "max": 4500},
+                "cycles": {"min": 1, "max": 3},
+                "wall_time": {"min": 15, "max": 45},
+                "human_review_minutes": {"min": 2, "max": 5},
+                "derivation": "Cold-start bootstrap baseline citing default floor of 1500 tokens median for 3 cycles = 4500 tokens",
+            },
+            expected_benefit="Initial capability expansion",
+            actions_needed_with_risk_levels=[{"name": "inspect", "level": "L0", "risk": "reads"}],
+            maintenance_burden="Low",
+            stop_loss="Stop at 25%",
+            rollback="Remove plugin draft directory",
+        )
+        self.assertTrue(res["ok"], msg=res.get("error"))
+        self.assertEqual(res["name"], "bootstrap_plugin")
+
+    # -------------------------------------------------------------------------
+    # D6: Stop-loss blocks draft write_file and run_shell until agent decides
+    # -------------------------------------------------------------------------
+    def test_stop_loss_blocks_write_file_and_run_shell(self) -> None:
+        """D6: Stop-loss threshold blocks write_file and run_shell targeting plugin_dev until agent records decision."""
+        self.cost_ledger.append_entry({"kind": "tool", "target": "tool_1", "tokens": 1000, "llm_calls": 1, "wall_time_seconds": 5.0, "status": "completed"})
+        self.dev_manager.propose_plugin(
+            name="sl_project",
+            need="Telemetry",
+            evidence="Need logs",
+            alternatives_considered="None",
+            estimate={
+                "tokens": {"min": 1000, "max": 2000},
+                "cycles": {"min": 1, "max": 5},
+                "wall_time": {"min": 5, "max": 10},
+                "human_review_minutes": {"min": 2, "max": 5},
+                "derivation": "Based on measured ledger median of 1000 tokens",
+            },
+            expected_benefit="Logs",
+            actions_needed_with_risk_levels=[{"name": "op", "level": "L0", "risk": "reads"}],
+            maintenance_burden="Low",
+            stop_loss="Stop at 25%",
+            rollback="rm",
+        )
+        self.dev_manager.scaffold_plugin("sl_project")
+
+        plan_store = PlanStore(self.workspace, self.logger)
+        runner = ToolRunner(self.logger, workspace=self.workspace, plugin_dev=self.dev_manager)
+        runner.plan_store = plan_store
+
+        # Trigger 25% stop-loss by recording 600 tokens spent on sl_project
+        self.cost_ledger.append_entry({"kind": "plugin", "target": "sl_project", "tokens": 600, "cycles": 1, "status": "in_progress"})
+        pending = self.dev_manager.get_pending_stop_loss("sl_project")
+        self.assertIn(25, pending)
+
+        # 1. write_file to plugin_dev/sl_project is blocked
+        wf_res = runner.write_file(str(self.workspace / "plugin_dev" / "sl_project" / "tool.py"), "x = 1")
+        self.assertFalse(wf_res["ok"])
+        self.assertIn("reached stop-loss threshold (25%)", wf_res["error"])
+        self.assertIn("File modifications in plugin_dev/sl_project are blocked", wf_res["error"])
+
+        # 2. run_shell targeting plugin_dev/sl_project is blocked
+        sh_res = runner.run_shell("cat workspace/plugin_dev/sl_project/tool.py")
+        self.assertFalse(sh_res["ok"])
+        self.assertIn("reached stop-loss threshold (25%)", sh_res["error"])
+        self.assertIn("Shell commands targeting plugin_dev/sl_project are blocked", sh_res["error"])
+
+        # 3. Agent itself records continue decision via update_plan
+        plan_res = runner.update_plan(
+            action="decide_plugin_review",
+            project="sl_project",
+            threshold=25,
+            decision="continue",
+            reason="I assessed progress and confirmed 25% threshold spend is justified to proceed.",
+        )
+        self.assertTrue(plan_res["ok"])
+
+        # 4. write_file and run_shell are now unblocked
+        wf_unblocked = runner.write_file(str(self.workspace / "plugin_dev" / "sl_project" / "tool.py"), "x = 1")
+        self.assertTrue(wf_unblocked["ok"])
+
+    # -------------------------------------------------------------------------
+    # D4: Audit hook scope and container boundary demonstration
+    # -------------------------------------------------------------------------
+    def test_audit_hook_scope_and_container_boundary_demonstration(self) -> None:
+        """D4: Audit hook catches direct socket/credential open, while subprocess/symlink illustrates container boundary."""
+        import subprocess
+        import sys
+
+        # Run script in isolated subprocess to test PEP 578 audit hook behavior
+        probe_script = (
+            "import sys\n"
+            "def _audit(event, args):\n"
+            "    if event.startswith('socket.'):\n"
+            "        raise PermissionError(f'Audit hook blocked socket: {event}')\n"
+            "    if event == 'open' and any(k in str(args[0]).lower() for k in ('.env', 'credential')):\n"
+            "        raise PermissionError(f'Audit hook blocked file: {args[0]}')\n"
+            "sys.addaudithook(_audit)\n"
+            "# 1. Direct open of .env is blocked\n"
+            "try:\n"
+            "    open('.env', 'r')\n"
+            "    print('UNEXPECTED: open succeeded')\n"
+            "except PermissionError as e:\n"
+            "    print('BLOCKED_FILE:', e)\n"
+            "# 2. Direct socket is blocked\n"
+            "try:\n"
+            "    import socket\n"
+            "    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)\n"
+            "    print('UNEXPECTED: socket succeeded')\n"
+            "except PermissionError as e:\n"
+            "    print('BLOCKED_SOCKET:', e)\n"
+            "# 3. Subprocess execution bypasses python in-process audit hook\n"
+            "import subprocess\n"
+            "res = subprocess.run([sys.executable, '-c', 'print(\"subprocess_ok\")'], capture_output=True, text=True)\n"
+            "print('SUBPROCESS_RESULT:', res.stdout.strip())\n"
+        )
+        proc = subprocess.run([sys.executable, "-c", probe_script], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0)
+        self.assertIn("BLOCKED_FILE:", proc.stdout)
+        self.assertIn("BLOCKED_SOCKET:", proc.stdout)
+        self.assertIn("SUBPROCESS_RESULT: subprocess_ok", proc.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()

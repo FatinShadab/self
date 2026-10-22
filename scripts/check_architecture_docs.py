@@ -51,7 +51,7 @@ def check():
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):
                 func = node.func
-                if isinstance(func, ast.Attribute) and func.attr == "log":
+                if isinstance(func, ast.Attribute) and func.attr in {"log", "_log_event"}:
                     if node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
                         actual_events.add(node.args[0].value)
 

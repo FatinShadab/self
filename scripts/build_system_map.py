@@ -231,7 +231,7 @@ def get_events():
         for node in ast.walk(tree):
             if isinstance(node, ast.Call):
                 func = node.func
-                if isinstance(func, ast.Attribute) and func.attr == "log":
+                if isinstance(func, ast.Attribute) and func.attr in {"log", "_log_event"}:
                     if node.args and isinstance(node.args[0], ast.Constant) and isinstance(node.args[0].value, str):
                         ev = node.args[0].value
                         kws = [kw.arg for kw in node.keywords if kw.arg is not None]

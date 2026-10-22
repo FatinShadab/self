@@ -14,7 +14,7 @@ from agent.infra.event_log import EventLogger
 from agent.learning.plan import consolidate_plan_items
 
 
-HANDOFF_CAP = 12_000
+HANDOFF_CAP = 6_000
 
 
 def now() -> str:
@@ -97,10 +97,20 @@ class SessionStore:
         """Load a resumable handoff record, if one exists."""
         value = self._read_json(self.handoff)
         if value is not None:
+            encoded = json.dumps(self.logger.redactor.value(value), ensure_ascii=False, indent=2)
+            if len(encoded.encode("utf-8")) > self.handoff_cap:
+                bounded = self._bounded_handoff(value)
+                self._atomic_json(self.handoff, bounded)
+                return bounded, False
             return value, False
         backup = self._read_json(self.handoff_backup)
         if backup is not None:
             self.logger.log("handoff_recovered_from_backup")
+            encoded = json.dumps(self.logger.redactor.value(backup), ensure_ascii=False, indent=2)
+            if len(encoded.encode("utf-8")) > self.handoff_cap:
+                bounded = self._bounded_handoff(backup)
+                self._atomic_json(self.handoff, bounded)
+                return bounded, True
             return backup, True
         return {}, self.handoff.exists()
 
@@ -162,7 +172,7 @@ class SessionStore:
 
     def _bounded_handoff(self, handoff: dict[str, Any]) -> dict[str, Any]:
         safe = self.logger.redactor.value(handoff)
-        encoded = json.dumps(safe, ensure_ascii=False)
+        encoded = json.dumps(safe, ensure_ascii=False, indent=2)
         if len(encoded.encode("utf-8")) <= self.handoff_cap:
             return safe
         # Session journal retains the full human-readable record. Retain an
@@ -182,7 +192,7 @@ class SessionStore:
         # unusually large. The unabridged checkpoint remains in overflow and
         # journal.md, so this is explicit compaction rather than silent loss.
         list_fields = ("discoveries", "tools_created", "failures_and_lessons", "open_questions", "pending_human_inputs")
-        while len(json.dumps(compact, ensure_ascii=False).encode("utf-8")) > self.handoff_cap:
+        while len(json.dumps(compact, ensure_ascii=False, indent=2).encode("utf-8")) > self.handoff_cap:
             candidate = max(list_fields, key=lambda field: len(compact.get(field, [])))
             if compact.get(candidate):
                 compact[candidate].pop()

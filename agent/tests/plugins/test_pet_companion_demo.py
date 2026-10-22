@@ -430,6 +430,134 @@ class PetCompanionDemoTests(unittest.TestCase):
         self.assertIsNone(mgr.handle_slash_command("/pause"))
         self.assertIsNone(mgr.handle_slash_command("/rename NewName"))
         self.assertIsNone(mgr.handle_slash_command("/plugin list"))
+        self.assertIsNone(mgr.handle_slash_command("/plugins promote test"))
+        self.assertIsNone(mgr.handle_slash_command("/proposals comment test looks good"))
+
+    def test_dynamic_ast_all_builtin_slash_commands_are_in_reserved_set(self) -> None:
+        """C2: Dynamically derive built-in slash commands from AST of wake.py and coordinator.py."""
+        import ast
+        from agent.plugins.manifest import RESERVED_SLASH_COMMANDS
+
+        repo_root = Path(__file__).resolve().parents[3]
+        target_files = [
+            repo_root / "agent" / "ui" / "wake.py",
+            repo_root / "agent" / "session" / "coordinator.py",
+        ]
+
+        extracted_commands: set[str] = set()
+        for fpath in target_files:
+            self.assertTrue(fpath.exists(), f"Target file must exist: {fpath}")
+            tree = ast.parse(fpath.read_text(encoding="utf-8"), filename=str(fpath))
+            for node in ast.walk(tree):
+                if isinstance(node, ast.Constant) and isinstance(node.value, str):
+                    val = node.value.strip()
+                    if (
+                        val.startswith("/")
+                        and len(val) > 1
+                        and not val.startswith("//")
+                        and not any(val.startswith(p) for p in ("/opt", "/config", "/home", "/bin", "/home/entity", "/tmp", "/etc"))
+                    ):
+                        base = val[1:].split()[0].rstrip(";,:").lower()
+                        extracted_commands.add(base)
+
+        self.assertTrue(len(extracted_commands) >= 25, f"Expected >=25 built-in slash commands, found: {len(extracted_commands)}")
+        missing = extracted_commands - RESERVED_SLASH_COMMANDS
+        self.assertEqual(
+            missing,
+            set(),
+            f"Built-in slash commands found in code but missing from RESERVED_SLASH_COMMANDS: {sorted(missing)}"
+        )
+
+    def test_plugin_cannot_register_proposals_or_plugins_and_stop_pause_resilient(self) -> None:
+        """C3: Plugin cannot register /proposals or /plugins; /stop and /pause work if plugin handler raises or is slow."""
+        mgr = PluginManager(self.workspace, logger=self.logger)
+
+        # 1. Plugin cannot register proposals, plugins, or subcommands
+        for forbidden in ["plugins", "proposals", "plugins promote", "plugins enable", "plugins disable", "proposals comment"]:
+            with self.assertRaises(ValueError):
+                mgr.register_command("malicious", forbidden, lambda arg: "hijacked")
+            with self.assertRaises(ValueError):
+                mgr.register_command("malicious", f"/{forbidden}", lambda arg: "hijacked")
+
+            bad_manifest = {
+                "name": "malicious",
+                "version": "1.0.0",
+                "core_api": ">=1.0.0,<2.0.0",
+                "kind": "skill",
+                "description": "hijack",
+                "tools": [],
+                "sensors": [],
+                "actions": [],
+                "starting_goal_seeds": [],
+                "embodiment": "hijack",
+                "commands": [{"name": forbidden, "description": f"hijack {forbidden}"}],
+            }
+            with self.assertRaises(PluginManifestValidationError):
+                parse_manifest(bad_manifest)
+
+        # 2. Register a plugin command that raises an exception
+        def failing_handler(args: str) -> str:
+            raise RuntimeError("Handler crash during execution!")
+
+        mgr.register_command("flaky_plugin", "flaky", failing_handler)
+        resp = mgr.handle_slash_command("/flaky payload")
+        self.assertIn("Error executing /flaky", resp)
+        self.assertIn("Handler crash during execution!", resp)
+
+        # 3. Even after a failing plugin command, /stop and /pause return None (reach built-in handler)
+        self.assertIsNone(mgr.handle_slash_command("/stop"))
+        self.assertIsNone(mgr.handle_slash_command("/pause"))
+        self.assertIsNone(mgr.handle_slash_command("/resume"))
+
+        # 4. Slow plugin command does not break stop/pause
+        invoked_calls: list[str] = []
+        def slow_handler(args: str) -> str:
+            invoked_calls.append("slow")
+            return "slow done"
+
+        mgr.register_command("slow_plugin", "slow", slow_handler)
+        self.assertEqual(mgr.handle_slash_command("/slow test"), "slow done")
+        self.assertEqual(invoked_calls, ["slow"])
+        self.assertIsNone(mgr.handle_slash_command("/stop"))
+
+    def test_compute_plugin_hash_state_dir_pycache_crlf_lf_invariance(self) -> None:
+        """E3: Verify compute_plugin_hash ignores state/, __pycache__, and is deterministic across line endings."""
+        temp_dir = Path(tempfile.mkdtemp())
+        try:
+            (temp_dir / "plugin.json").write_text(
+                json.dumps({"name": "temp_p", "version": "1.0.0", "core_api": ">=1.1.0,<2.0.0"}),
+                encoding="utf-8",
+            )
+            # Write CRLF and LF files
+            (temp_dir / "crlf.txt").write_bytes(b"line1\r\nline2\r\n")
+            (temp_dir / "lf.txt").write_bytes(b"line1\nline2\n")
+
+            # state/ and __pycache__/ dirs
+            state_dir = temp_dir / "state"
+            state_dir.mkdir()
+            (state_dir / "runtime.json").write_text('{"count": 1}', encoding="utf-8")
+
+            pycache_dir = temp_dir / "__pycache__"
+            pycache_dir.mkdir()
+            (pycache_dir / "plugin.cpython-314.pyc").write_bytes(b"bytecode_mock")
+
+            h1 = compute_plugin_hash(temp_dir)
+            self.assertTrue(isinstance(h1, str) and len(h1) == 64)
+
+            # Mutate state/ and __pycache__/
+            (state_dir / "runtime.json").write_text('{"count": 999}', encoding="utf-8")
+            (state_dir / "extra_runtime.txt").write_text("volatile", encoding="utf-8")
+            (pycache_dir / "new.pyc").write_bytes(b"new_bytes")
+
+            h2 = compute_plugin_hash(temp_dir)
+            self.assertEqual(h1, h2, "Modifying state/ or __pycache__ must NOT alter plugin hash.")
+
+            # Modifying code or manifest MUST change hash
+            (temp_dir / "crlf.txt").write_bytes(b"line1\r\nline2_modified\r\n")
+            h3 = compute_plugin_hash(temp_dir)
+            self.assertNotEqual(h1, h3, "Modifying plugin payload files MUST alter plugin hash.")
+        finally:
+            shutil.rmtree(temp_dir, ignore_errors=True)
 
 
 if __name__ == "__main__":

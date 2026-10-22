@@ -20,9 +20,12 @@ def locked_file(path: str | Path, *, shared: bool = False) -> Iterator[None]:
     with lock_path.open("a+b") as handle:
         if os.name == "nt":
             handle.seek(0)
-            if not handle.read(1):
-                handle.write(b"\0")
-                handle.flush()
+            try:
+                if not handle.read(1):
+                    handle.write(b"\0")
+                    handle.flush()
+            except (PermissionError, OSError):
+                pass
             handle.seek(0)
             msvcrt.locking(handle.fileno(), msvcrt.LK_RLCK if shared else msvcrt.LK_LOCK, 1)
         else:

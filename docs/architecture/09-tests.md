@@ -153,3 +153,48 @@ The hidden evaluation framework in `eval/` is strictly isolated from the agent h
 3. **Compose Profile Protection:** The `eval` service in `docker-compose.yml` is protected by `profiles: ["eval"]` `[read] docker-compose.yml:30-55`. It does not start during normal `docker compose up self`.
 4. **Hidden Scenarios Isolation:** Hidden scenario definitions live exclusively under `eval/scenarios/`. They are never baked into the container image and cannot be inspected by the agent during autonomous operation.
 5. **Secretless Evaluation:** Evaluation checkers and scenario runs execute in isolated environments without live provider spend, ensuring benchmark integrity `[read] eval/tests/test_eval.py:80-95`.
+
+---
+
+## 6. Deterministic Soak Test Suite (`agent/tests/soak/`)
+
+The soak suite (`agent/tests/soak/`) verifies loop and state machine invariants across extended multi-cycle autonomous runs (30 to 200+ cycles) without live provider spend or external network access.
+
+### A. Soak Harness Architecture
+- **`ScriptedProvider` (`agent/tests/soak/harness.py:165`):** Deterministic mock LLM provider simulating structured responses, tool calls, plan updates, self-development workflows, and synthetic errors based on cycle indices.
+- **`ReplayProvider` (`agent/tests/soak/harness.py:270`):** Replays historical tool calls, plan events, and provider exceptions from scrubbed fixture `agent/tests/soak/fixtures/real_run_shape.jsonl` (1,686 events, 374 errors, zero secrets).
+- **`FaultSchedule` (`agent/tests/soak/harness.py:80`):** Programmatic fault injection engine delivering burst and isolated errors: `APIConnectionError`, `InternalServerError`, `APITimeoutError`, `RateLimitError` (HTTP 429), and `BadRequestError` (HTTP 400).
+- **`FakeClock` (`agent/tests/soak/harness.py:120`):** Freezes and steps synthetic time to verify token ledger rollovers and reset intervals without wall-clock sleeps.
+- **`Invariants` (`agent/tests/soak/harness.py:380`):** Verifies workspace state assertions at every cycle boundary:
+  - Handoff bounded to `<= 6,000` chars (`HANDOFF_CAP`) with overflow archived to `state/handoff_overflow.json`.
+  - Handoff recursion prevention: `"Session complete after"` appears `<= 1` time.
+  - Plan store persistence: `state/plan.json` maintains valid items.
+  - Action loop protection: Identical tool actions blocked after 3 calls (`repeated_tool_action_blocked`).
+  - Tool creation cap: Consecutive failures bounded to 3 attempts with lessons written to `memory/lessons.jsonl`.
+  - Token ledger integrity: Active reservations must be released (`reserved_tokens == 0`) at cycle boundary.
+- **`SoakRunner` (`agent/tests/soak/harness.py:530`):** Orchestrates the loop inside a disposable temporary workspace, recording cycle metrics and asserting invariants per cycle.
+
+### B. Soak Scenarios (B1 - B10)
+1. **B1: Plain 30-Cycle Mix (`test_soak_scenarios.py:44`):** Nominal 30 cycles with tool calls, plan updates, memory storage, and cycle 12 human input.
+2. **B2: Fault Injection Schedule (`test_soak_scenarios.py:90`):** Network disconnects, 500 errors, timeouts, and 429 rate limits with backoff.
+3. **B3: Flapping Network Outage (`test_soak_scenarios.py:145`):** Extended 5-cycle network outage triggering circuit breakers, followed by clean recovery.
+4. **B4: Tool Creation Limit (`test_soak_scenarios.py:180`):** Enforces 3-attempt ceiling on failing tool creations and lesson logging.
+5. **B5: Repeated Action Blocker (`test_soak_scenarios.py:215`):** Enforces blocking of identical tool calls after 3 repeats.
+6. **B6: 60-Cycle Growth Bounds (`test_soak_scenarios.py:246`):** Verifies regression slopes across 60 cycles (`SOAK_LONG=1` runs 200 cycles).
+7. **B7: STOP File Honoring (`test_soak_scenarios.py:290`):** Immediate exit on `STOP` sentinel file presence.
+8. **B8: Hot-Unplug During Run (`test_soak_scenarios.py:330`):** Hot-unplug of active plugin, tool removal, and state archiving.
+9. **B9: Token Ledger Exhaustion (`test_soak_scenarios.py:375`):** Reservation ceiling enforcement and rejection of unbacked calls.
+10. **B10: Daily Allowance Reset (`test_soak_scenarios.py:420`):** Clean pause on daily budget exhaustion and resumption on synthetic UTC rollover.
+
+### C. Replay Tests (C1 - C3)
+- **C1/C2: Real Run Shape Replay (`test_soak_replay.py:35`):** 30 cycles against 1,686 scrubbed historical actions with 374 errors, oversized 7,326-byte handoff bounding, and 292 tool failure blocks.
+- **C3: Historical Plan Absence (`test_soak_replay.py:120`):** Confirms historical log predates autonomous plan store, verifying replay tests unassisted recovery.
+
+### D. Verification Tools
+- **`scripts/soak.ps1`:** Runs the 12-scenario soak suite directly, reporting seed, scenario outcomes, and B6 growth trajectory table.
+- **`scripts/live-soak-gate.ps1`:** Post-run read-only invariant validator for live workspaces. Evaluates handoff size, recursive framing, plan activity, failure classes, growth bounds, and token ledger state.
+
+### E. What This Does and Does Not Prove
+- **What It Proves (Mechanical Robustness):** Proves that the loop, plan store, memory, session coordinator, tool registry, and token ledger run for 30+ cycles without memory leaks, unbound handoff growth, runaway error loops, or leaked token reservations.
+- **What It Does NOT Prove:** Does not prove LLM decision quality, semantic relevance of generated code, live provider API deviations, non-deterministic latency anomalies, or slow semantic topic drift.
+

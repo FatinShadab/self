@@ -530,7 +530,8 @@ class PluginManager:
     def register_command(self, plugin_name: str, command: str, handler: Callable[[str], str]) -> None:
         """Register a human-facing slash command for an enabled plugin."""
         clean = command.strip().lstrip("/")
-        if clean.lower() in RESERVED_SLASH_COMMANDS:
+        base_cmd = clean.split()[0].split("/")[0].lower()
+        if clean.lower() in RESERVED_SLASH_COMMANDS or base_cmd in RESERVED_SLASH_COMMANDS:
             raise ValueError(
                 f"Cannot register reserved slash command '/{clean}'. "
                 "Hard human controls and core commands cannot be overridden by plugins."
@@ -556,8 +557,9 @@ class PluginManager:
             return None
         cmd_name = parts[0]
         cmd_args = parts[1] if len(parts) > 1 else ""
+        full_cmd = f"{cmd_name} {cmd_args}".strip().lower()
 
-        if cmd_name.lower() in RESERVED_SLASH_COMMANDS:
+        if cmd_name.lower() in RESERVED_SLASH_COMMANDS or full_cmd in RESERVED_SLASH_COMMANDS:
             return None
 
         if cmd_name in self.active_commands:

@@ -702,9 +702,9 @@ class WakeCoordinator:
         """One bounded planning/reflection call; deterministic fallback preserves continuity."""
         fallback = {
             "attempted": purpose,
-            "achieved": self.handoff.get("summary", "State reviewed without an LLM reflection."),
+            "achieved": "State reviewed without an LLM reflection.",
             "plan": self.plan,
-            "summary": self.handoff.get("summary", "State reviewed without an LLM reflection."),
+            "summary": self.handoff.get("long_term_summary") or "State reviewed without an LLM reflection.",
             "mood_of_run": "exploring",
             "failures_and_lessons": [],
         }
@@ -819,7 +819,8 @@ class WakeCoordinator:
         reflected = self._reflection("wake-up plan review", "Revise the old plan against current state and spot checks.")
         self.plan = normalized_plan(list(reflected.get("plan") or self.plan))
         self._recover_budget_blocked_plan()
-        self.handoff["long_term_summary"] = reflected.get("summary", self.handoff.get("long_term_summary", ""))
+        long_term = reflected.get("summary") or self.handoff.get("long_term_summary", "")
+        self.handoff["long_term_summary"] = re.sub(r"Session complete after \d+ cycle\(s\)\.?\s*", "", long_term).strip()
         self.logger.narrate("I reviewed the previous plan against current state and updated the plan.")
         with self.lock:
             self.starting_plan = [dict(it) for it in self.plan]
@@ -886,9 +887,11 @@ class WakeCoordinator:
                     failures.append(f"{event.get('event')}: {event.get('error_type') or event.get('error') or 'see actions log'}")
         except (OSError, json.JSONDecodeError):
             pass
+        long_term = self.handoff.get("long_term_summary", "")
+        long_term = re.sub(r"Session complete after \d+ cycle\(s\)\.?\s*", "", long_term).strip()
         return {
             "summary": report[:3_000] or "The session completed without a textual cycle report.",
-            "long_term_summary": self.handoff.get("long_term_summary", ""),
+            "long_term_summary": long_term,
             "discoveries": discoveries,
             "tools_created": [f"{name}: registered reusable tool" for name in self._tool_list()],
             "failures_and_lessons": failures[-12:] or ["No new recorded harness failures."],
@@ -1109,6 +1112,7 @@ class WakeCoordinator:
             self.plan = normalized_plan(list(agent_plan or reflection.get("plan") or self.plan))
             self._recover_budget_blocked_plan()
             achieved = str(reflection.get("achieved") or reflection.get("summary") or "No textual achievement report was returned.")
+            achieved = re.sub(r"Session complete after \d+ cycle\(s\)\.?\s*", "", achieved).strip() or "Session work completed without an LLM reflection."
             attempted = str(reflection.get("attempted") or session_attempt)
             active_plan = visible_plan_items(self.plan)
             next_plan = "; ".join(str(item.get("goal") or item.get("step", "")).strip() for item in active_plan if (item.get("goal") or item.get("step"))) or "No active plan items remain; the next wake will review the environment again."

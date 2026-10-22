@@ -417,6 +417,53 @@ class SessionTests(unittest.TestCase):
             self.assertIn("mapping", coordinator.conversation_context())
             self.assertIn("soft cultural/style cue", coordinator.conversation_context())
 
+    def test_handoff_summary_does_not_multiply_session_complete_headers(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            # Run session 1
+            first = WakeCoordinator(root, max_iterations=1, token_budget=10_000, llm_client=WakeFakeLLM())
+            first.run()
+
+            # Run session 2 with failing LLM so it uses fallback reflection
+            class FailingLLM:
+                def call(self, **kwargs: Any) -> LLMResult:
+                    raise RuntimeError("provider unavailable")
+
+            second = WakeCoordinator(root, max_iterations=1, token_budget=10_000, llm_client=FailingLLM())
+            second.run()
+
+            handoff_path = root / "state" / "handoff.json"
+            self.assertTrue(handoff_path.exists())
+            handoff_text = handoff_path.read_text(encoding="utf-8")
+            count = handoff_text.count("Session complete after")
+            self.assertLessEqual(count, 1, f"Repeated 'Session complete after' count: {count}")
+
+    def test_load_handoff_bounds_oversized_legacy_handoff_on_wake(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            state = root / "state"
+            state.mkdir(parents=True)
+            # Create an oversized legacy handoff (> 6,000 chars)
+            oversized_data = {
+                "summary": "Old run summary. " * 300,
+                "plan": [{"step": "Explore", "why": "Initial", "priority": 1, "status": "todo"}],
+                "long_term_summary": "Detailed narrative. " * 200,
+            }
+            oversized_json = json.dumps(oversized_data)
+            self.assertGreater(len(oversized_json), 6_000)
+            (state / "handoff.json").write_text(oversized_json, encoding="utf-8")
+
+            coordinator = WakeCoordinator(root, llm_client=WakeFakeLLM())
+            coordinator.boot()
+
+            # Verify bounded handoff on disk
+            bounded_text = (state / "handoff.json").read_text(encoding="utf-8")
+            self.assertLessEqual(len(bounded_text.encode("utf-8")), 6_000)
+            # Verify overflow archive exists
+            overflow_file = state / "handoff_overflow.json"
+            self.assertTrue(overflow_file.exists())
+            self.assertGreater(len(overflow_file.read_text(encoding="utf-8")), 6_000)
+
 
 if __name__ == "__main__":
     unittest.main()

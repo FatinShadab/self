@@ -293,7 +293,13 @@ class PermissionBroker:
                 request=request,
                 dry_run=request.dry_run,
             )
-            self._log_event("action_denied", action=request.action, source=request.source, reason=verdict.reason)
+            self._log_event(
+                "action_denied",
+                action=request.action,
+                source=request.source,
+                level=request.level.name,
+                reason=verdict.reason,
+            )
             return verdict
 
         # 3. Check permission level against policy
@@ -309,7 +315,13 @@ class PermissionBroker:
                 request=request,
                 dry_run=request.dry_run,
             )
-            self._log_event("action_denied", action=request.action, source=request.source, reason=verdict.reason)
+            self._log_event(
+                "action_denied",
+                action=request.action,
+                source=request.source,
+                level=request.level.name,
+                reason=verdict.reason,
+            )
             self._check_panic()
             return verdict
 
@@ -331,7 +343,13 @@ class PermissionBroker:
                     request=request,
                     dry_run=request.dry_run,
                 )
-                self._log_event("action_denied", action=request.action, source=request.source, reason=verdict.reason)
+                self._log_event(
+                "action_denied",
+                action=request.action,
+                source=request.source,
+                level=request.level.name,
+                reason=verdict.reason,
+            )
                 self._check_panic()
                 return verdict
 
