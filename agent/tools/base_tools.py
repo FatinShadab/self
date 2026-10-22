@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import re
 import time
 import urllib.error
 import urllib.parse
@@ -665,6 +666,16 @@ class ToolRunner:
 
     def run_shell(self, cmd: str, timeout: float = 30) -> dict[str, Any]:
         """Run a bounded shell command inside the container."""
+        if self.plugin_dev is not None and hasattr(self.plugin_dev, "get_pending_stop_loss"):
+            m = re.search(r"plugin_dev[/\\]([a-z0-9_]+)", str(cmd))
+            if m:
+                proj_name = m.group(1)
+                pending = self.plugin_dev.get_pending_stop_loss(proj_name)
+                if pending:
+                    return {
+                        "ok": False,
+                        "error": f"Plugin development for '{proj_name}' has reached stop-loss threshold ({pending[0]}%). Shell commands targeting plugin_dev/{proj_name} are blocked until a review decision (continue, reduce_scope, abandon) is recorded via update_plan.",
+                    }
         return self.body.run_shell(cmd=cmd, timeout=timeout)
 
     def read_plan(self, include_history: bool = False, **arguments: Any) -> dict[str, Any]:
@@ -768,6 +779,17 @@ class ToolRunner:
 
     def write_file(self, path: str, content: str, append: bool = False) -> dict[str, Any]:
         """Write a workspace file after enforcing path and size limits."""
+        if self.plugin_dev is not None and hasattr(self.plugin_dev, "get_pending_stop_loss"):
+            norm_p = str(path).replace("\\", "/")
+            m = re.search(r"plugin_dev/([a-z0-9_]+)", norm_p)
+            if m:
+                proj_name = m.group(1)
+                pending = self.plugin_dev.get_pending_stop_loss(proj_name)
+                if pending:
+                    return {
+                        "ok": False,
+                        "error": f"Plugin development for '{proj_name}' has reached stop-loss threshold ({pending[0]}%). File modifications in plugin_dev/{proj_name} are blocked until a review decision (continue, reduce_scope, abandon) is recorded via update_plan.",
+                    }
         if self._identity is not None and getattr(self.body, "identity", None) is None:
             self.body.identity = self._identity
         return self.body.write_file(path=path, content=content, append=append)

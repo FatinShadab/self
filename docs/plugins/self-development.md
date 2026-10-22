@@ -56,6 +56,7 @@ Estimates are **measured, not guessed**. The system builds `state/cost_ledger.js
 
 - **Tracked metrics:** Tokens spent, LLM calls made, wall-clock time elapsed, and autonomous cycles consumed per `create_tool` attempt and per plugin project.
 - **Tool baselines as the absolute floor:** The tool baseline numbers (median and 90th percentile p90) represent the floor for plugin estimates. A plugin is composed of multiple tool-sized components, integration glue, simulation tests, heavier critic reviews, human review time, and ongoing maintenance.
+- **Empty ledger bootstrap baseline:** On a brand new workspace where `state/cost_ledger.jsonl` contains 0 entries, `cost_ledger.get_summary()` provides a documented fallback baseline floor (tool tokens: median 1,500, p90 3,500; 2 LLM calls; 15s wall time; 1 cycle). The agent cites this fallback bootstrap floor in its derivation (e.g. `Cold-start bootstrap baseline citing default floor of 1500 tokens median for 3 cycles = 4500 tokens`). An estimate of 0 tokens is rejected, as building a plugin inherently incurs token expenditure.
 - **Query tool:** The agent calls `read_cost_ledger` to inspect current baselines and active project totals before formulating estimates.
 
 ---
@@ -105,6 +106,8 @@ Before testing or review, the agent runs `validate_plugin(name)`:
 Runs plugin tests in `workspace/plugin_dev/<name>/tests/` in an isolated subprocess with secrets stripped and network access blocked:
 - `_child_env` strips all credential and token environment variables matching secret markers.
 - All outbound network calls are routed to dead loopback endpoints (`http://127.0.0.1:0`) via proxy environment variables.
+- An in-process PEP 578 audit hook monitors socket creation and sensitive file access during the test run.
+- **Audit Hook vs. Container Boundary:** The in-process audit hook is an advisory speed bump, not a security sandbox. Subprocesses (`os.system("curl ...")`), dynamic C calls (`ctypes`), symlinks, or obfuscated paths pass in-process hooks. The true security enforcement boundary is the Docker container isolation: read-only filesystem mounts, non-root user, restricted network namespaces, absence of host credential mounts, and stripped child environments.
 - Tests run against deterministic simulation models (`SimBody`) and scenarios—never against real external services or host resources.
 - If a stop-loss review is pending, `test_plugin` is blocked until an explicit decision is recorded in the plan.
 
@@ -126,10 +129,13 @@ At **25%**, **50%**, and **100%** of the estimated tokens or cycles (whichever o
 
 - **Benchmark ceiling:** The 100% mark is benchmarked against the upper bound (`max` of `tokens` and `cycles`) declared in the proposal estimate.
 - **Cycle Prompt Alert:** The cycle prompt flags the triggered threshold with measured spend vs. original estimate.
-- **Enforcement on Silence:** Continuing is allowed; silence is not. If a stop-loss review is pending and unacknowledged, the cycle prompt re-prompts on every cycle AND all plugin development tools (`validate_plugin`, `test_plugin`, `request_plugin_review`) are **blocked** from executing until the agent records an explicit decision in its plan update (`update_plan` action=`decide_plugin_review`):
-  - `continue`: Justify why continuing remains worthwhile despite spend.
-  - `reduce_scope`: Prune non-essential actions to stay within bounds.
-  - `abandon`: Terminate development and roll back draft files.
+- **Enforcement on Silence:** Continuing is allowed; silence is not. If a stop-loss review is pending and unacknowledged, the cycle prompt re-prompts on every cycle AND:
+  - All plugin development tools (`validate_plugin`, `test_plugin`, `request_plugin_review`) are **blocked** from executing.
+  - File modifications (`write_file`) and shell executions (`run_shell`) targeting `workspace/plugin_dev/<name>` are **blocked** from modifying the draft.
+  - Development remains blocked until the agent itself decides and records an explicit decision in its plan update (`update_plan` action=`decide_plugin_review`):
+    - `continue`: Justify why continuing remains worthwhile despite spend.
+    - `reduce_scope`: Prune non-essential actions to stay within bounds.
+    - `abandon`: Terminate development and roll back draft files.
 - **Attribution:** Project spend accumulates from granular plugin events and cycles where the active milestone is a plugin project goal; general exploration cycles attribute spend to general discovery.
 - **Budget Reservation:** Critic LLM reviews dispatched via `request_plugin_review` use `BudgetedLLM` and strictly respect daily token ledger reservations (`DailyTokenLedger`).
 - The harness logs `plugin_project_review` events for transparent auditability.

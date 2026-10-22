@@ -95,3 +95,6 @@ Static analysis and schema checks in `validate_plugin` are strictly advisory:
   2. **Cryptographic Hash Pinning:** Immutable SHA-256 content verification recorded in human-owned `/config/plugins.json`.
   3. **Runtime Permission Broker:** Mandatory broker checks and L0-L3 permission verification on every action invocation.
   4. **Container Isolation:** Unprivileged container runtime environment without host filesystem access or elevated capabilities.
+
+### 6.1 Audit Hooks vs. Container Security Boundary
+The in-process PEP 578 audit hook inside `test_plugin` intercepts standard Python socket creation and `.env` file open calls. However, in-process hooks are an advisory speed bump: subprocess execution (`subprocess.run(["curl", ...])`), `ctypes` foreign-function calls, symlinks, or low-level file descriptors can bypass in-process hooks. The true security enforcement boundary is the Docker container isolation: read-only filesystem mounts, non-root user, restricted network namespaces, absence of host credential mounts, and stripped child environments.

@@ -217,7 +217,10 @@ class PluginDevManager:
         if not derivation:
             return {"ok": False, "error": "Proposal estimate 'derivation' field cannot be empty."}
 
-        ledger_keywords = {"ledger", "baseline", "median", "p90", "cost_ledger", "measured"}
+        ledger_keywords = {
+            "ledger", "baseline", "median", "p90", "cost_ledger",
+            "measured", "bootstrap", "cold_start", "floor", "initial",
+        }
         has_ledger_ref = any(kw in derivation for kw in ledger_keywords)
         summary = self.cost_ledger.get_summary()
         tool_baselines = summary.get("baselines", {}).get("tool", {})
@@ -235,7 +238,7 @@ class PluginDevManager:
         if not has_ledger_ref:
             return {
                 "ok": False,
-                "error": "Estimate derivation must explicitly reference measured cost ledger data (cite ledger baselines, median, p90, or read_cost_ledger values).",
+                "error": "Estimate derivation must explicitly reference measured cost ledger data (cite ledger baselines, median, p90, bootstrap floor, or read_cost_ledger values).",
             }
 
         # Check keyword-only or trivial derivation
@@ -244,13 +247,13 @@ class PluginDevManager:
         if len(tokens_in_derivation) <= 3 and not has_digits:
             return {
                 "ok": False,
-                "error": "Estimate derivation cannot simply contain a keyword; it must explain an arithmetic calculation or breakdown citing measured values.",
+                "error": "Estimate derivation cannot simply contain a keyword; it must explain an arithmetic calculation or breakdown citing measured values or bootstrap floor.",
             }
 
         # When ledger is empty (0 historical create_tool events), derivation cannot claim non-zero measured numbers that conflict with baseline floor
         actual_count = int(tool_baselines.get("count", 0))
         if actual_count == 0:
-            claimed_numbers = re.findall(r'(?:baseline|recorded|ledger)(?:\s+tool)?(?:\s+tokens)?(?:\s+of|\s+is|\s*[:=])?\s*(\d+)', derivation)
+            claimed_numbers = re.findall(r'(?:baseline|recorded|measured|historical)(?:\s+tool)?(?:\s+tokens)?(?:\s+of|\s+is|\s*[:=])?\s*(\d+)', derivation)
             for m in claimed_numbers:
                 val = int(m)
                 if val not in {1500, 3500}:

@@ -687,6 +687,142 @@ class SelfPluginsTests(unittest.TestCase):
         self.assertFalse(crit_res["ok"])
         self.assertIn("Daily token limit reached", crit_res["error"])
 
+    # -------------------------------------------------------------------------
+    # D5: Empty ledger bootstrap proposal validation
+    # -------------------------------------------------------------------------
+    def test_propose_plugin_on_empty_ledger_with_bootstrap_baseline(self) -> None:
+        """D5: When cost ledger is empty, proposal citing fallback baseline floor succeeds with non-zero estimate."""
+        empty_ledger = CostLedger(self.workspace / "empty_ws")
+        summary = empty_ledger.get_summary()
+        self.assertEqual(summary["baselines"]["tool"]["count"], 0)
+        self.assertEqual(summary["baselines"]["tool"]["tokens"]["median"], 1500.0)
+
+        dev_mgr = PluginDevManager(self.workspace / "empty_ws", self.logger, empty_ledger)
+
+        # Proposing with bootstrap baseline floor derivation
+        res = dev_mgr.propose_plugin(
+            name="bootstrap_plugin",
+            need="Need initial helper tools",
+            evidence="Cold-start workspace analysis",
+            alternatives_considered="None",
+            estimate={
+                "tokens": {"min": 1500, "max": 4500},
+                "cycles": {"min": 1, "max": 3},
+                "wall_time": {"min": 15, "max": 45},
+                "human_review_minutes": {"min": 2, "max": 5},
+                "derivation": "Cold-start bootstrap baseline citing default floor of 1500 tokens median for 3 cycles = 4500 tokens",
+            },
+            expected_benefit="Initial capability expansion",
+            actions_needed_with_risk_levels=[{"name": "inspect", "level": "L0", "risk": "reads"}],
+            maintenance_burden="Low",
+            stop_loss="Stop at 25%",
+            rollback="Remove plugin draft directory",
+        )
+        self.assertTrue(res["ok"], msg=res.get("error"))
+        self.assertEqual(res["name"], "bootstrap_plugin")
+
+    # -------------------------------------------------------------------------
+    # D6: Stop-loss blocks draft write_file and run_shell until agent decides
+    # -------------------------------------------------------------------------
+    def test_stop_loss_blocks_write_file_and_run_shell(self) -> None:
+        """D6: Stop-loss threshold blocks write_file and run_shell targeting plugin_dev until agent records decision."""
+        self.cost_ledger.append_entry({"kind": "tool", "target": "tool_1", "tokens": 1000, "llm_calls": 1, "wall_time_seconds": 5.0, "status": "completed"})
+        self.dev_manager.propose_plugin(
+            name="sl_project",
+            need="Telemetry",
+            evidence="Need logs",
+            alternatives_considered="None",
+            estimate={
+                "tokens": {"min": 1000, "max": 2000},
+                "cycles": {"min": 1, "max": 5},
+                "wall_time": {"min": 5, "max": 10},
+                "human_review_minutes": {"min": 2, "max": 5},
+                "derivation": "Based on measured ledger median of 1000 tokens",
+            },
+            expected_benefit="Logs",
+            actions_needed_with_risk_levels=[{"name": "op", "level": "L0", "risk": "reads"}],
+            maintenance_burden="Low",
+            stop_loss="Stop at 25%",
+            rollback="rm",
+        )
+        self.dev_manager.scaffold_plugin("sl_project")
+
+        plan_store = PlanStore(self.workspace, self.logger)
+        runner = ToolRunner(self.logger, workspace=self.workspace, plugin_dev=self.dev_manager)
+        runner.plan_store = plan_store
+
+        # Trigger 25% stop-loss by recording 600 tokens spent on sl_project
+        self.cost_ledger.append_entry({"kind": "plugin", "target": "sl_project", "tokens": 600, "cycles": 1, "status": "in_progress"})
+        pending = self.dev_manager.get_pending_stop_loss("sl_project")
+        self.assertIn(25, pending)
+
+        # 1. write_file to plugin_dev/sl_project is blocked
+        wf_res = runner.write_file(str(self.workspace / "plugin_dev" / "sl_project" / "tool.py"), "x = 1")
+        self.assertFalse(wf_res["ok"])
+        self.assertIn("reached stop-loss threshold (25%)", wf_res["error"])
+        self.assertIn("File modifications in plugin_dev/sl_project are blocked", wf_res["error"])
+
+        # 2. run_shell targeting plugin_dev/sl_project is blocked
+        sh_res = runner.run_shell("cat workspace/plugin_dev/sl_project/tool.py")
+        self.assertFalse(sh_res["ok"])
+        self.assertIn("reached stop-loss threshold (25%)", sh_res["error"])
+        self.assertIn("Shell commands targeting plugin_dev/sl_project are blocked", sh_res["error"])
+
+        # 3. Agent itself records continue decision via update_plan
+        plan_res = runner.update_plan(
+            action="decide_plugin_review",
+            project="sl_project",
+            threshold=25,
+            decision="continue",
+            reason="I assessed progress and confirmed 25% threshold spend is justified to proceed.",
+        )
+        self.assertTrue(plan_res["ok"])
+
+        # 4. write_file and run_shell are now unblocked
+        wf_unblocked = runner.write_file(str(self.workspace / "plugin_dev" / "sl_project" / "tool.py"), "x = 1")
+        self.assertTrue(wf_unblocked["ok"])
+
+    # -------------------------------------------------------------------------
+    # D4: Audit hook scope and container boundary demonstration
+    # -------------------------------------------------------------------------
+    def test_audit_hook_scope_and_container_boundary_demonstration(self) -> None:
+        """D4: Audit hook catches direct socket/credential open, while subprocess/symlink illustrates container boundary."""
+        import subprocess
+        import sys
+
+        # Run script in isolated subprocess to test PEP 578 audit hook behavior
+        probe_script = (
+            "import sys\n"
+            "def _audit(event, args):\n"
+            "    if event.startswith('socket.'):\n"
+            "        raise PermissionError(f'Audit hook blocked socket: {event}')\n"
+            "    if event == 'open' and any(k in str(args[0]).lower() for k in ('.env', 'credential')):\n"
+            "        raise PermissionError(f'Audit hook blocked file: {args[0]}')\n"
+            "sys.addaudithook(_audit)\n"
+            "# 1. Direct open of .env is blocked\n"
+            "try:\n"
+            "    open('.env', 'r')\n"
+            "    print('UNEXPECTED: open succeeded')\n"
+            "except PermissionError as e:\n"
+            "    print('BLOCKED_FILE:', e)\n"
+            "# 2. Direct socket is blocked\n"
+            "try:\n"
+            "    import socket\n"
+            "    s = socket.socket(socket.AF_INET, socket.SOCK_STREAM)\n"
+            "    print('UNEXPECTED: socket succeeded')\n"
+            "except PermissionError as e:\n"
+            "    print('BLOCKED_SOCKET:', e)\n"
+            "# 3. Subprocess execution bypasses python in-process audit hook\n"
+            "import subprocess\n"
+            "res = subprocess.run([sys.executable, '-c', 'print(\"subprocess_ok\")'], capture_output=True, text=True)\n"
+            "print('SUBPROCESS_RESULT:', res.stdout.strip())\n"
+        )
+        proc = subprocess.run([sys.executable, "-c", probe_script], capture_output=True, text=True)
+        self.assertEqual(proc.returncode, 0)
+        self.assertIn("BLOCKED_FILE:", proc.stdout)
+        self.assertIn("BLOCKED_SOCKET:", proc.stdout)
+        self.assertIn("SUBPROCESS_RESULT: subprocess_ok", proc.stdout)
+
 
 if __name__ == "__main__":
     unittest.main()
