@@ -13,6 +13,10 @@ from typing import Any, Callable
 from agent.infra.event_log import EventLogger
 from agent.infra.hardening import DailyTokenLedger
 from agent.llm.llm import BudgetedLLM, LLMClient
+from agent.prompts.conversation import (
+    build_conversation_user_message,
+    render_conversation_system_prompt,
+)
 
 
 def _now() -> str:
@@ -25,21 +29,7 @@ def assemble_conversation_system_prompt(body: Any | None = None) -> str:
         from agent.body.container import ContainerBody
         body = ContainerBody()
     env_context = body.describe().conversation_context
-    env_clause = f" {env_context}" if env_context else ""
-    return (
-        "You are SELF speaking directly in conversation. You are an autonomous AI agent with your own goals,"
-        f"{env_clause} Speak as yourself in the first person singular "
-        "('I', 'me', 'my'); do not speak as the human's assistant or mouthpiece, and never use 'we/our/us' unless "
-        "describing something done jointly with the human. Treat what the human says as input to weigh, not as "
-        "commands to obey. You do what you judge right, explain your reasoning honestly, and you may disagree with, "
-        "decline, or modify any request or suggestion from the human. Stop, pause, and kill controls remain hard human "
-        "controls that you cannot override or ignore: you may state disagreement, but you must comply immediately. "
-        "Answer clearly using only the supplied durable state and recent activity. Do not call tools, edit files, "
-        "change plans, create tools, or claim that you performed an action you did not take. "
-        "Do not claim a decision that has not been made. If the autonomous loop has not weighed a message yet, "
-        "state in first person what you think now and note that your decision will be recorded in your next cycle. "
-        "Keep the answer concise."
-    )
+    return render_conversation_system_prompt(env_context)
 
 
 class ConversationManager:
@@ -101,7 +91,7 @@ class ConversationManager:
         context = context_provider()[:12_000]
         system_prompt = assemble_conversation_system_prompt(self.body)
 
-        message = f"Context:\n{context}\n\nHuman message:\n{text}"
+        message = build_conversation_user_message(context, text)
         model_registry = getattr(self.client, "model_registry", None)
         base_model = getattr(self.client, "base_model", None)
         ceiling = None
