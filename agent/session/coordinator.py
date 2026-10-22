@@ -34,6 +34,12 @@ from agent.session.reflection import ReflectionManager
 from agent.session.session import HumanInbox, SessionStore, default_plan
 from agent.session.version_check import verify_startup_code_version
 from agent.tools.base_tools import ToolRunner
+from agent.prompts.reflection import (
+    COORDINATOR_REFLECTION_RETRY_NUDGE,
+    COORDINATOR_REFLECTION_SYSTEM_PROMPT,
+    build_coordinator_reflection_base_prompt,
+    build_startup_eval_instructions,
+)
 
 COMPLETED_PLAN_STATUSES = frozenset({
     "done", "complete", "completed", "achieved", "finished", "closed",
@@ -751,8 +757,15 @@ class WakeCoordinator:
             reflected = None
             truncated = False
             parse_failed = False
-            base_prompt = self.logger.redactor.text(f"Purpose: {purpose}\nOld handoff: {json.dumps(self.handoff, ensure_ascii=False)[:7000]}\nCurrent plan: {json.dumps(self.plan)}\n{extra}")
-            system_prompt = "You are SELF preparing a truthful durable handoff. Return ONLY JSON with attempted, achieved, summary, plan (objects: step, why, priority, status), mood_of_run, failures_and_lessons, open_questions. Explain what this session was trying to do, what it actually achieved, and the updated next plan. Do not invent facts; use only supplied state. Redact secrets."
+            base_prompt = self.logger.redactor.text(
+                build_coordinator_reflection_base_prompt(
+                    purpose=purpose,
+                    old_handoff=json.dumps(self.handoff, ensure_ascii=False)[:7000],
+                    current_plan=json.dumps(self.plan),
+                    extra=extra,
+                )
+            )
+            system_prompt = COORDINATOR_REFLECTION_SYSTEM_PROMPT
             last_text = ""
             for attempt_num in (1, 2):
                 if attempt_num == 1:
@@ -761,7 +774,7 @@ class WakeCoordinator:
                     messages = [
                         {"role": "user", "content": base_prompt},
                         {"role": "assistant", "content": last_text[:4000]},
-                        {"role": "user", "content": "Your previous reflection was truncated or not valid JSON. Be more concise: keep the handoff concise and return ONLY the valid JSON object with the required fields."}
+                        {"role": "user", "content": COORDINATOR_REFLECTION_RETRY_NUDGE}
                     ]
                 result = budget.call(
                     system=system_prompt,
@@ -1051,15 +1064,7 @@ class WakeCoordinator:
         needing_eval = model_reg.helpers_needing_evaluation() if model_reg is not None else []
         if needing_eval:
             self.logger.narrate(f"Startup priority: helper models needing evaluation: {', '.join(needing_eval)}")
-            eval_instructions = (
-                f"Helper models needing evaluation before other work: {', '.join(needing_eval)}. "
-                "Evaluate each helper model using exact names from list_models: "
-                "first probe_model, then research_model, then record_model_assessment with the probe id as evidence. "
-                "Write each assessment as one compact, comparable line with total/active params and context window first (or 'unknown' when not known), "
-                "followed by 'status ok', then measured_stats call latency (total / calls) and probe-only latency labeled separately "
-                "(e.g. '550B/55B, ctx 262k+, status ok, call latency ~2.1s, probe latency ~1.8s, strong reasoning; probe 4/4 passed') "
-                "and explicitly state the origin of each fact (web vs model_knowledge)."
-            )
+            eval_instructions = build_startup_eval_instructions(needing_eval)
             startup_context = eval_instructions
 
         package_entry = self.learning._load_map().get("entries", {}).get("packages", {})
