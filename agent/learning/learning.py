@@ -16,6 +16,7 @@ from typing import Any
 
 from agent.infra.event_log import EventLogger
 from agent.infra.migration import deterministic_summary
+from agent.prompts.container_body import DEFAULT_NOTES_PREAMBLE
 from agent.prompts.tasks import CURRICULUM_TASKS
 
 
@@ -359,7 +360,7 @@ class LearningStore:
         preamble = (
             self.body.describe().notes_preamble
             if self.body and self.body.describe().notes_preamble
-            else "I am SELF, a root process inside a Docker Linux container. I explore the container, retain verified discoveries, and only register reviewed, tested tools."
+            else DEFAULT_NOTES_PREAMBLE
         )
         body = [
             "# SELF notes",
