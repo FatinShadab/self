@@ -20,17 +20,18 @@ SELF maintains two distinct, decoupled version tracks:
 - **Plugin API Specification (`1.1.0` in `VERSION` and `CORE_API_VERSION`):** Strict SemVer specification governing the public plugin interface, manifest schema, dynamic tool registration, lifecycle hooks, and custom slash commands. Plugins declare compatibility ranges against this specification (e.g. `core_api: ">=1.1.0,<2.0.0"`).
 
 ### What Has Been Verified
-- **Automated Offline Test Suites:** 337 harness unit and integration tests across all 12 Python packages and 20 host evaluation tests pass completely (357 total tests) without live network traffic or provider spend.
+- **Automated Offline Test Suites:** 337 collected harness test methods across all 12 Python packages (verified via `unittest` discovery in `agent/tests`). In container CI, 337 harness tests and 20 eval tests pass completely (357 total tests) without live network traffic or provider spend. On Windows host testing: 334 passed, 2 failures, 1 error due to Windows environment differences (subprocess pipe buffering before 0.2s timeout, file lock on temporary directory rmdir during active process cleanup, host vs container environment detection); container run: NOT RUN on current host (Docker daemon unavailable on Windows named pipe).
 - **Deterministic Soak Suite:** Scenarios B1 through B10 run continuously for 60 to 200 cycles against a scripted provider and historical replay fixtures (`scripts/soak.ps1`), validating per-cycle invariants: daily token ledger accounting, bounded handoffs (≤ 6,000 characters), plan hygiene, header deduplication, and absence of tight spins.
-- **Static Documentation & Architecture Guards:** `scripts/check_architecture_docs.py` and `scripts/check_docs_claims.py` verify that all tool definitions (29 tools), events (135 events), state files (42 files), environment variables (44 vars), relative links, and numerical claims match code ground truth.
+- **Static Documentation & Architecture Guards:** `scripts/check_architecture_docs.py` and `scripts/check_docs_claims.py` verify that all tool definitions (29 tools), events (135 events), state files (42 files), environment variables (44 vars), relative links, code symbols, and numerical claims match code ground truth.
 
 ### What Has NOT Been Verified
 - **No Live Multi-Cycle Run on Release Candidate 3:** No extended multi-cycle autonomous run has been executed or validated against live commercial LLM endpoints using the `core-v0.1.0-rc3` release candidate.
+- **Container Test Suite on Current Host:** Container run is NOT RUN on the local developer workstation because the Docker daemon is unreachable on the Windows named pipe.
 - **Unverified Provider Tiers:** Third-party provider free-tier quotas and rate limits remain unverified until verified by live research tools.
 
 ### Known Limitations
 1. **Advisory Plugin Draft Validation:** `python -m agent.plugins validate` performs static AST and schema linting. It is not an OS sandbox; dynamic Python patterns (`__import__`, `getattr`) can bypass static checks. Security relies strictly on human promotion, SHA-256 hash pinning, and container isolation.
-2. **Run Analysis Metrics Scope:** `scripts/analyze-run.ps1` and `agent.reporting.run_analysis` inspect `daily_token_budget.json` rather than the canonical `token_ledger.json`, and look only for `handoff_overflow.json`.
+2. **Run Analysis Accounting Gaps:** `scripts/analyze-run.ps1` and `agent.reporting.run_analysis` inspect canonical `daily_token_budget.json` and `handoff_overflow.json`. However, due to event field naming mismatches between `token_spend` and `cycle_completed`, the analyzer reports 0 tokens per cycle, displays an unscaled default cap `20000000000000`, reports plan action as `omitted`, and analyzes only the first 30 cycles rather than the latest 30 (see Starter Issue 1).
 3. **Default Root Container Privilege:** In the default profile, commands run as root inside the container namespace. Hard security depends on the container boundary (no host bind mounts beyond `./workspace` and read-only `./config`). For strict least-privilege operation, use the `hardened` profile.
 
 ---
