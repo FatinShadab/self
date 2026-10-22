@@ -36,7 +36,10 @@ TOOL_PERMISSION_LEVELS: dict[str, PermissionLevel] = {
     "research_provider": PermissionLevel.L0,
     "ask_brain": PermissionLevel.L0,
     "benchmark_providers": PermissionLevel.L0,
+    # L0: observe
+    "opencode_status": PermissionLevel.L0,
     # L1: reversible change
+    "discard_delegation": PermissionLevel.L1,
     "update_plan": PermissionLevel.L1,
     "update_environment_map": PermissionLevel.L1,
     "record_model_assessment": PermissionLevel.L1,
@@ -49,6 +52,8 @@ TOOL_PERMISSION_LEVELS: dict[str, PermissionLevel] = {
     "run_shell": PermissionLevel.L2,
     "write_file": PermissionLevel.L2,
     "create_tool": PermissionLevel.L2,
+    "delegate_coding": PermissionLevel.L2,
+    "apply_delegation": PermissionLevel.L2,
 }
 
 
@@ -491,6 +496,7 @@ class ToolRunner:
         self.model_decisions: Any = None
         self.plan_store: Any = None
         self.plugins: Any = None
+        self.opencode: Any = None
         self.current_cycle: int = 1
         from agent.infra.cost_ledger import CostLedger
         self.cost_ledger = CostLedger(self.workspace)
@@ -627,6 +633,8 @@ class ToolRunner:
                         raise RuntimeError("identity and core-patch system is not configured")
                     result = self.propose_core_patch(**arguments)
                 elif name in {definition["name"] for definition in TOOL_DEFINITIONS}:
+                    result = getattr(self, name)(**arguments)
+                elif name in {"opencode_status", "delegate_coding", "apply_delegation", "discard_delegation"}:
                     result = getattr(self, name)(**arguments)
                 elif self.plugins is not None and self.plugins.is_plugin_tool(name):
                     result = self.plugins.execute_plugin_tool(name, arguments)
@@ -866,4 +874,32 @@ class ToolRunner:
         if self.plugin_dev is None:
             return {"ok": False, "error": "Plugin development is not configured on ToolRunner."}
         return self.plugin_dev.request_plugin_review(name=name)
+
+    def _ensure_opencode(self) -> Any:
+        """Lazily initialize OpencodeDelegator if not already set."""
+        if self.opencode is None:
+            from agent.opencode.wrapper import OpencodeDelegator
+            self.opencode = OpencodeDelegator(workspace=self.workspace)
+        return self.opencode
+
+    def opencode_status(self) -> dict[str, Any]:
+        """Check opencode availability status."""
+        return self._ensure_opencode().status()
+
+    def delegate_coding(self, **kwargs: Any) -> dict[str, Any]:
+        """Delegate a scoped coding task to opencode in a sandbox."""
+        return self._ensure_opencode().delegate_coding(**kwargs)
+
+    def apply_delegation(self, delegation_id: str) -> dict[str, Any]:
+        """Apply a completed delegation's changes to the real repository."""
+        return self._ensure_opencode().apply_delegation(delegation_id)
+
+    def discard_delegation(self, delegation_id: str) -> dict[str, Any]:
+        """Discard a delegation record and delete its sandbox directory."""
+        return self._ensure_opencode().discard_delegation(delegation_id)
+
+    def get_opencode_tool_definitions(self) -> list[dict[str, Any]]:
+        """Return schema definitions for opencode delegation tools."""
+        from agent.opencode.tools import OPENCODE_TOOL_DEFINITIONS
+        return list(OPENCODE_TOOL_DEFINITIONS)
 

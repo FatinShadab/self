@@ -107,7 +107,7 @@ def build_opencode_env(
 ) -> dict[str, str]:
     """Construct a minimal, sanitized environment for the opencode subprocess.
 
-    Passes ONLY PATH, LANG, HOME, OPENCODE_CONFIG_DIR, and the three mapped
+    Passes ONLY PATH, LANG, HOME, OPENCODE_CONFIG_DIR, and the mapped
     API keys. Never passes Self's own provider keys or other parent variables.
     """
     source = base_env if base_env is not None else os.environ
@@ -122,17 +122,29 @@ def build_opencode_env(
         "OPENCODE_CONFIG_DIR": str(config_dir),
     }
 
-    # Map only the 3 namespaced keys to the standard names opencode expects
+    # Pass test simulation mode if present
+    if "FAKE_OPENCODE_MODE" in source:
+        clean_env["FAKE_OPENCODE_MODE"] = source["FAKE_OPENCODE_MODE"]
+
+    # Map the 3 namespaced keys to standard names
     key_mappings = {
-        "OPENCODE_GROQ_API_KEY": "GROQ_API_KEY",
-        "OPENCODE_GOOGLE_API_KEY": "GEMINI_API_KEY",
-        "OPENCODE_HF_TOKEN": "HF_TOKEN",
+        "groq": ("OPENCODE_GROQ_API_KEY", "GROQ_API_KEY"),
+        "google": ("OPENCODE_GOOGLE_API_KEY", "GEMINI_API_KEY"),
+        "huggingface": ("OPENCODE_HF_TOKEN", "HF_TOKEN"),
     }
 
-    for namespaced_var, standard_var in key_mappings.items():
-        val = source.get(namespaced_var, "").strip()
-        if val:
-            clean_env[standard_var] = val
+    if provider:
+        mapping = key_mappings.get(provider.lower())
+        if mapping:
+            namespaced_var, standard_var = mapping
+            val = source.get(namespaced_var, "").strip()
+            if val:
+                clean_env[standard_var] = val
+    else:
+        for namespaced_var, standard_var in key_mappings.values():
+            val = source.get(namespaced_var, "").strip()
+            if val:
+                clean_env[standard_var] = val
 
     return clean_env
 

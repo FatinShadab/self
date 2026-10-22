@@ -417,6 +417,15 @@ class AgentLoop:
             return f"Running isolated tests for plugin draft {arguments.get('name', 'project')}..."
         if name == "request_plugin_review":
             return f"Requesting strict critic review for plugin {arguments.get('name', 'project')}..."
+        if name == "opencode_status":
+            return "Checking opencode availability status..."
+        if name == "delegate_coding":
+            reasons = str(arguments.get("route_reasons", ""))[:120]
+            return f"Delegating coding task to opencode in sandbox: {reasons}..."
+        if name == "apply_delegation":
+            return f"Applying opencode delegation {arguments.get('delegation_id', '')} to repository..."
+        if name == "discard_delegation":
+            return f"Discarding opencode delegation {arguments.get('delegation_id', '')}..."
         return f"Using {name}..."
 
     def _check_active_plugin_projects(self, cycle: int) -> str:
@@ -729,7 +738,8 @@ class AgentLoop:
                         if (self.config.base_tool_names is None or tool["name"] in self.config.base_tool_names)
                         and (self.helper_mode or tool["name"] not in HELPER_TOOL_NAMES)]
                 plugin_tools = self.plugins.get_active_tool_definitions() if self.plugins else []
-                definitions = base + [CREATE_TOOL_DEFINITION] + selected + plugin_tools
+                opencode_tools = getattr(self.tools, "get_opencode_tool_definitions", lambda: [])()
+                definitions = base + [CREATE_TOOL_DEFINITION] + selected + plugin_tools + opencode_tools
                 try:
                     result = self.llm.call(system=self._system_prompt(), messages=messages,
                                            tools=definitions, max_tokens=self.max_tokens_per_call)
