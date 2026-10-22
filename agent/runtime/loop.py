@@ -62,12 +62,6 @@ def assemble_system_prompt(body: Any | None = None) -> str:
 SYSTEM_PROMPT = assemble_system_prompt()
 
 
-OFF_PROMPT_PREFIXES = (
-    "- For optional model providers,", "- If a supplementary provider",
-    "- For a separate plain-text API call", "- The primary thinking model",
-    "- Use ask_model",
-)
-
 TEXT_EXTENSIONS = {".md", ".txt", ".json", ".jsonl", ".py", ".sh", ".yaml", ".yml", ".toml"}
 WORD = re.compile(r"[a-zA-Z0-9_.-]{2,}")
 
