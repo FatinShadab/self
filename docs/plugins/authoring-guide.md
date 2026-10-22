@@ -194,6 +194,11 @@ The validator checks:
 - Risk classes and permission levels.
 - Non-empty unit test files under `tests/`.
 
+### Limits of Validation
+`python -m agent.plugins validate` performs static structural and schema checks. It is an advisory linting tool, not a sandbox or formal verification proof:
+- Static checks inspect declared schemas and AST patterns, but dynamic Python operations can construct strings or attributes at runtime.
+- Real operational safety and integrity rely on downstream human review, SHA-256 hash pinning against `config/plugins.json`, declarative permissions, and container isolation boundaries.
+
 ---
 
 ## Step 6: Run Your Test Suite

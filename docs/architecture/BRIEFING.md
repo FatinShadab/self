@@ -1,14 +1,14 @@
 # Architecture Briefing: SELF Core & Specializations
 
-**Git Commit:** `core-v0.1.0-rc1` (Branch: `p18-release`)  
-**Date:** 2026-10-21  
-**Scope:** Complete release candidate architecture briefing for SELF Core v0.1.0-rc1.
+**Git Commit:** `core-v0.1.0-rc3` (Branch: `p20-soak`)  
+**Date:** 2026-10-22  
+**Scope:** Complete release candidate architecture briefing for SELF Core v0.1.0-rc3.
 
 ---
 
 ## 1. What the System Is and How It Runs
 
-**SELF** is an autonomous, self-directed AI agent. SELF is an autonomous, self-directed AI agent that owns its persistent goals, maintains an evolving plan, invents and tests Python tools, and evaluates human input as advice to weigh rather than commands to obey `[read] agent/runtime/loop.py:35-38`.
+**SELF** is an autonomous, self-directed AI agent that owns its persistent goals, maintains an evolving plan, invents and tests Python tools, and evaluates human input as advice to weigh rather than commands to obey `[read] agent/runtime/loop.py:35-38`.
 
 In practice, the system runs inside an isolated Debian Bookworm Docker container (`self-self-1`) `[read] Dockerfile:1, docker-compose.yml:3`. The agent's Python harness code is built into the container image at `/opt/agent` and set strictly read-only (`chmod 0444/0555`) `[read] Dockerfile:44-46`. Runtime persistence is achieved through a single host volume bind-mount: `./workspace` on the host is mounted to `/home/entity` inside the container `[read] docker-compose.yml:15-19`. The process executes as `USER root` inside the container namespace, using bridge networking for outbound API and HTTP access without exposing host ports or running in privileged mode `[read] Dockerfile:50, docker-compose.yml:20-23`.
 
@@ -34,7 +34,7 @@ The primary entry point is `python -m agent.wake` `[read] Dockerfile:52`, which 
       ▼
   [2. TOOL RETRIEVAL]
       │
-      ├── Base Tools (22 built-ins: run_shell, read_file, write_file, update_plan, etc.)
+      ├── Base Tools (29 tools: 28 base tools + create_tool; see 03-tools.md)
       ├── Capability Synthesis (create_tool definition)
       └── Dynamic Tool Retrieval (ToolRegistry keyword search over workspace/tools/*)
       │
