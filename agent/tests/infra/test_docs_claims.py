@@ -16,6 +16,7 @@ from scripts.check_docs_claims import (
     normalize_anchor,
     check_claims,
     check_markdown_links_and_paths,
+    check_symbol_citations,
 )
 
 
@@ -45,9 +46,12 @@ class DocsClaimsTests(unittest.TestCase):
         tampered_facts = dict(facts)
         tampered_facts["tool_count"] = 999
         errors = check_claims(tampered_facts)
-        # Should flag discrepancy if README claims a tool count
-        # Or if we pass custom readme content:
         self.assertIsInstance(errors, list)
+        self.assertTrue(any("verified tool count is 999" in e for e in errors))
+
+        # Verify symbol citations in documentation are all valid
+        symbol_errors = check_symbol_citations()
+        self.assertEqual(symbol_errors, [])
 
 
 if __name__ == "__main__":

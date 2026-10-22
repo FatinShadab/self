@@ -191,19 +191,20 @@ def check_claims(facts: dict[str, Any]) -> list[str]:
             errors.append(f"README.md states '{count} tools', but verified tool count is {facts['tool_count']}")
 
     # 3. Test count claims
-    harness_matches = re.findall(r"\b(\d+)\s+harness\s+(?:unit\s+)?tests\b", readme_content, re.IGNORECASE)
+    # Match patterns like: "337 harness unit tests", "337 collected harness test methods", "337 harness tests"
+    harness_matches = re.findall(r"\b(\d+)\s+(?:collected\s+)?harness\s+(?:unit\s+)?(?:and\s+integration\s+)?(?:tests|test\s+methods)\b", readme_content, re.IGNORECASE)
     for m in harness_matches:
         count = int(m)
         if count != facts["harness_test_count"]:
             errors.append(f"README.md states '{count} harness tests', but verified count is {facts['harness_test_count']}")
 
-    eval_matches = re.findall(r"\b(\d+)\s+eval(?:-only)?\s+tests\b", readme_content, re.IGNORECASE)
+    eval_matches = re.findall(r"\b(\d+)\s+eval(?:-only)?\s+(?:tests|test\s+methods)\b", readme_content, re.IGNORECASE)
     for m in eval_matches:
         count = int(m)
         if count != facts["eval_test_count"]:
             errors.append(f"README.md states '{count} eval tests', but verified count is {facts['eval_test_count']}")
 
-    total_test_matches = re.findall(r"\b(\d+)\s+total\s+tests\b", readme_content, re.IGNORECASE)
+    total_test_matches = re.findall(r"\b(\d+)\s+total\s+(?:tests|test\s+methods)\b", readme_content, re.IGNORECASE)
     for m in total_test_matches:
         count = int(m)
         if count != facts["total_test_count"]:
@@ -230,6 +231,50 @@ def check_claims(facts: dict[str, Any]) -> list[str]:
     return errors
 
 
+def check_symbol_citations() -> list[str]:
+    """Validate that symbols cited with explicit file paths in documentation exist in the target file."""
+    errors = []
+    # Pattern matching: `SymbolName` (`path/to/file.py:line`) or `SymbolName` (path/to/file.py:line)
+    citation_pattern = re.compile(
+        r"`([A-Za-z0-9_]+)`\s*\(`?([a-zA-Z0-9_/.]+\.py)(?::\d+(?:-\d+)?)?`?\)"
+    )
+    md_files = [REPO_ROOT / "README.md", REPO_ROOT / "docs" / "glossary.md"] + list((REPO_ROOT / "docs" / "architecture").glob("*.md"))
+
+    for md_file in md_files:
+        if not md_file.exists():
+            continue
+        try:
+            content = md_file.read_text(encoding="utf-8")
+        except Exception:
+            continue
+
+        for match in citation_pattern.finditer(content):
+            symbol = match.group(1)
+            rel_file_str = match.group(2)
+            target_path = (REPO_ROOT / rel_file_str).resolve()
+            if not target_path.exists():
+                errors.append(f"{md_file.relative_to(REPO_ROOT)}: cited file '{rel_file_str}' for symbol `{symbol}` does not exist")
+                continue
+            try:
+                target_code = target_path.read_text(encoding="utf-8", errors="replace")
+            except Exception:
+                continue
+
+            # Verify that symbol exists as class, function, or assigned variable in the target file
+            symbol_found = (
+                f"class {symbol}" in target_code
+                or f"def {symbol}" in target_code
+                or f"{symbol} = " in target_code
+                or f"{symbol}:" in target_code
+            )
+            if not symbol_found:
+                errors.append(
+                    f"{md_file.relative_to(REPO_ROOT)}: symbol `{symbol}` does not exist in '{rel_file_str}'"
+                )
+
+    return errors
+
+
 def main() -> int:
     facts = get_ground_truth_facts()
     print("=" * 70)
@@ -249,15 +294,16 @@ def main() -> int:
 
     link_errors = check_markdown_links_and_paths()
     claim_errors = check_claims(facts)
+    symbol_errors = check_symbol_citations()
 
-    all_errors = link_errors + claim_errors
+    all_errors = link_errors + claim_errors + symbol_errors
     if all_errors:
-        print(f"FAIL: {len(all_errors)} documentation claim/link error(s) detected:")
+        print(f"FAIL: {len(all_errors)} documentation claim/link/symbol error(s) detected:")
         for err in all_errors:
             print(f"  - {err}")
         return 1
 
-    print("PASS: All documentation claims, relative links, and cited paths are verified.")
+    print("PASS: All documentation claims, relative links, cited paths, and symbols are verified.")
     return 0
 
 
