@@ -16,6 +16,7 @@ from typing import Any
 
 from agent.infra.event_log import EventLogger
 from agent.infra.migration import deterministic_summary
+from agent.prompts.tasks import CURRICULUM_TASKS
 
 
 WORD = re.compile(r"[a-zA-Z0-9_.-]{2,}")
@@ -420,13 +421,6 @@ class LearningStore:
         """Choose a bounded practice task from recent successes."""
         successes = sum(1 for entry in self.memory_entries()[-12:] if str(entry.get("outcome", "")).startswith("completed"))
         difficulty = min(5, 1 + successes // 3)
-        tasks = [
-            "Inventory one environment category and record confidence-backed facts in the environment map.",
-            "Compare two available commands or libraries, verify one with a small test, and record the useful capability.",
-            "Identify a repetitive observation task and propose or build a carefully tested local tool for it.",
-            "Exercise a previously created tool on a new input, verify its limits, and update its lesson or environment map.",
-            "Design a bounded experiment combining two existing capabilities, then record verified outcomes and limits.",
-        ]
-        proposal = tasks[difficulty - 1]
+        proposal = CURRICULUM_TASKS[difficulty - 1]
         self.logger.log("curriculum_proposed", difficulty=difficulty, task=proposal)
         return proposal
