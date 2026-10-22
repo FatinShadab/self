@@ -1,0 +1,17 @@
+{
+    "_comment": "Opencode installer configuration.",
+    "opencode_version": "v2.0.30",
+    "github_repo": "anomalyco/opencode",
+    "install_dir": "/opt/opencode",
+    "bin_link": "/usr/local/bin/opencode",
+    "state_file": "state/opencode_install.json",
+    "download_timeout_seconds": 120,
+    "retry_count": 3,
+    "asset_patterns": {
+        "_comment": "Maps platform keys to substrings matched against GitHub release asset names. The installer queries the GitHub releases API and selects the first asset whose name contains all the substrings for the detected platform key.",
+        "linux-x64-glibc": ["linux", "x64"],
+        "linux-x64-musl": ["linux", "x64"],
+        "linux-arm64-glibc": ["linux", "arm64"],
+        "linux-arm64-musl": ["linux", "arm64"]
+    }
+}
