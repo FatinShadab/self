@@ -1,7 +1,7 @@
 # Document 09: Test Suites & Verification
 
-**Git Commit:** `p13-sim-and-scoring`  
-**Date:** 2026-10-21  
+**Git Commit:** `core-v0.1.0-rc3`  
+**Date:** 2026-10-22  
 **Status:** Read-only architecture documentation
 
 ---
@@ -12,15 +12,15 @@ The repository contains two distinct test suites:
 
 | Test Suite | Location | Test Count | Execution Time | Description |
 | :--- | :--- | :--- | :--- | :--- |
-| **Agent Harness Suite** | `agent/tests/` | **221 tests** `[ran]` | ~22.7s `[ran]` | Comprehensive unit and integration tests covering all 12 harness packages, including `SimBody` and `ContainerBody`. Uses mocked/faked models and disposable workspaces. |
+| **Agent Harness Suite** | `agent/tests/` | **337 tests** `[ran]` | ~30s `[ran]` | Comprehensive unit and integration tests covering all 12 harness packages, including `SimBody`, `ContainerBody`, soak scenarios, and documentation guards. Uses mocked/faked models and disposable workspaces. |
 | **Hidden Eval Suite** | `eval/tests/` | **20 tests** `[ran]` | ~1.5s `[ran]` | Verifies evaluation harness mechanisms, A/B randomization, scoring math, deterministic scenario execution, and strict container isolation. |
-| **Total** | | **241 tests** `[ran]` | ~24.2s `[ran]` | 100% passing rate with zero failures or skips. |
+| **Total** | | **357 tests** `[ran]` | ~32s `[ran]` | Complete passing rate under Linux container test harness. |
 
 ---
 
 ## 2. Test Breakdown by Subsystem
 
-### Harness Tests (`agent/tests/` — 221 tests)
+### Harness Tests (`agent/tests/` — 337 tests)
 `[ran] docker run --rm --entrypoint python self-ci:latest -m unittest discover -s /opt/agent/tests -v`:
 - **`tests/body/` (3 test modules):**
   - `test_body.py` (8 tests): ContainerBody embodiment descriptions, sensing, metrics, health checks, emergency stop, and file/shell actions.
@@ -33,10 +33,11 @@ The repository contains two distinct test suites:
 - **`tests/identity/` (2 test modules):**
   - `test_identity.py`: Identity initialization, traits additions, evidence verification, voice immutability, first awakening stage progression, and protected file permission checks.
   - `test_autonomy_relation.py`: First-person singular voice enforcement, autonomy arbitration over human input, and refusal to claim false sentience or biological states.
-- **`tests/infra/` (3 test modules):**
+- **`tests/infra/` (4 test modules):**
   - `test_hardening.py`: DailyTokenLedger reservations, daily resets, CapabilityRequests format, RunCheckpoint persistence, and network egress logging.
   - `test_import_layers.py`: Static AST analysis proving the harness import graph across all 12 packages is strictly acyclic and downward-directed (Layers 0 to 5) `[read] agent/tests/infra/test_import_layers.py:13-26`.
   - `test_process_runner.py`: Command timeout enforcement, output character truncation, stream ID generation, and background process termination.
+  - `test_docs_claims.py`: Static verification that documentation claims, test numbers, and relative links match ground truth facts.
 - **`tests/learning/` (3 test modules):**
   - `test_plan.py`: PlanStore operations (`add`, `edit`, `drop`, `mark_done`, `reorder`, `decide_human_input`), priority validation, plan hygiene, and reason-requirement enforcement.
   - `test_learning.py`: Memory storage, tag-based retrieval, self-notes length clamping, and environment map updates.
@@ -59,6 +60,9 @@ The repository contains two distinct test suites:
   - `test_conversation.py`: Independent read-only conversation threads, worker thread concurrency, and prompt snapshotting.
   - `test_reflection.py`: Background reflection triggers (failures, map changes, tools), cooldown, token budgeting, and human reply handling.
   - `test_chat_autonomy.py`: Autonomous evaluation and decision recording on human input without subservient phrasing.
+- **`tests/soak/` (2 test modules, 12 tests):**
+  - `test_soak_scenarios.py` (11 tests): Deterministic soak scenarios B1 through B10 exercising multi-cycle continuous execution, tool creation, stop files, and recovery.
+  - `test_soak_30_cycles_replay.py` (1 test): 30-cycle reproducible historical execution replay against scrubbed golden fixtures.
 - **`tests/tools/` (2 test modules):**
   - `test_base_tools.py`: Built-in tools execution, file sandboxing, path traversal checks, output capping, and secret redaction.
   - `test_tool_registry.py`: Dynamic tool creation pipeline (`create_tool`), critic verdict parsing, unittest execution sandbox, attempt limit (3 attempts), failure lesson logging, and versioned archiving.
