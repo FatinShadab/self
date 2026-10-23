@@ -47,6 +47,16 @@ KNOWN_CREDENTIAL_ENV = (
     "CLOUDFLARE_API_TOKEN",
 )
 
+BUILTIN_SLASH_COMMANDS = (
+    "/stop", "/pause", "/resume", "/kill", "/status", "/rename", "/name",
+    "/plugin", "/plugins", "/proposal", "/proposals", "/help", "/quit", "/exit",
+    "/goal", "/goals", "/reflect", "/decide", "/decisions", "/targets", "/plan",
+    "/self", "/patches", "/about", "/journal", "/tools", "/requests", "/inputs",
+    "/memory", "/budget", "/models", "/identity",
+    "/archive", "/back", "/conversation", "/coverage", "/listen", "/next",
+    "/previous", "/restart", "/typing", "/voice",
+)
+
 
 class WakeCoordinator(_SessionWakeCoordinator):
     """Textual UI compatible WakeCoordinator front-end."""
@@ -86,6 +96,7 @@ __all__ = [
     "WORKLOG_MIN_HEIGHT",
     "PLAN_RESIZER_HEIGHT",
     "KNOWN_CREDENTIAL_ENV",
+    "BUILTIN_SLASH_COMMANDS",
     "_requests_text",
     "now_utc",
 ]
