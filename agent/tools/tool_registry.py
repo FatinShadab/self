@@ -7,6 +7,10 @@ from typing import Any, Callable
 
 from agent.infra.event_log import EventLogger, SECRET_NAME_MARKERS
 from agent.infra.process_runner import run_process
+from agent.prompts.critics import (
+    CRITIC_PROMPT as _CRITIC_PROMPT,
+    TOOL_CRITIC_RETRY_NUDGE as _TOOL_CRITIC_RETRY_NUDGE,
+)
 from agent.tools.custom import (
     CREATE_TOOL_DEFINITION,
     KeywordToolSearch,
@@ -22,9 +26,14 @@ from agent.tools.custom import (
     timestamp,
 )
 
+CRITIC_PROMPT = _CRITIC_PROMPT
+TOOL_CRITIC_RETRY_NUDGE = _TOOL_CRITIC_RETRY_NUDGE
+
 __all__ = [
     "CREATE_TOOL_DEFINITION",
+    "CRITIC_PROMPT",
     "KeywordToolSearch",
+    "TOOL_CRITIC_RETRY_NUDGE",
     "ToolRegistry",
     "ToolSearch",
     "digest",
