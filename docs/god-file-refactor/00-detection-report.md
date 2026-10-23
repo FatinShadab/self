@@ -10,9 +10,9 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 - **Constructor Wiring > 6**: A class constructor takes more than 6 dependency collaborators.
 
 ## Summary of Findings
-- **Total Files Analyzed**: 129
-- **God Files Flagged**: 60
-- **Compliant Files**: 69
+- **Total Files Analyzed**: 140
+- **God Files Flagged**: 68
+- **Compliant Files**: 72
 
 ## Ranked God Files Table
 
@@ -21,17 +21,17 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 | 1 | `agent/ui/wake.py` | 1455 | 4 | 39 | 6 | 9 | 7 | LOC > 400 (1455)<br>Class > 15 methods: SelfApp (39)<br>Functions > 60 lines: 6 (longest: run_tui (902 lines))<br>Responsibilities > 3 (7: Command Routing & Dispatch, External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction) |
 | 2 | `agent/opencode/wrapper.py` | 775 | 1 | 14 | 4 | 3 | 5 | LOC > 400 (775)<br>Functions > 60 lines: 4 (longest: OpencodeDelegator.delegate_coding (356 lines))<br>Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security)<br>Constructor wires > 6 collaborators (7) |
 | 3 | `agent/plugins/self_dev.py` | 912 | 1 | 12 | 10 | 3 | 7 | LOC > 400 (912)<br>Functions > 60 lines: 10 (longest: PluginDevManager.propose_plugin (190 lines))<br>Responsibilities > 3 (7: Command Routing & Dispatch, External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 4 | `agent/session/coordinator.py` | 1191 | 3 | 36 | 12 | 11 | 8 | LOC > 400 (1191)<br>Class > 15 methods: WakeCoordinator (36)<br>Functions > 60 lines: 12 (longest: WakeCoordinator._run_session (113 lines))<br>Responsibilities > 3 (8: Command Routing & Dispatch, External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 5 | `agent/helper_models/model_decisions.py` | 904 | 1 | 19 | 12 | 3 | 5 | LOC > 400 (904)<br>Class > 15 methods: ModelDecisions (19)<br>Functions > 60 lines: 12 (longest: ModelDecisions.decide_model (160 lines))<br>Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
-| 6 | `agent/learning/plan.py` | 783 | 1 | 17 | 7 | 2 | 5 | LOC > 400 (783)<br>Class > 15 methods: PlanStore (17)<br>Functions > 60 lines: 7 (longest: PlanStore.update_plan (195 lines))<br>Responsibilities > 3 (5: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 7 | `agent/identity/identity.py` | 811 | 1 | 39 | 2 | 4 | 6 | LOC > 400 (811)<br>Class > 15 methods: IdentityStore (39)<br>Functions > 60 lines: 2 (longest: IdentityStore.run_first_awakening (72 lines))<br>Responsibilities > 3 (6: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 8 | `agent/tools/tool_registry.py` | 470 | 3 | 9 | 2 | 3 | 7 | LOC > 400 (470)<br>Functions > 60 lines: 2 (longest: ToolRegistry.create_tool (226 lines))<br>Responsibilities > 3 (7: External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 9 | `agent/plugins/manager.py` | 770 | 2 | 25 | 4 | 2 | 5 | LOC > 400 (770)<br>Class > 15 methods: PluginManager (25)<br>Functions > 60 lines: 4 (longest: PluginManager.load_plugin (101 lines))<br>Responsibilities > 3 (5: Command Routing & Dispatch, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
-| 10 | `agent/helper_models/model_probe.py` | 513 | 3 | 4 | 5 | 3 | 7 | LOC > 400 (513)<br>Functions > 60 lines: 5 (longest: ModelProber.research_model (127 lines))<br>Responsibilities > 3 (7: Command Routing & Dispatch, External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 11 | `agent/infra/migration.py` | 468 | 0 | 0 | 2 | 0 | 4 | LOC > 400 (468)<br>Functions > 60 lines: 2 (longest: run_migration_p14 (235 lines))<br>Responsibilities > 3 (4: I/O & Persistence, Lifecycle & Orchestration, UI & Interaction, Validation & Security) |
-| 12 | `agent/llm/model_registry.py` | 613 | 1 | 22 | 2 | 1 | 5 | LOC > 400 (613)<br>Class > 15 methods: ModelRegistry (22)<br>Functions > 60 lines: 2 (longest: ModelRegistry._initialize (110 lines))<br>Responsibilities > 3 (5: External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Telemetry & Decision Tracking, Validation & Security) |
-| 13 | `agent/body/container.py` | 568 | 2 | 17 | 4 | 3 | 7 | LOC > 400 (568)<br>Class > 15 methods: ContainerBody (17)<br>Functions > 60 lines: 4 (longest: ContainerBody.capabilities (82 lines))<br>Responsibilities > 3 (7: Command Routing & Dispatch, External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security)<br>Constructor wires > 6 collaborators (7) |
-| 14 | `agent/runtime/cycle_runner.py` | 367 | 0 | 0 | 1 | 4 | 7 | Functions > 60 lines: 1 (longest: run_agent_loop (343 lines))<br>Responsibilities > 3 (7: External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 4 | `agent/helper_models/model_decisions.py` | 904 | 1 | 19 | 12 | 3 | 5 | LOC > 400 (904)<br>Class > 15 methods: ModelDecisions (19)<br>Functions > 60 lines: 12 (longest: ModelDecisions.decide_model (160 lines))<br>Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
+| 5 | `agent/learning/plan.py` | 783 | 1 | 17 | 7 | 2 | 5 | LOC > 400 (783)<br>Class > 15 methods: PlanStore (17)<br>Functions > 60 lines: 7 (longest: PlanStore.update_plan (195 lines))<br>Responsibilities > 3 (5: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 6 | `agent/identity/identity.py` | 811 | 1 | 39 | 2 | 4 | 6 | LOC > 400 (811)<br>Class > 15 methods: IdentityStore (39)<br>Functions > 60 lines: 2 (longest: IdentityStore.run_first_awakening (72 lines))<br>Responsibilities > 3 (6: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 7 | `agent/tools/tool_registry.py` | 470 | 3 | 9 | 2 | 3 | 7 | LOC > 400 (470)<br>Functions > 60 lines: 2 (longest: ToolRegistry.create_tool (226 lines))<br>Responsibilities > 3 (7: External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 8 | `agent/plugins/manager.py` | 770 | 2 | 25 | 4 | 2 | 5 | LOC > 400 (770)<br>Class > 15 methods: PluginManager (25)<br>Functions > 60 lines: 4 (longest: PluginManager.load_plugin (101 lines))<br>Responsibilities > 3 (5: Command Routing & Dispatch, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
+| 9 | `agent/helper_models/model_probe.py` | 513 | 3 | 4 | 5 | 3 | 7 | LOC > 400 (513)<br>Functions > 60 lines: 5 (longest: ModelProber.research_model (127 lines))<br>Responsibilities > 3 (7: Command Routing & Dispatch, External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 10 | `agent/infra/migration.py` | 468 | 0 | 0 | 2 | 0 | 4 | LOC > 400 (468)<br>Functions > 60 lines: 2 (longest: run_migration_p14 (235 lines))<br>Responsibilities > 3 (4: I/O & Persistence, Lifecycle & Orchestration, UI & Interaction, Validation & Security) |
+| 11 | `agent/llm/model_registry.py` | 613 | 1 | 22 | 2 | 1 | 5 | LOC > 400 (613)<br>Class > 15 methods: ModelRegistry (22)<br>Functions > 60 lines: 2 (longest: ModelRegistry._initialize (110 lines))<br>Responsibilities > 3 (5: External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Telemetry & Decision Tracking, Validation & Security) |
+| 12 | `agent/body/container.py` | 568 | 2 | 17 | 4 | 3 | 7 | LOC > 400 (568)<br>Class > 15 methods: ContainerBody (17)<br>Functions > 60 lines: 4 (longest: ContainerBody.capabilities (82 lines))<br>Responsibilities > 3 (7: Command Routing & Dispatch, External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security)<br>Constructor wires > 6 collaborators (7) |
+| 13 | `agent/runtime/cycle_runner.py` | 367 | 0 | 0 | 1 | 4 | 7 | Functions > 60 lines: 1 (longest: run_agent_loop (343 lines))<br>Responsibilities > 3 (7: External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 14 | `agent/session/coordinator.py` | 391 | 1 | 36 | 2 | 5 | 7 | Class > 15 methods: WakeCoordinator (36)<br>Functions > 60 lines: 2 (longest: WakeCoordinator.__init__ (101 lines))<br>Responsibilities > 3 (7: Command Routing & Dispatch, External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
 | 15 | `agent/plugins/cli.py` | 597 | 0 | 0 | 4 | 1 | 3 | LOC > 400 (597)<br>Functions > 60 lines: 4 (longest: cmd_validate (182 lines)) |
 | 16 | `agent/body/sim.py` | 547 | 1 | 19 | 4 | 1 | 6 | LOC > 400 (547)<br>Class > 15 methods: SimBody (19)<br>Functions > 60 lines: 4 (longest: SimBody._action_step (77 lines))<br>Responsibilities > 3 (6: Command Routing & Dispatch, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
 | 17 | `agent/infra/cost_ledger.py` | 343 | 1 | 7 | 2 | 0 | 5 | Functions > 60 lines: 2 (longest: CostLedger.build_from_events (183 lines))<br>Responsibilities > 3 (5: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
@@ -44,40 +44,48 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 | 24 | `agent/reporting/run_analysis.py` | 322 | 1 | 0 | 2 | 0 | 4 | Functions > 60 lines: 2 (longest: analyze_run (200 lines))<br>Responsibilities > 3 (4: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction) |
 | 25 | `agent/opencode/status.py` | 476 | 1 | 13 | 3 | 1 | 3 | LOC > 400 (476)<br>Functions > 60 lines: 3 (longest: OpencodeStatusTracker.usability (63 lines)) |
 | 26 | `agent/runtime/wiring.py` | 185 | 1 | 0 | 1 | 8 | 5 | Functions > 60 lines: 1 (longest: wire_loop_collaborators (133 lines))<br>Responsibilities > 3 (5: External / Subprocess / LLM, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 27 | `agent/reporting/report.py` | 239 | 0 | 0 | 2 | 2 | 4 | Functions > 60 lines: 2 (longest: create_report (99 lines))<br>Responsibilities > 3 (4: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
-| 28 | `agent/runtime/tool_round.py` | 129 | 0 | 0 | 1 | 2 | 6 | Functions > 60 lines: 1 (longest: execute_tool_round (119 lines))<br>Responsibilities > 3 (6: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 29 | `agent/opencode/sandbox.py` | 396 | 1 | 6 | 0 | 0 | 4 | Responsibilities > 3 (4: Command Routing & Dispatch, External / Subprocess / LLM, I/O & Persistence, Validation & Security) |
-| 30 | `agent/identity/migration.py` | 141 | 0 | 0 | 1 | 1 | 5 | Functions > 60 lines: 1 (longest: migrate_persisted_identity (115 lines))<br>Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, UI & Interaction, Validation & Security) |
-| 31 | `agent/runtime/loop.py` | 275 | 1 | 12 | 0 | 3 | 7 | Responsibilities > 3 (7: External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 32 | `agent/helper_models/model_outcomes.py` | 213 | 2 | 3 | 1 | 1 | 4 | Functions > 60 lines: 1 (longest: print_outcome_summary (65 lines))<br>Responsibilities > 3 (4: I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 33 | `agent/session/session.py` | 214 | 2 | 10 | 0 | 2 | 6 | Responsibilities > 3 (6: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 34 | `agent/runtime/cycle_prompt.py` | 87 | 0 | 0 | 1 | 3 | 4 | Functions > 60 lines: 1 (longest: build_system_prompt_for_cycle (67 lines))<br>Responsibilities > 3 (4: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
-| 35 | `agent/llm/providers/registry.py` | 189 | 1 | 10 | 0 | 1 | 6 | Responsibilities > 3 (6: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 36 | `agent/plugins/examples/pet_companion/plugin.py` | 238 | 0 | 0 | 0 | 0 | 4 | Responsibilities > 3 (4: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction) |
-| 37 | `agent/llm/brain_router.py` | 196 | 1 | 13 | 0 | 1 | 5 | Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
-| 38 | `agent/opencode/tools.py` | 187 | 0 | 0 | 0 | 1 | 5 | Responsibilities > 3 (5: External / Subprocess / LLM, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 39 | `agent/runtime/plugin_projects.py` | 80 | 0 | 0 | 1 | 1 | 4 | Functions > 60 lines: 1 (longest: check_active_plugin_projects (70 lines))<br>Responsibilities > 3 (4: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction) |
-| 40 | `agent/session/conversation.py` | 118 | 1 | 5 | 0 | 4 | 5 | Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 41 | `agent/infra/stop_watcher.py` | 175 | 1 | 14 | 0 | 0 | 4 | Responsibilities > 3 (4: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
-| 42 | `agent/ui/phase8_verify.py` | 108 | 1 | 1 | 0 | 4 | 4 | Responsibilities > 3 (4: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction) |
-| 43 | `agent/infra/hardening.py` | 133 | 3 | 6 | 0 | 0 | 5 | Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
-| 44 | `agent/runtime/stop_control.py` | 113 | 0 | 0 | 0 | 1 | 5 | Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
-| 45 | `agent/learning/memory_migration.py` | 108 | 0 | 0 | 1 | 0 | 2 | Functions > 60 lines: 1 (longest: migrate_memory_store (97 lines)) |
-| 46 | `agent/prompts/system.py` | 86 | 0 | 0 | 0 | 0 | 6 | Responsibilities > 3 (6: Command Routing & Dispatch, External / Subprocess / LLM, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 47 | `agent/infra/process_runner.py` | 102 | 0 | 0 | 1 | 0 | 2 | Functions > 60 lines: 1 (longest: run_process (90 lines)) |
-| 48 | `agent/tools/definitions/plugins.py` | 101 | 0 | 0 | 0 | 0 | 5 | Responsibilities > 3 (5: External / Subprocess / LLM, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 49 | `agent/ui/disk_tool_demo.py` | 42 | 0 | 0 | 0 | 5 | 4 | Responsibilities > 3 (4: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking) |
-| 50 | `agent/tools/handlers/files.py` | 99 | 0 | 0 | 0 | 1 | 4 | Responsibilities > 3 (4: External / Subprocess / LLM, I/O & Persistence, UI & Interaction, Validation & Security) |
-| 51 | `agent/runtime/tool_narration.py` | 54 | 0 | 0 | 0 | 1 | 6 | Responsibilities > 3 (6: External / Subprocess / LLM, Formatting & Display, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 52 | `agent/infra/event_log.py` | 107 | 2 | 5 | 0 | 0 | 4 | Responsibilities > 3 (4: I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 53 | `agent/tools/execution/authorization.py` | 83 | 0 | 0 | 0 | 1 | 4 | Responsibilities > 3 (4: External / Subprocess / LLM, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 54 | `agent/tools/dispatch.py` | 82 | 0 | 0 | 0 | 1 | 4 | Responsibilities > 3 (4: Command Routing & Dispatch, External / Subprocess / LLM, Telemetry & Decision Tracking, Validation & Security) |
-| 55 | `agent/tools/execution/call_logging.py` | 46 | 0 | 0 | 0 | 1 | 5 | Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 56 | `agent/llm/structured_call.py` | 90 | 0 | 0 | 1 | 0 | 1 | Functions > 60 lines: 1 (longest: call_structured_json (81 lines)) |
-| 57 | `agent/tools/handlers/plugin_dev.py` | 71 | 0 | 0 | 0 | 0 | 4 | Responsibilities > 3 (4: Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 58 | `agent/infra/__init__.py` | 59 | 0 | 0 | 0 | 0 | 4 | Responsibilities > 3 (4: External / Subprocess / LLM, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
-| 59 | `agent/tools/handlers/plan.py` | 58 | 0 | 0 | 0 | 0 | 4 | Responsibilities > 3 (4: Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
-| 60 | `agent/prompts/critics.py` | 34 | 0 | 0 | 0 | 0 | 4 | Responsibilities > 3 (4: Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 27 | `agent/session/session_runner.py` | 178 | 0 | 0 | 1 | 5 | 4 | Functions > 60 lines: 1 (longest: run_session (137 lines))<br>Responsibilities > 3 (4: External / Subprocess / LLM, Lifecycle & Orchestration, UI & Interaction, Validation & Security) |
+| 28 | `agent/reporting/report.py` | 239 | 0 | 0 | 2 | 2 | 4 | Functions > 60 lines: 2 (longest: create_report (99 lines))<br>Responsibilities > 3 (4: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
+| 29 | `agent/session/shutdown_reflection.py` | 147 | 0 | 0 | 1 | 3 | 5 | Functions > 60 lines: 1 (longest: run_session_reflection (126 lines))<br>Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, UI & Interaction, Validation & Security) |
+| 30 | `agent/runtime/tool_round.py` | 129 | 0 | 0 | 1 | 2 | 6 | Functions > 60 lines: 1 (longest: execute_tool_round (119 lines))<br>Responsibilities > 3 (6: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 31 | `agent/opencode/sandbox.py` | 396 | 1 | 6 | 0 | 0 | 4 | Responsibilities > 3 (4: Command Routing & Dispatch, External / Subprocess / LLM, I/O & Persistence, Validation & Security) |
+| 32 | `agent/identity/migration.py` | 141 | 0 | 0 | 1 | 1 | 5 | Functions > 60 lines: 1 (longest: migrate_persisted_identity (115 lines))<br>Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, UI & Interaction, Validation & Security) |
+| 33 | `agent/runtime/loop.py` | 275 | 1 | 12 | 0 | 3 | 7 | Responsibilities > 3 (7: External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 34 | `agent/helper_models/model_outcomes.py` | 213 | 2 | 3 | 1 | 1 | 4 | Functions > 60 lines: 1 (longest: print_outcome_summary (65 lines))<br>Responsibilities > 3 (4: I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 35 | `agent/session/plugin_commands.py` | 139 | 0 | 0 | 1 | 1 | 6 | Functions > 60 lines: 1 (longest: handle_plugins_command (78 lines))<br>Responsibilities > 3 (6: Command Routing & Dispatch, External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, UI & Interaction, Validation & Security) |
+| 36 | `agent/session/boot.py` | 204 | 0 | 0 | 1 | 1 | 4 | Functions > 60 lines: 1 (longest: run_boot_sequence (65 lines))<br>Responsibilities > 3 (4: Command Routing & Dispatch, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking) |
+| 37 | `agent/session/session.py` | 214 | 2 | 10 | 0 | 2 | 6 | Responsibilities > 3 (6: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 38 | `agent/runtime/cycle_prompt.py` | 87 | 0 | 0 | 1 | 3 | 4 | Functions > 60 lines: 1 (longest: build_system_prompt_for_cycle (67 lines))<br>Responsibilities > 3 (4: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
+| 39 | `agent/llm/providers/registry.py` | 189 | 1 | 10 | 0 | 1 | 6 | Responsibilities > 3 (6: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 40 | `agent/plugins/examples/pet_companion/plugin.py` | 238 | 0 | 0 | 0 | 0 | 4 | Responsibilities > 3 (4: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction) |
+| 41 | `agent/llm/brain_router.py` | 196 | 1 | 13 | 0 | 1 | 5 | Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
+| 42 | `agent/opencode/tools.py` | 187 | 0 | 0 | 0 | 1 | 5 | Responsibilities > 3 (5: External / Subprocess / LLM, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 43 | `agent/runtime/plugin_projects.py` | 80 | 0 | 0 | 1 | 1 | 4 | Functions > 60 lines: 1 (longest: check_active_plugin_projects (70 lines))<br>Responsibilities > 3 (4: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction) |
+| 44 | `agent/session/conversation.py` | 118 | 1 | 5 | 0 | 4 | 5 | Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 45 | `agent/infra/stop_watcher.py` | 175 | 1 | 14 | 0 | 0 | 4 | Responsibilities > 3 (4: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
+| 46 | `agent/ui/phase8_verify.py` | 108 | 1 | 1 | 0 | 4 | 4 | Responsibilities > 3 (4: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction) |
+| 47 | `agent/infra/hardening.py` | 133 | 3 | 6 | 0 | 0 | 5 | Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
+| 48 | `agent/runtime/stop_control.py` | 113 | 0 | 0 | 0 | 1 | 5 | Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
+| 49 | `agent/session/plan_recovery.py` | 129 | 0 | 0 | 0 | 1 | 4 | Responsibilities > 3 (4: Formatting & Display, Lifecycle & Orchestration, UI & Interaction, Validation & Security) |
+| 50 | `agent/learning/memory_migration.py` | 108 | 0 | 0 | 1 | 0 | 2 | Functions > 60 lines: 1 (longest: migrate_memory_store (97 lines)) |
+| 51 | `agent/session/human_input.py` | 139 | 0 | 0 | 0 | 0 | 4 | Responsibilities > 3 (4: Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Validation & Security) |
+| 52 | `agent/prompts/system.py` | 86 | 0 | 0 | 0 | 0 | 6 | Responsibilities > 3 (6: Command Routing & Dispatch, External / Subprocess / LLM, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 53 | `agent/infra/process_runner.py` | 102 | 0 | 0 | 1 | 0 | 2 | Functions > 60 lines: 1 (longest: run_process (90 lines)) |
+| 54 | `agent/tools/definitions/plugins.py` | 101 | 0 | 0 | 0 | 0 | 5 | Responsibilities > 3 (5: External / Subprocess / LLM, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 55 | `agent/ui/disk_tool_demo.py` | 42 | 0 | 0 | 0 | 5 | 4 | Responsibilities > 3 (4: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking) |
+| 56 | `agent/session/telemetry.py` | 154 | 2 | 0 | 1 | 0 | 1 | Functions > 60 lines: 1 (longest: update_telemetry (71 lines)) |
+| 57 | `agent/tools/handlers/files.py` | 99 | 0 | 0 | 0 | 1 | 4 | Responsibilities > 3 (4: External / Subprocess / LLM, I/O & Persistence, UI & Interaction, Validation & Security) |
+| 58 | `agent/runtime/tool_narration.py` | 54 | 0 | 0 | 0 | 1 | 6 | Responsibilities > 3 (6: External / Subprocess / LLM, Formatting & Display, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 59 | `agent/infra/event_log.py` | 107 | 2 | 5 | 0 | 0 | 4 | Responsibilities > 3 (4: I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 60 | `agent/session/handoff_builder.py` | 104 | 0 | 0 | 0 | 0 | 4 | Responsibilities > 3 (4: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, UI & Interaction) |
+| 61 | `agent/tools/execution/authorization.py` | 83 | 0 | 0 | 0 | 1 | 4 | Responsibilities > 3 (4: External / Subprocess / LLM, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 62 | `agent/tools/dispatch.py` | 82 | 0 | 0 | 0 | 1 | 4 | Responsibilities > 3 (4: Command Routing & Dispatch, External / Subprocess / LLM, Telemetry & Decision Tracking, Validation & Security) |
+| 63 | `agent/tools/execution/call_logging.py` | 46 | 0 | 0 | 0 | 1 | 5 | Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 64 | `agent/llm/structured_call.py` | 90 | 0 | 0 | 1 | 0 | 1 | Functions > 60 lines: 1 (longest: call_structured_json (81 lines)) |
+| 65 | `agent/tools/handlers/plugin_dev.py` | 71 | 0 | 0 | 0 | 0 | 4 | Responsibilities > 3 (4: Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 66 | `agent/infra/__init__.py` | 59 | 0 | 0 | 0 | 0 | 4 | Responsibilities > 3 (4: External / Subprocess / LLM, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security) |
+| 67 | `agent/tools/handlers/plan.py` | 58 | 0 | 0 | 0 | 0 | 4 | Responsibilities > 3 (4: Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
+| 68 | `agent/prompts/critics.py` | 34 | 0 | 0 | 0 | 0 | 4 | Responsibilities > 3 (4: Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security) |
 
 ## Detailed Analysis per Flagged God File
 
@@ -145,34 +153,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 - `PluginDevManager.promote_draft_by_human`: 76 lines
 - `promote_draft_by_human`: 76 lines
 
-### 4. `agent/session/coordinator.py` (LOC: 1191, Severity Score: 2850)
-
-- **Responsibilities (8)**: Command Routing & Dispatch, External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
-- **Agent Package Fan-Out (11)**: `body, helper_models, identity, infra, learning, llm, opencode, plugins, prompts, runtime, tools`
-- **Max Methods in Single Class**: 36
-- **Max Constructor Collaborators**: 1
-
-**Triggered Flags**:
-- LOC > 400 (1191)
-- Class > 15 methods: WakeCoordinator (36)
-- Functions > 60 lines: 12 (longest: WakeCoordinator._run_session (113 lines))
-- Responsibilities > 3 (8: Command Routing & Dispatch, External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security)
-
-**Functions / Methods > 60 lines**:
-- `WakeCoordinator._run_session`: 113 lines
-- `_run_session`: 113 lines
-- `WakeCoordinator.boot`: 98 lines
-- `boot`: 98 lines
-- `WakeCoordinator._reflection`: 96 lines
-- `_reflection`: 96 lines
-- `WakeCoordinator.__init__`: 95 lines
-- `__init__`: 95 lines
-- `WakeCoordinator.handle_plugins_command`: 78 lines
-- `handle_plugins_command`: 78 lines
-- `WakeCoordinator._update_telemetry`: 61 lines
-- `_update_telemetry`: 61 lines
-
-### 5. `agent/helper_models/model_decisions.py` (LOC: 904, Severity Score: 2421)
+### 4. `agent/helper_models/model_decisions.py` (LOC: 904, Severity Score: 2421)
 
 - **Responsibilities (5)**: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security
 - **Agent Package Fan-Out (3)**: `infra, llm, prompts`
@@ -199,7 +180,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 - `ModelDecisions.record_build_outcome`: 61 lines
 - `record_build_outcome`: 61 lines
 
-### 6. `agent/learning/plan.py` (LOC: 783, Severity Score: 2057)
+### 5. `agent/learning/plan.py` (LOC: 783, Severity Score: 2057)
 
 - **Responsibilities (5)**: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (2)**: `infra, prompts`
@@ -221,7 +202,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 - `PlanStore.hygiene`: 70 lines
 - `hygiene`: 70 lines
 
-### 7. `agent/identity/identity.py` (LOC: 811, Severity Score: 1679)
+### 6. `agent/identity/identity.py` (LOC: 811, Severity Score: 1679)
 
 - **Responsibilities (6)**: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (4)**: `body, infra, opencode, prompts`
@@ -238,7 +219,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 - `IdentityStore.run_first_awakening`: 72 lines
 - `run_first_awakening`: 72 lines
 
-### 8. `agent/tools/tool_registry.py` (LOC: 470, Severity Score: 1619)
+### 7. `agent/tools/tool_registry.py` (LOC: 470, Severity Score: 1619)
 
 - **Responsibilities (7)**: External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (3)**: `infra, llm, prompts`
@@ -254,7 +235,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 - `ToolRegistry.create_tool`: 226 lines
 - `create_tool`: 226 lines
 
-### 9. `agent/plugins/manager.py` (LOC: 770, Severity Score: 1596)
+### 8. `agent/plugins/manager.py` (LOC: 770, Severity Score: 1596)
 
 - **Responsibilities (5)**: Command Routing & Dispatch, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security
 - **Agent Package Fan-Out (2)**: `infra, tools`
@@ -273,7 +254,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 - `PluginManager.sync_at_cycle_boundary`: 68 lines
 - `sync_at_cycle_boundary`: 68 lines
 
-### 10. `agent/helper_models/model_probe.py` (LOC: 513, Severity Score: 1518)
+### 9. `agent/helper_models/model_probe.py` (LOC: 513, Severity Score: 1518)
 
 - **Responsibilities (7)**: Command Routing & Dispatch, External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (3)**: `infra, llm, prompts`
@@ -292,7 +273,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 - `probe_model`: 105 lines
 - `extract_model_facts`: 96 lines
 
-### 11. `agent/infra/migration.py` (LOC: 468, Severity Score: 1420)
+### 10. `agent/infra/migration.py` (LOC: 468, Severity Score: 1420)
 
 - **Responsibilities (4)**: I/O & Persistence, Lifecycle & Orchestration, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (0)**: `None`
@@ -308,7 +289,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 - `run_migration_p14`: 235 lines
 - `deterministic_summary`: 171 lines
 
-### 12. `agent/llm/model_registry.py` (LOC: 613, Severity Score: 1398)
+### 11. `agent/llm/model_registry.py` (LOC: 613, Severity Score: 1398)
 
 - **Responsibilities (5)**: External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Telemetry & Decision Tracking, Validation & Security
 - **Agent Package Fan-Out (1)**: `infra`
@@ -325,7 +306,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 - `ModelRegistry._initialize`: 110 lines
 - `_initialize`: 110 lines
 
-### 13. `agent/body/container.py` (LOC: 568, Severity Score: 1393)
+### 12. `agent/body/container.py` (LOC: 568, Severity Score: 1393)
 
 - **Responsibilities (7)**: Command Routing & Dispatch, External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (3)**: `infra, opencode, prompts`
@@ -345,7 +326,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 - `ContainerMetrics.snapshot`: 68 lines
 - `snapshot`: 68 lines
 
-### 14. `agent/runtime/cycle_runner.py` (LOC: 367, Severity Score: 1333)
+### 13. `agent/runtime/cycle_runner.py` (LOC: 367, Severity Score: 1333)
 
 - **Responsibilities (7)**: External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (4)**: `infra, llm, prompts, tools`
@@ -358,6 +339,22 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 
 **Functions / Methods > 60 lines**:
 - `run_agent_loop`: 343 lines
+
+### 14. `agent/session/coordinator.py` (LOC: 391, Severity Score: 1280)
+
+- **Responsibilities (7)**: Command Routing & Dispatch, External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security
+- **Agent Package Fan-Out (5)**: `body, identity, infra, learning, plugins`
+- **Max Methods in Single Class**: 36
+- **Max Constructor Collaborators**: 1
+
+**Triggered Flags**:
+- Class > 15 methods: WakeCoordinator (36)
+- Functions > 60 lines: 2 (longest: WakeCoordinator.__init__ (101 lines))
+- Responsibilities > 3 (7: Command Routing & Dispatch, External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security)
+
+**Functions / Methods > 60 lines**:
+- `WakeCoordinator.__init__`: 101 lines
+- `__init__`: 101 lines
 
 ### 15. `agent/plugins/cli.py` (LOC: 597, Severity Score: 1252)
 
@@ -540,7 +537,21 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Functions / Methods > 60 lines**:
 - `wire_loop_collaborators`: 133 lines
 
-### 27. `agent/reporting/report.py` (LOC: 239, Severity Score: 635)
+### 27. `agent/session/session_runner.py` (LOC: 178, Severity Score: 687)
+
+- **Responsibilities (4)**: External / Subprocess / LLM, Lifecycle & Orchestration, UI & Interaction, Validation & Security
+- **Agent Package Fan-Out (5)**: `infra, llm, prompts, runtime, tools`
+- **Max Methods in Single Class**: 0
+- **Max Constructor Collaborators**: 0
+
+**Triggered Flags**:
+- Functions > 60 lines: 1 (longest: run_session (137 lines))
+- Responsibilities > 3 (4: External / Subprocess / LLM, Lifecycle & Orchestration, UI & Interaction, Validation & Security)
+
+**Functions / Methods > 60 lines**:
+- `run_session`: 137 lines
+
+### 28. `agent/reporting/report.py` (LOC: 239, Severity Score: 635)
 
 - **Responsibilities (4)**: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security
 - **Agent Package Fan-Out (2)**: `infra, learning`
@@ -555,7 +566,21 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 - `create_report`: 99 lines
 - `helper_model_section`: 64 lines
 
-### 28. `agent/runtime/tool_round.py` (LOC: 129, Severity Score: 597)
+### 29. `agent/session/shutdown_reflection.py` (LOC: 147, Severity Score: 624)
+
+- **Responsibilities (5)**: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, UI & Interaction, Validation & Security
+- **Agent Package Fan-Out (3)**: `helper_models, llm, prompts`
+- **Max Methods in Single Class**: 0
+- **Max Constructor Collaborators**: 0
+
+**Triggered Flags**:
+- Functions > 60 lines: 1 (longest: run_session_reflection (126 lines))
+- Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, UI & Interaction, Validation & Security)
+
+**Functions / Methods > 60 lines**:
+- `run_session_reflection`: 126 lines
+
+### 30. `agent/runtime/tool_round.py` (LOC: 129, Severity Score: 597)
 
 - **Responsibilities (6)**: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (2)**: `infra, llm`
@@ -569,7 +594,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Functions / Methods > 60 lines**:
 - `execute_tool_round`: 119 lines
 
-### 29. `agent/opencode/sandbox.py` (LOC: 396, Severity Score: 576)
+### 31. `agent/opencode/sandbox.py` (LOC: 396, Severity Score: 576)
 
 - **Responsibilities (4)**: Command Routing & Dispatch, External / Subprocess / LLM, I/O & Persistence, Validation & Security
 - **Agent Package Fan-Out (0)**: `None`
@@ -579,7 +604,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (4: Command Routing & Dispatch, External / Subprocess / LLM, I/O & Persistence, Validation & Security)
 
-### 30. `agent/identity/migration.py` (LOC: 141, Severity Score: 566)
+### 32. `agent/identity/migration.py` (LOC: 141, Severity Score: 566)
 
 - **Responsibilities (5)**: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (1)**: `prompts`
@@ -593,7 +618,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Functions / Methods > 60 lines**:
 - `migrate_persisted_identity`: 115 lines
 
-### 31. `agent/runtime/loop.py` (LOC: 275, Severity Score: 560)
+### 33. `agent/runtime/loop.py` (LOC: 275, Severity Score: 560)
 
 - **Responsibilities (7)**: External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (3)**: `infra, llm, tools`
@@ -603,7 +628,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (7: External / Subprocess / LLM, Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security)
 
-### 32. `agent/helper_models/model_outcomes.py` (LOC: 213, Severity Score: 518)
+### 34. `agent/helper_models/model_outcomes.py` (LOC: 213, Severity Score: 518)
 
 - **Responsibilities (4)**: I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (1)**: `infra`
@@ -617,7 +642,35 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Functions / Methods > 60 lines**:
 - `print_outcome_summary`: 65 lines
 
-### 33. `agent/session/session.py` (LOC: 214, Severity Score: 464)
+### 35. `agent/session/plugin_commands.py` (LOC: 139, Severity Score: 510)
+
+- **Responsibilities (6)**: Command Routing & Dispatch, External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, UI & Interaction, Validation & Security
+- **Agent Package Fan-Out (1)**: `plugins`
+- **Max Methods in Single Class**: 0
+- **Max Constructor Collaborators**: 0
+
+**Triggered Flags**:
+- Functions > 60 lines: 1 (longest: handle_plugins_command (78 lines))
+- Responsibilities > 3 (6: Command Routing & Dispatch, External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, UI & Interaction, Validation & Security)
+
+**Functions / Methods > 60 lines**:
+- `handle_plugins_command`: 78 lines
+
+### 36. `agent/session/boot.py` (LOC: 204, Severity Score: 509)
+
+- **Responsibilities (4)**: Command Routing & Dispatch, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking
+- **Agent Package Fan-Out (1)**: `opencode`
+- **Max Methods in Single Class**: 0
+- **Max Constructor Collaborators**: 0
+
+**Triggered Flags**:
+- Functions > 60 lines: 1 (longest: run_boot_sequence (65 lines))
+- Responsibilities > 3 (4: Command Routing & Dispatch, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking)
+
+**Functions / Methods > 60 lines**:
+- `run_boot_sequence`: 65 lines
+
+### 37. `agent/session/session.py` (LOC: 214, Severity Score: 464)
 
 - **Responsibilities (6)**: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (2)**: `infra, learning`
@@ -627,7 +680,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (6: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security)
 
-### 34. `agent/runtime/cycle_prompt.py` (LOC: 87, Severity Score: 426)
+### 38. `agent/runtime/cycle_prompt.py` (LOC: 87, Severity Score: 426)
 
 - **Responsibilities (4)**: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security
 - **Agent Package Fan-Out (3)**: `helper_models, infra, prompts`
@@ -641,7 +694,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Functions / Methods > 60 lines**:
 - `build_system_prompt_for_cycle`: 67 lines
 
-### 35. `agent/llm/providers/registry.py` (LOC: 189, Severity Score: 424)
+### 39. `agent/llm/providers/registry.py` (LOC: 189, Severity Score: 424)
 
 - **Responsibilities (6)**: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (1)**: `infra`
@@ -651,7 +704,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (6: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security)
 
-### 36. `agent/plugins/examples/pet_companion/plugin.py` (LOC: 238, Severity Score: 418)
+### 40. `agent/plugins/examples/pet_companion/plugin.py` (LOC: 238, Severity Score: 418)
 
 - **Responsibilities (4)**: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction
 - **Agent Package Fan-Out (0)**: `None`
@@ -661,7 +714,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (4: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction)
 
-### 37. `agent/llm/brain_router.py` (LOC: 196, Severity Score: 411)
+### 41. `agent/llm/brain_router.py` (LOC: 196, Severity Score: 411)
 
 - **Responsibilities (5)**: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security
 - **Agent Package Fan-Out (1)**: `infra`
@@ -671,7 +724,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security)
 
-### 38. `agent/opencode/tools.py` (LOC: 187, Severity Score: 402)
+### 42. `agent/opencode/tools.py` (LOC: 187, Severity Score: 402)
 
 - **Responsibilities (5)**: External / Subprocess / LLM, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (1)**: `infra`
@@ -681,7 +734,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (5: External / Subprocess / LLM, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security)
 
-### 39. `agent/runtime/plugin_projects.py` (LOC: 80, Severity Score: 395)
+### 43. `agent/runtime/plugin_projects.py` (LOC: 80, Severity Score: 395)
 
 - **Responsibilities (4)**: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction
 - **Agent Package Fan-Out (1)**: `prompts`
@@ -695,7 +748,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Functions / Methods > 60 lines**:
 - `check_active_plugin_projects`: 70 lines
 
-### 40. `agent/session/conversation.py` (LOC: 118, Severity Score: 378)
+### 44. `agent/session/conversation.py` (LOC: 118, Severity Score: 378)
 
 - **Responsibilities (5)**: External / Subprocess / LLM, I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (4)**: `body, infra, llm, prompts`
@@ -705,7 +758,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security)
 
-### 41. `agent/infra/stop_watcher.py` (LOC: 175, Severity Score: 355)
+### 45. `agent/infra/stop_watcher.py` (LOC: 175, Severity Score: 355)
 
 - **Responsibilities (4)**: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security
 - **Agent Package Fan-Out (0)**: `None`
@@ -715,7 +768,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (4: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security)
 
-### 42. `agent/ui/phase8_verify.py` (LOC: 108, Severity Score: 348)
+### 46. `agent/ui/phase8_verify.py` (LOC: 108, Severity Score: 348)
 
 - **Responsibilities (4)**: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction
 - **Agent Package Fan-Out (4)**: `identity, infra, llm, tools`
@@ -725,7 +778,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (4: I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction)
 
-### 43. `agent/infra/hardening.py` (LOC: 133, Severity Score: 333)
+### 47. `agent/infra/hardening.py` (LOC: 133, Severity Score: 333)
 
 - **Responsibilities (5)**: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security
 - **Agent Package Fan-Out (0)**: `None`
@@ -735,7 +788,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security)
 
-### 44. `agent/runtime/stop_control.py` (LOC: 113, Severity Score: 328)
+### 48. `agent/runtime/stop_control.py` (LOC: 113, Severity Score: 328)
 
 - **Responsibilities (5)**: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security
 - **Agent Package Fan-Out (1)**: `infra`
@@ -745,7 +798,17 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security)
 
-### 45. `agent/learning/memory_migration.py` (LOC: 108, Severity Score: 322)
+### 49. `agent/session/plan_recovery.py` (LOC: 129, Severity Score: 324)
+
+- **Responsibilities (4)**: Formatting & Display, Lifecycle & Orchestration, UI & Interaction, Validation & Security
+- **Agent Package Fan-Out (1)**: `learning`
+- **Max Methods in Single Class**: 0
+- **Max Constructor Collaborators**: 0
+
+**Triggered Flags**:
+- Responsibilities > 3 (4: Formatting & Display, Lifecycle & Orchestration, UI & Interaction, Validation & Security)
+
+### 50. `agent/learning/memory_migration.py` (LOC: 108, Severity Score: 322)
 
 - **Responsibilities (2)**: I/O & Persistence, Validation & Security
 - **Agent Package Fan-Out (0)**: `None`
@@ -758,7 +821,17 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Functions / Methods > 60 lines**:
 - `migrate_memory_store`: 97 lines
 
-### 46. `agent/prompts/system.py` (LOC: 86, Severity Score: 306)
+### 51. `agent/session/human_input.py` (LOC: 139, Severity Score: 319)
+
+- **Responsibilities (4)**: Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Validation & Security
+- **Agent Package Fan-Out (0)**: `None`
+- **Max Methods in Single Class**: 0
+- **Max Constructor Collaborators**: 0
+
+**Triggered Flags**:
+- Responsibilities > 3 (4: Formatting & Display, I/O & Persistence, Lifecycle & Orchestration, Validation & Security)
+
+### 52. `agent/prompts/system.py` (LOC: 86, Severity Score: 306)
 
 - **Responsibilities (6)**: Command Routing & Dispatch, External / Subprocess / LLM, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (0)**: `None`
@@ -768,7 +841,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (6: Command Routing & Dispatch, External / Subprocess / LLM, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security)
 
-### 47. `agent/infra/process_runner.py` (LOC: 102, Severity Score: 302)
+### 53. `agent/infra/process_runner.py` (LOC: 102, Severity Score: 302)
 
 - **Responsibilities (2)**: External / Subprocess / LLM, I/O & Persistence
 - **Agent Package Fan-Out (0)**: `None`
@@ -781,7 +854,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Functions / Methods > 60 lines**:
 - `run_process`: 90 lines
 
-### 48. `agent/tools/definitions/plugins.py` (LOC: 101, Severity Score: 301)
+### 54. `agent/tools/definitions/plugins.py` (LOC: 101, Severity Score: 301)
 
 - **Responsibilities (5)**: External / Subprocess / LLM, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (0)**: `None`
@@ -791,7 +864,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (5: External / Subprocess / LLM, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security)
 
-### 49. `agent/ui/disk_tool_demo.py` (LOC: 42, Severity Score: 297)
+### 55. `agent/ui/disk_tool_demo.py` (LOC: 42, Severity Score: 297)
 
 - **Responsibilities (4)**: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking
 - **Agent Package Fan-Out (5)**: `infra, llm, prompts, runtime, tools`
@@ -801,7 +874,20 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (4: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, Telemetry & Decision Tracking)
 
-### 50. `agent/tools/handlers/files.py` (LOC: 99, Severity Score: 294)
+### 56. `agent/session/telemetry.py` (LOC: 154, Severity Score: 296)
+
+- **Responsibilities (1)**: Telemetry & Decision Tracking
+- **Agent Package Fan-Out (0)**: `None`
+- **Max Methods in Single Class**: 0
+- **Max Constructor Collaborators**: 0
+
+**Triggered Flags**:
+- Functions > 60 lines: 1 (longest: update_telemetry (71 lines))
+
+**Functions / Methods > 60 lines**:
+- `update_telemetry`: 71 lines
+
+### 57. `agent/tools/handlers/files.py` (LOC: 99, Severity Score: 294)
 
 - **Responsibilities (4)**: External / Subprocess / LLM, I/O & Persistence, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (1)**: `opencode`
@@ -811,7 +897,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (4: External / Subprocess / LLM, I/O & Persistence, UI & Interaction, Validation & Security)
 
-### 51. `agent/runtime/tool_narration.py` (LOC: 54, Severity Score: 289)
+### 58. `agent/runtime/tool_narration.py` (LOC: 54, Severity Score: 289)
 
 - **Responsibilities (6)**: External / Subprocess / LLM, Formatting & Display, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (1)**: `infra`
@@ -821,7 +907,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (6: External / Subprocess / LLM, Formatting & Display, Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security)
 
-### 52. `agent/infra/event_log.py` (LOC: 107, Severity Score: 287)
+### 59. `agent/infra/event_log.py` (LOC: 107, Severity Score: 287)
 
 - **Responsibilities (4)**: I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (0)**: `None`
@@ -831,7 +917,17 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (4: I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security)
 
-### 53. `agent/tools/execution/authorization.py` (LOC: 83, Severity Score: 278)
+### 60. `agent/session/handoff_builder.py` (LOC: 104, Severity Score: 284)
+
+- **Responsibilities (4)**: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, UI & Interaction
+- **Agent Package Fan-Out (0)**: `None`
+- **Max Methods in Single Class**: 0
+- **Max Constructor Collaborators**: 0
+
+**Triggered Flags**:
+- Responsibilities > 3 (4: External / Subprocess / LLM, I/O & Persistence, Lifecycle & Orchestration, UI & Interaction)
+
+### 61. `agent/tools/execution/authorization.py` (LOC: 83, Severity Score: 278)
 
 - **Responsibilities (4)**: External / Subprocess / LLM, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (1)**: `infra`
@@ -841,7 +937,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (4: External / Subprocess / LLM, Telemetry & Decision Tracking, UI & Interaction, Validation & Security)
 
-### 54. `agent/tools/dispatch.py` (LOC: 82, Severity Score: 277)
+### 62. `agent/tools/dispatch.py` (LOC: 82, Severity Score: 277)
 
 - **Responsibilities (4)**: Command Routing & Dispatch, External / Subprocess / LLM, Telemetry & Decision Tracking, Validation & Security
 - **Agent Package Fan-Out (1)**: `llm`
@@ -851,7 +947,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (4: Command Routing & Dispatch, External / Subprocess / LLM, Telemetry & Decision Tracking, Validation & Security)
 
-### 55. `agent/tools/execution/call_logging.py` (LOC: 46, Severity Score: 261)
+### 63. `agent/tools/execution/call_logging.py` (LOC: 46, Severity Score: 261)
 
 - **Responsibilities (5)**: External / Subprocess / LLM, I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (1)**: `infra`
@@ -861,7 +957,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (5: External / Subprocess / LLM, I/O & Persistence, Telemetry & Decision Tracking, UI & Interaction, Validation & Security)
 
-### 56. `agent/llm/structured_call.py` (LOC: 90, Severity Score: 252)
+### 64. `agent/llm/structured_call.py` (LOC: 90, Severity Score: 252)
 
 - **Responsibilities (1)**: I/O & Persistence
 - **Agent Package Fan-Out (0)**: `None`
@@ -874,7 +970,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Functions / Methods > 60 lines**:
 - `call_structured_json`: 81 lines
 
-### 57. `agent/tools/handlers/plugin_dev.py` (LOC: 71, Severity Score: 251)
+### 65. `agent/tools/handlers/plugin_dev.py` (LOC: 71, Severity Score: 251)
 
 - **Responsibilities (4)**: Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (0)**: `None`
@@ -884,7 +980,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (4: Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security)
 
-### 58. `agent/infra/__init__.py` (LOC: 59, Severity Score: 239)
+### 66. `agent/infra/__init__.py` (LOC: 59, Severity Score: 239)
 
 - **Responsibilities (4)**: External / Subprocess / LLM, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security
 - **Agent Package Fan-Out (0)**: `None`
@@ -894,7 +990,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (4: External / Subprocess / LLM, Lifecycle & Orchestration, Telemetry & Decision Tracking, Validation & Security)
 
-### 59. `agent/tools/handlers/plan.py` (LOC: 58, Severity Score: 238)
+### 67. `agent/tools/handlers/plan.py` (LOC: 58, Severity Score: 238)
 
 - **Responsibilities (4)**: Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (0)**: `None`
@@ -904,7 +1000,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 **Triggered Flags**:
 - Responsibilities > 3 (4: Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security)
 
-### 60. `agent/prompts/critics.py` (LOC: 34, Severity Score: 214)
+### 68. `agent/prompts/critics.py` (LOC: 34, Severity Score: 214)
 
 - **Responsibilities (4)**: Lifecycle & Orchestration, Telemetry & Decision Tracking, UI & Interaction, Validation & Security
 - **Agent Package Fan-Out (0)**: `None`
@@ -930,6 +1026,7 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 | `agent/learning/exploration_coverage.py` | 97 | 1 | 4 | 3 |
 | `agent/session/version_check.py` | 64 | 0 | 2 | 3 |
 | `agent/runtime/config.py` | 62 | 3 | 0 | 3 |
+| `agent/session/event_router.py` | 89 | 0 | 2 | 3 |
 | `agent/tools/definitions/models.py` | 100 | 0 | 0 | 2 |
 | `agent/tools/definitions/plan.py` | 96 | 0 | 0 | 2 |
 | `agent/tools/permissions.py` | 54 | 0 | 0 | 3 |
@@ -940,11 +1037,13 @@ This report identifies candidate 'god files' in the SELF agent harness (`agent/`
 | `agent/tools/definitions/core.py` | 73 | 0 | 0 | 2 |
 | `agent/infra/egress_allowlist.py` | 48 | 1 | 0 | 3 |
 | `agent/run.py` | 50 | 0 | 1 | 2 |
+| `agent/session/reflection_scheduler.py` | 83 | 0 | 4 | 1 |
 | `agent/infra/file_lock.py` | 40 | 0 | 1 | 3 |
 | `agent/ui/version_check.py` | 27 | 0 | 1 | 2 |
 | `agent/prompts/container_body.py` | 55 | 0 | 0 | 2 |
 | `agent/runtime/prompts.py` | 44 | 0 | 1 | 1 |
 | `agent/prompts/reflection.py` | 53 | 0 | 2 | 2 |
+| `agent/session/headless.py` | 45 | 0 | 1 | 2 |
 | `agent/tools/definitions/system.py` | 24 | 0 | 0 | 3 |
 | `agent/tools/definitions/provider.py` | 40 | 0 | 0 | 2 |
 | `agent/tools/execution/model_arg_validation.py` | 53 | 0 | 1 | 1 |
