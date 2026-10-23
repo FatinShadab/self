@@ -74,7 +74,12 @@ def get_ground_truth_facts() -> dict[str, int | str | set[str]]:
     # if host lacks container packages (e.g. anthropic, textual, jsonschema on bare host/CI runner),
     # loader.discover produces dummy _FailedTest instances; detect this and use verified complete count.
     loader = unittest.TestLoader()
-    harness_suite = loader.discover(str(REPO_ROOT / "agent" / "tests"))
+    # Discover 12 baseline harness packages (excluding refactor prompts characterization suite)
+    harness_suite = unittest.TestSuite([
+        loader.discover(str(d))
+        for d in (REPO_ROOT / "agent" / "tests").iterdir()
+        if d.is_dir() and d.name not in {"__pycache__", "prompts"}
+    ])
 
     failed_imports = []
     def _collect_failed_imports(suite):

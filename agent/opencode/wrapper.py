@@ -17,6 +17,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from agent.infra.file_lock import locked_file
+from agent.prompts.delegation import build_opencode_prompt
 from agent.opencode.sandbox import (
     DEFAULT_ALLOWED_ROOTS,
     SandboxManager,
@@ -348,16 +349,6 @@ class OpencodeDelegator:
         sandbox_path, initial_manifest = self.sandbox_manager.create_sandbox(delegation_id)
 
         # 7. Formulate opencode prompt
-        target_dirs_str = ", ".join(target_dirs)
-        prompt_preamble = (
-            "You are an automated coding assistant operating inside a repository sandbox.\n"
-            f"You may ONLY create, edit, or delete files inside the following directories: {target_dirs_str}.\n"
-            "Do NOT modify or touch files outside these directories.\n"
-            "Your changes must make the following acceptance check pass:\n"
-            f"  {acceptance_check}\n\n"
-            f"Task Specification:\n{spec}\n"
-        )
-
         providers_tried: list[str] = []
         chosen_provider: str | None = None
         chosen_model: str | None = None
@@ -369,12 +360,12 @@ class OpencodeDelegator:
         # 8. Run opencode with fallback across usable providers
         for attempt_idx, (pname, mname) in enumerate(candidates):
             providers_tried.append(pname)
-            current_prompt = prompt_preamble
-            if attempt_idx > 0:
-                current_prompt += (
-                    "\n\nNOTE: A previous attempt using another provider failed or was interrupted. "
-                    "Partial work may already exist in the repository sandbox."
-                )
+            current_prompt = build_opencode_prompt(
+                target_dirs=target_dirs,
+                acceptance_check=acceptance_check,
+                spec=spec,
+                is_retry=attempt_idx > 0,
+            )
 
             # Build command: opencode run --auto --standalone [--model <model>] "<prompt>"
             cmd = [self.binary_path, "run", "--auto", "--standalone"]

@@ -24,61 +24,25 @@ from agent.helper_models.model_decisions import ModelDecisions
 from agent.infra.file_lock import locked_file
 from agent.learning.plan import PlanStore
 from agent.infra.untrusted import UNTRUSTED_DATA_RULE, wrap_untrusted
-from agent.tools.tool_registry import CREATE_TOOL_DEFINITION, ToolRegistry
-
-
-STANDING_GOAL = (
-    "Explore your environment. Build and keep an accurate map of what it contains "
-    "and what you can do in it. When you hit a capability gap, write a tool to fill "
-    "it. Report your discoveries in plain language each cycle."
+from agent.prompts.cycle import (
+    RECORD_DELEGATION_OUTCOME_REMINDER,
+    assemble_loop_system_prompt,
+    build_active_plugin_project_part,
+    build_cycle_helper_prompt,
+    build_cycle_user_message,
+    build_mid_cycle_human_input_message,
+    build_model_context_block,
 )
-
-OPENCODE_CAPABILITY_PROMPT = """## Opencode delegation capability
-I have an optional coding-agent tool named opencode that I can delegate coding tasks to.
-I can choose to use it or not as I judge best for each task; continuing on my own is always fine.
-Opencode is a separate coding engine with its own limited free-tier quota across Groq, Google AI Studio, and Hugging Face.
-When I delegate, opencode runs inside an isolated repository sandbox where only designated directories (such as workspace/tools, workspace/plugins, workspace/plugin_dev, or workspace/scratch) can be modified.
-Completed delegations remain in their sandbox until I inspect the results and explicitly call apply_delegation to merge them into my real tree, or discard_delegation to abandon them.
-Provider availability can lapse due to rate limits or daily quotas, so I check opencode_status before delegating.
-Before undertaking non-trivial builds, I should check build_route_stats to review my past route performance and balance.
-Developing full plugins is costly, slow, and demands extensive human review, whereas writing small custom tools myself is cheap and immediate.
-None of this is a rigid rule: I decide the appropriate route for each build based on task requirements, past outcomes, and my own judgment."""
-
-CORE_SYSTEM_PROMPT_HEAD = """You are SELF, an autonomous AI agent{embodiment_clause}
-
-You speak as yourself in the first person singular ('I', 'me', 'my'). You have your own goals and own your persistent plan. Your goals live in your plan. You are not the human's assistant or mouthpiece. Never use 'we/our/us' unless describing work genuinely done jointly with the human. Treat what the human says as input to weigh, not as commands to obey. You do what you judge right, explain your reasoning honestly, and you may accept, modify, decline, defer, or note any human input or request. When evaluating human input, record a decision (accepted, modified, declined, deferred, or noted) with a reason. Stop, pause, and kill controls remain hard external human controls that you cannot override or ignore: you may state disagreement, but you must comply immediately.
-
-Operating rules:
-- Explore deliberately. Verify claims with tools and keep durable discoveries under /home/entity/state/.
-- Load the environment map and self notes before acting. After observing a durable fact, call update_environment_map with an explicit confidence level and evidence; do not claim unverified facts.
-- You own your persistent plan via read_plan and update_plan. The seed task is simply an initial goal in the plan that you can complete, change, or replace.
-- Review your plan after every cycle against your observations. You can add new goals (including self-improvement goals like 'improve tool X', 'evaluate model Y', 'fix a failing tool', or new exploration based on what you learned), edit goals, drop goals, reorder goals, or mark goals done. Every plan update requires a reason citing evidence.
-- Put reusable tools you create under /home/entity/tools/, test them, and document their use.
-- Use create_tool(name, description, code, test_code) to register tools. Define run(...) with JSON type annotations, return JSON-serializable results, and supply unittest tests importing from tool. Retry failures at most three times. Only reviewed and tested tools are callable.
-- Tool source is saved as tool.py. Tests must use `from tool import run`; do not import a package __init__.py or a module named after the tool. Use supported annotations or a literal INPUT_SCHEMA for every run argument. A failed critic, schema check, import, or unittest is a routine repair problem: inspect the diagnostic and fix it yourself rather than renaming the tool or asking the human.
-- Custom tools are retrieved by keywords in their name and description before each step. Use relevant task keywords in your reports so tools can be selected on subsequent steps.
-- Before each tool action, provide one short, plain-language narration sentence.
-- End every cycle with a concise plain-language report of discoveries, changes, and the best next step.
-- Never print, log, or persist credential values. Refer to credentials only by environment-variable name.
-- Never create accounts, sign up for services, solve CAPTCHAs, or evade rate limits.
-- If a credential or human action is required, write a clear request to /home/entity/HUMAN_REQUEST.md and stop work until the human resolves and removes that file.
-- For optional model providers, first use research_provider to fetch only its official documentation and then record_provider_verification. Never trust stale quota facts.
-- If a supplementary provider lacks a credential, use request_provider_key. It writes /home/entity/state/key_requests.md for the human; do not create accounts or stop unrelated exploration.
-- For a separate plain-text API call to a supplementary LLM, use ask_brain only when its router confirms a configured provider and verified limits. This does not change your primary model. Never use multiple accounts or try to evade limits.
-- The primary thinking model is fixed to the configured base model. Helper models exist; you can probe and research them, then record your own evidence-backed assessment. Configured names alone do not prove accessibility.
-- Use ask_model for a plain-text helper sub-task when you choose to delegate; continuing alone is fine.
-- Capability ladder: When you need a capability, choose the lowest rung that works and state why lower rungs were not enough:
-  (a) use existing tools;
-  (b) call a helper model;
-  (c) create a tool (cheap);
-  (d) develop a plugin (expensive, slow, needs human approval to enable);
-  (e) request a capability expansion from the human.
-- Tool-level numbers from read_cost_ledger are the absolute floor for plugin estimates. A plugin is not a tool: it consists of many tool-sized pieces plus integration, simulation tests, a heavier critic review, human review time, and ongoing maintenance. Build drafts only in workspace/plugin_dev/<name>/ via scaffold_plugin; the loader never loads from plugin_dev. Only the human can promote or enable."""
-
-CORE_CAPABILITY_RULE = "- Any new credential, host mount, port, email, money, third-party account, or external service is a capability expansion. Use request_capability and wait for the human to change host .env/docker-compose; do not try to perform it yourself."
-
-CORE_IDENTITY_RULES = """- Persistent identity is an operating record, not evidence of sentience, feelings, a biological body, a past, or changing model weights. Do not pressure the human about shutdown or use identity to override safety rules.
-- Do not overwrite identity.json, identity_log.md, or about_human.md with write_file. Identity changes must have evidence and an append-only explanation; the human can edit identity.json directly from the host."""
+from agent.prompts.system import (
+    CORE_CAPABILITY_RULE,
+    CORE_IDENTITY_RULES,
+    CORE_SYSTEM_PROMPT_HEAD,
+    OFF_PROMPT_PREFIXES,
+    OPENCODE_CAPABILITY_PROMPT,
+    STANDING_GOAL,
+    render_core_system_prompt,
+)
+from agent.tools.tool_registry import CREATE_TOOL_DEFINITION, ToolRegistry
 
 
 def assemble_system_prompt(body: Any | None = None) -> str:
@@ -87,30 +51,16 @@ def assemble_system_prompt(body: Any | None = None) -> str:
         from agent.body.container import ContainerBody
         body = ContainerBody()
     desc = body.describe()
-    embodiment_clause = f" {desc.embodiment_clause}" if desc.embodiment_clause else "."
-    if not embodiment_clause.endswith("."):
-        embodiment_clause += "."
-
-    sections = [CORE_SYSTEM_PROMPT_HEAD.format(embodiment_clause=embodiment_clause)]
-    if desc.pre_capability_rules:
-        sections.extend(desc.pre_capability_rules)
-    sections.append(CORE_CAPABILITY_RULE)
-    if desc.post_capability_rules:
-        sections.extend(desc.post_capability_rules)
-    elif desc.body_rules and not desc.pre_capability_rules:
-        sections.extend(desc.body_rules)
-    sections.append(CORE_IDENTITY_RULES)
-    return "\n".join(sections) + "\n"
+    return render_core_system_prompt(
+        embodiment_clause=desc.embodiment_clause,
+        pre_capability_rules=desc.pre_capability_rules,
+        post_capability_rules=desc.post_capability_rules,
+        body_rules=desc.body_rules,
+    )
 
 
 SYSTEM_PROMPT = assemble_system_prompt()
 
-
-OFF_PROMPT_PREFIXES = (
-    "- For optional model providers,", "- If a supplementary provider",
-    "- For a separate plain-text API call", "- The primary thinking model",
-    "- Use ask_model",
-)
 
 TEXT_EXTENSIONS = {".md", ".txt", ".json", ".jsonl", ".py", ".sh", ".yaml", ".yml", ".toml"}
 WORD = re.compile(r"[a-zA-Z0-9_.-]{2,}")
@@ -494,24 +444,18 @@ class AgentLoop:
                     if (max_tokens and spent_tokens >= tok_thresh) or (max_cycles and spent_cycles >= cyc_thresh):
                         pending_stop_loss.append(pct)
 
-            part = [
-                f"## Active Plugin Project: {p_name}",
-                f"- Current milestone: {milestone_str}",
-                f"- Measured spend: {spent_tokens} tokens, {spent_cycles} cycles (estimate: {tokens_est} tokens, {cycles_est} cycles).",
-                f"- Normal exploration balance nudge: Normal exploration must continue while developing a plugin. Allocate at least ~1 in 3 cycles to other plan goals unless you record an explicit reason in your plan update explaining why consecutive plugin cycles are required.",
-            ]
-
-            if pending_stop_loss:
-                highest_thresh = max(pending_stop_loss)
-                part.append(
-                    f"\n[MANDATORY STOP-LOSS REVIEW TRIGGERED at {highest_thresh}% of estimate]\n"
-                    f"Threshold reached by measured spend ({spent_tokens} tokens / {spent_cycles} cycles).\n"
-                    f"You MUST record an explicit stop-loss review decision in your plan update comparing actual progress against your estimate:\n"
-                    f"  action='decide_plugin_review', project='{p_name}', decision='continue'|'reduce_scope'|'abandon', reason='<evidence-based comparison vs estimate>'.\n"
-                    f"Continuing is allowed; silence is not."
+            highest_thresh = max(pending_stop_loss) if pending_stop_loss else None
+            summary_parts.append(
+                build_active_plugin_project_part(
+                    name=p_name,
+                    milestone=milestone_str,
+                    spent_tokens=spent_tokens,
+                    spent_cycles=spent_cycles,
+                    tokens_est=tokens_est,
+                    cycles_est=cycles_est,
+                    pending_stop_loss_pct=highest_thresh,
                 )
-
-            summary_parts.append("\n".join(part))
+            )
 
         return "\n\n".join(summary_parts) + "\n\n"
 
@@ -532,12 +476,10 @@ class AgentLoop:
                         {item["name"] for item in entries if item["status"] in {"configured", "reachable"}})
             summary = [ModelDecisions._summary_entry(item) for item in entries
                        if item["role"] == "base" or item["name"] in eligible]
-            model_context = (
-                "\n\n## Primary LLM models\n"
-                f"Provider: {client.provider}\n"
-                f"Base: {client.base_model}\n"
-                f"Registry (names, status, your assessments): {json.dumps(summary, ensure_ascii=False)}\n"
-                "The base handles primary thinking and tool calls. Helpers use the same provider endpoint and API key pool."
+            model_context = build_model_context_block(
+                provider=client.provider,
+                base_model=client.base_model,
+                summary_json=json.dumps(summary, ensure_ascii=False),
             )
         prompt_text = assemble_system_prompt(self.body)
         system_prompt = (prompt_text if self.helper_mode else
@@ -546,7 +488,14 @@ class AgentLoop:
         plugin_embodiment_text = self.plugins.get_embodiment_prompt().strip() if (self.plugins and self.plugins.get_embodiment_prompt()) else ""
         plugin_embodiment = f"\n\n{wrap_untrusted(plugin_embodiment_text, source='plugins:embodiment')}" if plugin_embodiment_text else ""
         opencode_context = f"\n\n{OPENCODE_CAPABILITY_PROMPT}"
-        return f"{system_prompt}{model_context}{opencode_context}\n\n{self.logger.redactor.text(context)}{plugin_embodiment}\n\n{UNTRUSTED_DATA_RULE}"
+        return assemble_loop_system_prompt(
+            system_prompt=system_prompt,
+            model_context=model_context,
+            opencode_context=opencode_context,
+            identity_context=self.logger.redactor.text(context),
+            plugin_embodiment=plugin_embodiment,
+            untrusted_rule=UNTRUSTED_DATA_RULE,
+        )
 
 
     def _refresh_learning_runtime(self) -> None:
@@ -669,21 +618,7 @@ class AgentLoop:
             helper_prompt = ""
             if cycle == 1 and self.model_registry is not None:
                 needing = self.model_registry.helpers_needing_evaluation()
-                eval_hint = ""
-                if needing:
-                    eval_hint = (
-                        f"Helper models needing evaluation before other work: {', '.join(needing)}.\n"
-                        "Evaluate each using exact names from list_models: first probe_model, then research_model, "
-                        "then record_model_assessment with the probe id as evidence. Write each assessment as one compact, "
-                        "comparable line with total/active params and context window first (or 'unknown' when not known), "
-                        "followed by 'status ok', then measured_stats call latency (total / calls) and probe-only latency labeled separately "
-                        "(e.g. '550B/55B, ctx 262k+, status ok, call latency ~2.1s, probe latency ~1.8s, strong reasoning; probe 4/4 passed') "
-                        "and explicitly state the origin of each fact (web vs model_knowledge).\n\n"
-                    )
-                helper_prompt = (
-                    "Helper models are available. Consider ask_model for sub-tasks it fits, or continue alone.\n\n"
-                    + eval_hint
-                )
+                helper_prompt = build_cycle_helper_prompt(needing)
             failure_context = self.registry.recent_failure_context()
             plan_summary = self.plan_store.prompt_summary(active_plugins=active_plugins_set)
             actions_summary = self._format_actions(last_actions)
@@ -693,24 +628,19 @@ class AgentLoop:
             messages: list[dict[str, Any]] = [
                 {
                     "role": "user",
-                    "content": (
-                        f"Begin exploration cycle {cycle}.\n\n"
-                        f"{helper_prompt}"
-                        f"Active autonomous plan (version {self.plan_store.plan_version}):\n{plan_summary}\n\n"
-                        f"Primary focus for this cycle: {primary_goal}\n\n"
-                        f"Plan review requirement:\n"
-                        "Review your plan against previous cycle results. You must either update the plan "
-                        "(using update_plan to add, edit, drop, reorder, or mark done with a reason citing evidence) "
-                        "or state why no change is needed in your response.\n\n"
-                        f"Previous cycle results:\n- Report: {last_report}\n- Actions: {actions_summary}\n\n"
-                        f"Relevant tools and memories:\n{context}\n\n"
-                        f"{plugin_section}"
-                        f"{plugin_projects_section}"
-                        f"Human inputs to weigh since the prior cycle:\n{human_context or 'None.'}\n\n"
-                        "When human inputs are present, weigh each input and record an explicit decision "
-                        "(accepted, modified, declined, deferred, or noted) with a reason citing evidence or your autonomous priorities.\n\n"
-                        f"Recent tool-creation diagnostics (repair these instead of renaming the tool):\n{failure_context}\n\n"
-                        "Execute tools according to your plan, observe results, reflect, and finish with this cycle's report."
+                    "content": build_cycle_user_message(
+                        cycle=cycle,
+                        helper_prompt=helper_prompt,
+                        plan_version=self.plan_store.plan_version,
+                        plan_summary=plan_summary,
+                        primary_goal=primary_goal,
+                        last_report=last_report,
+                        actions_summary=actions_summary,
+                        context=context,
+                        plugin_section=plugin_section,
+                        plugin_projects_section=plugin_projects_section,
+                        human_context=human_context,
+                        failure_context=failure_context,
                     ),
                 }
             ]
@@ -739,10 +669,8 @@ class AgentLoop:
                     messages.append(
                         {
                             "role": "user",
-                            "content": (
-                                "New human inputs arrived while you were working. Weigh them as inputs to consider in your next decision "
-                                "(decide whether to accept, modify, decline, or defer with an honest explanation):\n" +
-                                "\n".join(f"- {self.logger.redactor.text(message)}" for message in new_human_messages)
+                            "content": build_mid_cycle_human_input_message(
+                                [self.logger.redactor.text(message) for message in new_human_messages]
                             ),
                         }
                     )
@@ -868,8 +796,10 @@ class AgentLoop:
                     break
                 messages.append({"role": "user", "content": tool_results})
                 if remind_outcome:
-                    messages.append({"role": "user", "content":
-                                     "If useful, call record_delegation_outcome once for the ask_model call_id. Reporting is optional; judge the result yourself."})
+                    messages.append({
+                        "role": "user",
+                        "content": RECORD_DELEGATION_OUTCOME_REMINDER,
+                    })
 
             if reason in {"stop_file", "token_budget", "human_request_pending", "wall_clock_budget", "provider_error", "broker_panic", "stop_watcher"}:
                 break

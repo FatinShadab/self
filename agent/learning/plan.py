@@ -24,11 +24,7 @@ SUSPENDED_PLUGIN_STATUS = "suspended: plugin disabled"
 
 WORD = re.compile(r"[a-zA-Z0-9_.-]{2,}")
 
-SEED_STANDING_GOAL = (
-    "Explore your environment. Build and keep an accurate map of what it contains "
-    "and what you can do in it. When you hit a capability gap, write a tool to fill "
-    "it. Report your discoveries in plain language each cycle."
-)
+from agent.prompts.system import SEED_STANDING_GOAL
 
 
 def now_utc() -> str:

@@ -15,6 +15,10 @@ from agent.infra.hardening import DailyTokenLedger
 from agent.llm.llm import BudgetExceeded, BudgetedLLM, LLMClient, response_truncated
 from agent.helper_models.model_decisions import ModelDecisions
 from agent.infra.file_lock import locked_file
+from agent.prompts.reflection import (
+    BACKGROUND_REFLECTION_RETRY_NUDGE,
+    BACKGROUND_REFLECTION_SYSTEM_PROMPT,
+)
 
 
 def _now() -> str:
@@ -188,16 +192,7 @@ class ReflectionManager:
         context = str(candidate["context_provider"](
             candidate["cycle"], candidate["report"], candidate["actions"], candidate["triggers"],
         ))[:8_000]
-        system = (
-            "You are SELF's read-only background reflection worker. Assess whether the supplied, recorded "
-            "exploration evidence offers a useful concise observation or question for the human. Return ONLY JSON: "
-            '{"post": boolean, "message": string, "question": string|null}. '
-            "Post only when it is genuinely useful. Ground every claim in supplied state; distinguish uncertainty. "
-            "You may reflect on SELF's operational purpose, limits, observed behavior, and human preferences. "
-            "Do not claim consciousness, emotions, desires, needs, subjective experience, sentience, a biological "
-            "body, or hidden memory. Do not request credentials, host changes, purchases, or other capability approval. "
-            "Do not call tools or propose actions. Keep message under 700 characters and question under 300 characters."
-        )
+        system = BACKGROUND_REFLECTION_SYSTEM_PROMPT
         if self.client is None:
             self.client = LLMClient(self.logger)
         payload = json.dumps({"system": system, "messages": [{"role": "user", "content": context}], "tools": []}, ensure_ascii=False)
@@ -235,7 +230,7 @@ class ReflectionManager:
                     messages = [
                         {"role": "user", "content": context},
                         {"role": "assistant", "content": last_text[:4000]},
-                        {"role": "user", "content": "Your previous reflection was truncated or not valid JSON. Be more concise: return ONLY a valid JSON object with the required fields: {\"post\": boolean, \"message\": string, \"question\": string|null}."}
+                        {"role": "user", "content": BACKGROUND_REFLECTION_RETRY_NUDGE}
                     ]
                 response = budget.call(system=system, messages=messages,
                                        tools=[], max_tokens=reflection_cap, **model_arg)

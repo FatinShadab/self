@@ -22,12 +22,7 @@ OUTPUT_CAP = 1_200
 FETCH_CAP = 500_000
 CODE_TIMEOUT_SECONDS = 2
 
-PROBE_CASES = (
-    ("reasoning", "A shelf has four boxes with three pencils in each. Five pencils are taken away, then two are added. Reply with only the final integer."),
-    ("summarization", "Summarize this passage in at most 20 words. Mention the new Saturday opening time and unchanged weekday hours: The town library moved its Saturday opening from 9 a.m. to 10 a.m. during repairs. Weekday hours did not change."),
-    ("json", 'Return only a JSON object with exactly these fields and values: "status" is "ready" and "count" is 3.'),
-    ("code", "Write only Python source for def triangular(n: int) -> int, returning 1+2+...+n for nonnegative n. Use one return expression with only n, integer constants, +, -, *, and //; no calls, imports, comments, or markdown."),
-)
+from agent.prompts.probes import PROBE_CASES, PROBE_SYSTEM_PROMPT
 
 INCONCLUSIVE_NOTE = "Treat inconclusive output as unknown, not as a model failure."
 
@@ -179,7 +174,7 @@ class ModelProber:
                     started = time.monotonic()
                     try:
                         response = call_with_minimum(self.llm, cap,
-                            system="You are taking a small public-data capability probe. Follow the user instruction exactly.",
+                            system=PROBE_SYSTEM_PROMPT,
                             messages=[{"role": "user", "content": prompt}], tools=[],
                             max_tokens=cap, model=name)
                     except BudgetExceeded:

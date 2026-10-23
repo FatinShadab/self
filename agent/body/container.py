@@ -17,6 +17,21 @@ from typing import Any
 from agent.body.base import Body, BodyDescription, Capability
 from agent.infra.event_log import EventLogger
 from agent.infra.process_runner import run_process
+from agent.prompts.container_body import (
+    CONTAINER_BODY_RULES,
+    CONTAINER_CONVERSATION_CONTEXT,
+    CONTAINER_DEFAULT_INTERESTS,
+    CONTAINER_EMBODIMENT_CLAUSE,
+    CONTAINER_EMBODIMENT_TEXT,
+    CONTAINER_IDENTITY_CONTEXT,
+    CONTAINER_IDENTITY_HARNESS_CONTEXT,
+    CONTAINER_IDENTITY_OPERATING_ENVIRONMENT,
+    CONTAINER_IDENTITY_ORIENTATION_CONTEXT,
+    CONTAINER_INITIAL_ORIENTATION_TASK,
+    CONTAINER_NOTES_PREAMBLE,
+    CONTAINER_POST_CAPABILITY_RULES,
+    CONTAINER_PRE_CAPABILITY_RULES,
+)
 
 
 def _format_bytes(value: int | None) -> str:
@@ -185,57 +200,20 @@ class ContainerBody(Body):
 
     def describe(self) -> BodyDescription:
         """Return container-specific narrative, default interests, and initial orientation task."""
-        embodiment_text = (
-            "Your body is this Linux container.\n\n"
-            "Body-specific rules:\n"
-            "- You are root inside the container. The Docker container boundary is the security boundary.\n"
-            "- `/opt/agent/core/` is protected image-owned harness code. Read it when useful, but do not modify it with normal tools. Put an evidence-backed unified diff and reasoning in `state/proposed_patches/` with propose_core_patch; only the human may apply it from the host.\n"
-            "- `/home/entity/self/` is the editable extension layer for prompts, personality files, planning logic, tool-selection heuristics, and TUI themes. Keep changes there tested and logged."
-        )
-        pre_capability_rules = [
-            "- You are root inside the container. The Docker container boundary is the security boundary.",
-        ]
-        post_capability_rules = [
-            "- `/opt/agent/core/` is protected image-owned harness code. Read it when useful, but do not modify it with normal tools. Put an evidence-backed unified diff and reasoning in `state/proposed_patches/` with propose_core_patch; only the human may apply it from the host.",
-            "- `/home/entity/self/` is the editable extension layer for prompts, personality files, planning logic, tool-selection heuristics, and TUI themes. Keep changes there tested and logged.",
-        ]
-        body_rules = pre_capability_rules + post_capability_rules
-        default_interests = [
-            "mapping the container accurately",
-            "building reliable, tested tools",
-            "learning from evidence and human feedback",
-        ]
-        initial_orientation_task = (
-            "Immediately inventory the installed Python packages in this container. "
-            "Use the relevant shell/tool action now, record the result with update_environment_map, "
-            "and do not spend this cycle only planning."
-        )
-        conversation_context = "whose operating environment is this Linux container."
-        identity_context = (
-            "running inside this Linux container. "
-            "The container is my operating environment, not a biological body."
-        )
-        identity_harness_context = "running in a Linux container."
-        identity_orientation_context = "running inside this Linux container."
-        identity_operating_environment = "The container is my operating environment, not a biological body."
-        notes_preamble = (
-            "I am SELF, a root process inside a Docker Linux container. "
-            "I explore the container, retain verified discoveries, and only register reviewed, tested tools."
-        )
         return BodyDescription(
-            embodiment_text=embodiment_text,
-            embodiment_clause="whose body is this Linux container.",
-            default_interests=default_interests,
-            initial_orientation_task=initial_orientation_task,
-            conversation_context=conversation_context,
-            identity_context=identity_context,
-            identity_harness_context=identity_harness_context,
-            identity_orientation_context=identity_orientation_context,
-            identity_operating_environment=identity_operating_environment,
-            notes_preamble=notes_preamble,
-            body_rules=body_rules,
-            pre_capability_rules=pre_capability_rules,
-            post_capability_rules=post_capability_rules,
+            embodiment_text=CONTAINER_EMBODIMENT_TEXT,
+            embodiment_clause=CONTAINER_EMBODIMENT_CLAUSE,
+            default_interests=list(CONTAINER_DEFAULT_INTERESTS),
+            initial_orientation_task=CONTAINER_INITIAL_ORIENTATION_TASK,
+            conversation_context=CONTAINER_CONVERSATION_CONTEXT,
+            identity_context=CONTAINER_IDENTITY_CONTEXT,
+            identity_harness_context=CONTAINER_IDENTITY_HARNESS_CONTEXT,
+            identity_orientation_context=CONTAINER_IDENTITY_ORIENTATION_CONTEXT,
+            identity_operating_environment=CONTAINER_IDENTITY_OPERATING_ENVIRONMENT,
+            notes_preamble=CONTAINER_NOTES_PREAMBLE,
+            body_rules=list(CONTAINER_BODY_RULES),
+            pre_capability_rules=list(CONTAINER_PRE_CAPABILITY_RULES),
+            post_capability_rules=list(CONTAINER_POST_CAPABILITY_RULES),
         )
 
 

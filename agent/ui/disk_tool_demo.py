@@ -8,23 +8,7 @@ from agent.tools.base_tools import ToolRunner
 from agent.infra.event_log import EventLogger
 from agent.llm.llm import LLMClient
 from agent.runtime.loop import AgentConfig, AgentLoop
-
-
-BUILD_TASK = """Build a reusable tool named disk_usage_summary using create_tool.
-Summarize filesystem disk usage with shutil.disk_usage(path): total_bytes,
-used_bytes, free_bytes, used_percent. Define run(path: str = '/home/entity').
-Use only Python's standard library. Write meaningful unittest tests for a temp
-directory and a missing path. On Linux used_bytes + free_bytes may be less than
-total_bytes because of reserved filesystem blocks. Do not read environment variables, files, directory
-listings, logs, or memories. This focused test exchanges generated source, critic
-verdicts, test diagnostics, and numeric filesystem capacity with the configured
-LLM provider. Once registered, call disk_usage_summary(path='/home/entity') and
-report the numeric result. If it already exists, reuse it without creating a revision.
-"""
-REUSE_TASK = """Retrieve and call the existing disk_usage_summary tool for
-/home/entity, then report its numeric disk usage result. Do not create or update
-tools. Do not read environment variables, files, directories, logs, or memories.
-"""
+from agent.prompts.tasks import BUILD_TASK, REUSE_TASK
 
 
 def main() -> int:
