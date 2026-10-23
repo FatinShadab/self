@@ -164,14 +164,7 @@ class ContainerMetrics:
         }
 
 
-class _LoggingRedirectHandler(urllib.request.HTTPRedirectHandler):
-    def __init__(self, callback: Any) -> None:
-        super().__init__()
-        self._callback = callback
-
-    def redirect_request(self, req: Any, fp: Any, code: int, msg: str, headers: Any, newurl: str) -> Any:
-        self._callback(newurl, "GET", redirect_status=code)
-        return super().redirect_request(req, fp, code, msg, headers, newurl)
+from agent.infra.redirect_handler import _LoggingRedirectHandler
 
 
 class ContainerBody(Body):

@@ -15,7 +15,12 @@ Built-in actions and the create_tool pipeline. Generated tools live in the writa
 
 | File | Responsibility | Key classes or functions |
 | --- | --- | --- |
-| `base_tools.py` | Built-in tool definitions and dispatch | `ToolRunner, TOOL_DEFINITIONS` |
+| `base_tools.py` | Facade and ToolRunner composition root for built-in tools | `ToolRunner, TOOL_DEFINITIONS, HELPER_TOOL_NAMES, DEFAULT_OUTPUT_CAP` |
+| `permissions.py` | Permission levels, reversibility flags, and output cap | `TOOL_PERMISSION_LEVELS, REVERSIBLE_TOOL_NAMES, DEFAULT_OUTPUT_CAP` |
+| `dispatch.py` | Dispatches validated tool calls to handlers and plugins | `dispatch_tool` |
+| `definitions/` | Single-purpose tool JSON schemas preserving canonical order | `models, core, plan, provider, system, plugins` |
+| `execution/` | Logging, broker authorization, and argument validation | `call_logging, authorization, model_arg_validation` |
+| `handlers/` | Concrete execution handlers for base tools and sandboxes | `files, plan, provider, plugin_dev, opencode, system` |
 | `tool_registry.py` | Review, test, register, and retrieve custom tools | `ToolRegistry, schema_from_code` |
 | `tool_worker.py` | Subprocess entry point for custom tool calls | `main` |
 | `benchmark.py` | Small provider benchmark | `run_benchmark` |
