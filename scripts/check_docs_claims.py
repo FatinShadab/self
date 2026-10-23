@@ -73,11 +73,12 @@ def get_ground_truth_facts() -> dict[str, int | str | set[str]]:
     # Harness count: use discovery when host has all dependencies installed;
     # if host lacks container packages (e.g. anthropic, textual, jsonschema on bare host/CI runner),
     # loader.discover produces dummy _FailedTest instances; detect this and use verified complete count.
+    tests_root = str(REPO_ROOT / "agent" / "tests")
     loader = unittest.TestLoader()
     # Discover 12 baseline harness packages (excluding refactor prompts characterization suite)
     harness_suite = unittest.TestSuite([
-        loader.discover(str(d))
-        for d in (REPO_ROOT / "agent" / "tests").iterdir()
+        loader.discover(str(d), top_level_dir=tests_root)
+        for d in sorted((REPO_ROOT / "agent" / "tests").iterdir())
         if d.is_dir() and d.name not in {"__pycache__", "prompts"}
     ])
 
