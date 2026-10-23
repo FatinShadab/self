@@ -24,7 +24,7 @@ REPO_ROOT = Path(__file__).resolve().parent.parent
 if str(REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(REPO_ROOT))
 if str(REPO_ROOT / "agent") not in sys.path:
-    sys.path.insert(0, str(REPO_ROOT / "agent"))
+    sys.path.append(str(REPO_ROOT / "agent"))
 
 from agent.tools.base_tools import TOOL_DEFINITIONS
 from agent.tools.tool_registry import CREATE_TOOL_DEFINITION
