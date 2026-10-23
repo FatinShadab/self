@@ -1,42 +1,47 @@
 """Persistent, bounded learning state for SELF.
 
-This module deliberately uses simple local files and keyword retrieval.  The
+This module deliberately uses simple local files and keyword retrieval. The
 interfaces keep retrieval separate so an embedding index can replace it later.
 """
 from __future__ import annotations
 
-import json
-import os
-import platform
-import re
-import shutil
-from datetime import datetime, timezone
 from pathlib import Path
 from typing import Any
 
 from agent.infra.event_log import EventLogger
-from agent.infra.migration import deterministic_summary
-from agent.prompts.container_body import DEFAULT_NOTES_PREAMBLE
-from agent.prompts.tasks import CURRICULUM_TASKS
-
-
-WORD = re.compile(r"[a-zA-Z0-9_.-]{2,}")
-VALID_CONFIDENCE = {"unknown", "low", "medium", "high", "stale"}
-
-
-def utc_now() -> str:
-    """Return the current UTC timestamp."""
-    return datetime.now(timezone.utc).isoformat()
-
-
-def _words(value: str) -> set[str]:
-    return {word.lower() for word in WORD.findall(value)}
+from agent.learning.store import (
+    VALID_CONFIDENCE,
+    WORD,
+    _words,
+    append_memory_entry,
+    build_entry,
+    format_map_context,
+    initial_entries,
+    initialize_map,
+    load_map,
+    load_self_notes,
+    mark_facts_stale,
+    propose_curriculum_task,
+    read_memory_entries,
+    record_cycle_memory,
+    retrieve_memory_excerpt,
+    rewrite_self_notes,
+    update_environment_map,
+    utc_now,
+    write_map,
+)
 
 
 class LearningStore:
     """Owns state files below one workspace without storing credentials."""
 
-    def __init__(self, workspace: str | Path, logger: EventLogger, notes_cap: int = 6_000, body: Any | None = None) -> None:
+    def __init__(
+        self,
+        workspace: str | Path,
+        logger: EventLogger,
+        notes_cap: int = 6_000,
+        body: Any | None = None,
+    ) -> None:
         self.workspace = Path(workspace)
         self.state_dir = self.workspace / "state"
         self.memory_path = self.state_dir / "memory.jsonl"
@@ -46,69 +51,15 @@ class LearningStore:
         self.logger = logger
         self.body = body
 
-
     def initialize(self) -> None:
         """Create any missing workspace state files with defaults."""
         self.state_dir.mkdir(parents=True, exist_ok=True)
-        data = self._load_map()
-        entries = data.setdefault("entries", {})
-        now = utc_now()
-        defaults = self._initial_entries(now)
-        changed = False
-
-        # Older runs could record the Python inventory as `python_packages`,
-        # while the durable environment-map schema uses `packages`.  Migrate
-        # that alias before the wake coordinator decides whether inventory is
-        # still pending; otherwise every wake starts the same inventory task.
-        legacy_packages = entries.get("python_packages")
-        canonical_packages = entries.get("packages")
-        if isinstance(legacy_packages, dict) and isinstance(legacy_packages.get("value"), list):
-            canonical_value = canonical_packages.get("value") if isinstance(canonical_packages, dict) else None
-            if not isinstance(canonical_packages, dict) or canonical_value is None or canonical_value == "not yet inventoried":
-                entries["packages"] = {
-                    **legacy_packages,
-                    "evidence": f"migrated from python_packages; {legacy_packages.get('evidence', 'previous environment observation')}",
-                }
-                changed = True
-            if "python_packages" in entries:
-                del entries["python_packages"]
-                changed = True
-        for key, entry in defaults.items():
-            if key not in entries:
-                entries[key] = entry
-                changed = True
-        if changed or not self.map_path.exists():
-            data["schema_version"] = 1
-            data["updated_at"] = now
-            self._write_map(data)
-            self.logger.log("environment_map_initialized", entries=sorted(defaults))
+        initialize_map(self.map_path, self.workspace, self.logger)
         if not self.notes_path.exists():
             self.rewrite_notes()
 
     def _initial_entries(self, now: str) -> dict[str, dict[str, Any]]:
-        ram: str | int = "not yet measured"
-        try:
-            for line in Path("/proc/meminfo").read_text(encoding="utf-8").splitlines():
-                if line.startswith("MemTotal:"):
-                    ram = int(line.split()[1]) * 1024
-                    break
-        except OSError:
-            pass
-        try:
-            disk = shutil.disk_usage(self.workspace)
-            disk_value: Any = {"total_bytes": disk.total, "used_bytes": disk.used, "free_bytes": disk.free}
-        except OSError:
-            disk_value = "not yet measured"
-        return {
-            "os": self._entry({"system": platform.system(), "release": platform.release(), "python": platform.python_version()}, "high", now, "local bootstrap"),
-            "packages": self._entry("not yet inventoried", "unknown", now, "awaiting package inspection"),
-            "cpu": self._entry({"logical_cpus": os.cpu_count() or 0}, "high", now, "local bootstrap"),
-            "ram": self._entry(ram, "high" if isinstance(ram, int) else "unknown", now, "local bootstrap"),
-            "disk": self._entry(disk_value, "high" if isinstance(disk_value, dict) else "unknown", now, "local bootstrap"),
-            "network_reachability": self._entry("not yet checked", "unknown", now, "awaiting HTTP or network observation"),
-            "discovered_limits": self._entry({}, "unknown", now, "awaiting harness observations"),
-            "available_tools": self._entry([], "unknown", now, "awaiting registry refresh"),
-        }
+        return initial_entries(self.workspace, now)
 
     @staticmethod
     def _entry(
@@ -119,53 +70,17 @@ class LearningStore:
         plugin: str = "core",
         body: str = "container",
     ) -> dict[str, Any]:
-        return {
-            "value": value,
-            "confidence": confidence,
-            "last_verified": verified,
-            "evidence": evidence,
-            "plugin": plugin,
-            "body": body,
-        }
+        return build_entry(value, confidence, verified, evidence, plugin=plugin, body=body)
 
     def _load_map(self) -> dict[str, Any]:
-        try:
-            data = json.loads(self.map_path.read_text(encoding="utf-8"))
-            if isinstance(data, dict) and isinstance(data.get("entries", {}), dict):
-                # Ensure missing plugin and body tags default to core and container
-                for ent in data.get("entries", {}).values():
-                    if isinstance(ent, dict):
-                        ent.setdefault("plugin", "core")
-                        ent.setdefault("body", "container")
-                return data
-        except (OSError, json.JSONDecodeError):
-            pass
-        return {"schema_version": 1, "entries": {}}
+        return load_map(self.map_path)
 
     def _write_map(self, data: dict[str, Any]) -> None:
-        data = self.logger.redactor.value(data)
-        temp = self.map_path.with_suffix(".tmp")
-        temp.write_text(json.dumps(data, ensure_ascii=False, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-        os.replace(temp, self.map_path)
+        write_map(self.map_path, data, self.logger.redactor)
 
     def mark_facts_stale_for_body(self, body_or_plugin: str) -> list[str]:
         """Mark map facts originating from a body or plugin as confidence='stale'."""
-        data = self._load_map()
-        stored = data.setdefault("entries", {})
-        marked: list[str] = []
-        for key, entry in stored.items():
-            if not isinstance(entry, dict):
-                continue
-            p = entry.get("plugin", "core")
-            b = entry.get("body", "container")
-            if p == body_or_plugin or b == body_or_plugin:
-                entry["confidence"] = "stale"
-                marked.append(key)
-        if marked:
-            data["updated_at"] = utc_now()
-            self._write_map(data)
-            self.logger.log("environment_facts_staled", body_or_plugin=body_or_plugin, keys=marked)
-        return marked
+        return mark_facts_stale(self.map_path, body_or_plugin, self.logger)
 
     def update_map(
         self,
@@ -175,44 +90,14 @@ class LearningStore:
         body: str = "container",
     ) -> dict[str, Any]:
         """Replace verified entries. Agent supplied timestamps are intentionally ignored."""
-        if not isinstance(entries, list) or not entries:
-            raise ValueError("entries must be a non-empty list")
-        data = self._load_map()
-        stored = data.setdefault("entries", {})
-        updated: list[str] = []
-        now = utc_now()
-        for item in entries:
-            if not isinstance(item, dict):
-                raise ValueError("each environment entry must be an object")
-            key = str(item.get("key", ""))
-            # Keep the package inventory key stable even when a model uses a
-            # more descriptive alias.
-            if key == "python_packages":
-                key = "packages"
-            confidence = str(item.get("confidence", ""))
-            if not re.fullmatch(r"[a-z][a-z0-9_]{0,63}", key):
-                raise ValueError("environment entry key must use lowercase letters, digits, and underscores")
-            if confidence not in VALID_CONFIDENCE:
-                raise ValueError("confidence must be unknown, low, medium, high, or stale")
-            if "value" not in item:
-                raise ValueError("environment entries require a value")
-            evidence = self.logger.redactor.text(item.get("evidence", source))[:2_000]
-            item_plugin = str(item.get("plugin") or plugin).strip() or "core"
-            item_body = str(item.get("body") or body).strip() or "container"
-            stored[key] = self._entry(
-                self.logger.redactor.value(item["value"]),
-                confidence,
-                now,
-                evidence,
-                plugin=item_plugin,
-                body=item_body,
-            )
-            updated.append(key)
-        data["schema_version"] = 2
-        data["updated_at"] = now
-        self._write_map(data)
-        self.logger.log("environment_map_updated", keys=updated, source=source)
-        return {"ok": True, "updated": updated, "map_path": str(self.map_path)}
+        return update_environment_map(
+            self.map_path,
+            entries,
+            self.logger,
+            source=source,
+            plugin=plugin,
+            body=body,
+        )
 
     def update_runtime(self, tool_names: list[str], limits: dict[str, Any]) -> None:
         """Refresh verified tool and limit facts in the environment map."""
@@ -235,150 +120,57 @@ class LearningStore:
         report_path: str | None = None,
     ) -> dict[str, Any]:
         """Append one redacted learning record to persistent memory."""
-        self.state_dir.mkdir(parents=True, exist_ok=True)
-        rec: dict[str, Any] = {
-            "timestamp": utc_now(),
-            "what_was_tried": what_was_tried[:4_000],
-            "outcome": outcome[:1_000],
-            "lesson": lesson[:4_000],
-            "tags": sorted({tag.lower() for tag in tags if tag})[:30],
-            "plugin": plugin,
-            "body": body,
-        }
-        if report_path:
-            rec["report_path"] = report_path
-        record = self.logger.redactor.value(rec)
-        line = json.dumps(record, ensure_ascii=False, separators=(",", ":")) + "\n"
-        fd = os.open(self.memory_path, os.O_APPEND | os.O_CREAT | os.O_WRONLY, 0o600)
-        try:
-            os.write(fd, line.encode("utf-8"))
-        finally:
-            os.close(fd)
-        self.logger.log("memory_recorded", tags=record["tags"], outcome=record["outcome"][:300])
-        return record
+        return append_memory_entry(
+            self.state_dir,
+            self.memory_path,
+            self.logger,
+            what_was_tried=what_was_tried,
+            outcome=outcome,
+            lesson=lesson,
+            tags=tags,
+            plugin=plugin,
+            body=body,
+            report_path=report_path,
+        )
 
     def memory_entries(self) -> list[dict[str, Any]]:
         """Return persistent memory records."""
-        records: list[dict[str, Any]] = []
-        try:
-            with self.memory_path.open("r", encoding="utf-8", errors="replace") as handle:
-                for line in handle:
-                    try:
-                        record = json.loads(line)
-                    except json.JSONDecodeError:
-                        continue
-                    if isinstance(record, dict):
-                        record.setdefault("plugin", "core")
-                        record.setdefault("body", "container")
-                        records.append(record)
-        except OSError:
-            pass
-        return records
+        return read_memory_entries(self.memory_path)
 
     def retrieve_memories(self, query: str, limit: int = 6, active_plugins: Any = None) -> str:
         """Rank persistent memories against a query and return a bounded excerpt."""
-        terms = _words(query)
-        ranked: list[tuple[int, int, dict[str, Any]]] = []
-        entries = self.memory_entries()
-        for index, entry in enumerate(entries):
-            p = entry.get("plugin", "core")
-            if active_plugins is not None and p != "core" and p not in active_plugins:
-                continue
-            tags = {str(tag).lower() for tag in entry.get("tags", [])}
-            body = " ".join(str(entry.get(key, "")) for key in ("what_was_tried", "outcome", "lesson"))
-            score = len(terms & tags) * 4 + len(terms & _words(body))
-            if score:
-                ranked.append((score, index, entry))
-        ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)
-        selected = [entry for _, _, entry in ranked[:max(0, limit)]]
-        self.logger.log("memory_retrieval", query=query[:500], selected=len(selected), total=len(entries))
-        if not selected:
-            return "No closely related persistent memories yet."
-        def _fmt_entry(entry: dict) -> str:
-            lines = [
-                f"- Tried: {entry.get('what_was_tried', '')}",
-                f"  Outcome: {entry.get('outcome', '')}",
-                f"  Lesson: {entry.get('lesson', '')}",
-                f"  Tags: {', '.join(entry.get('tags', []))}",
-            ]
-            rp = entry.get("report_path")
-            if rp:
-                lines.append(f"  Report: {rp}")
-            return "\n".join(lines)
-
-        return "\n".join(_fmt_entry(e) for e in selected)[:12_000]
+        return retrieve_memory_excerpt(
+            self.memory_path,
+            self.logger,
+            query=query,
+            limit=limit,
+            active_plugins=active_plugins,
+        )
 
     def map_context(self, active_plugins: Any = None) -> str:
         """Return verified environment-map context for a prompt."""
-        entries = self._load_map().get("entries", {})
-        if not entries:
-            return "Environment map is empty."
-        lines = []
-        for key in sorted(entries):
-            entry = entries[key]
-            p = entry.get("plugin", "core")
-            if active_plugins is not None and p != "core" and p not in active_plugins:
-                continue
-            value = json.dumps(entry.get("value"), ensure_ascii=False)[:800]
-            lines.append(f"- {key}: {value} (confidence={entry.get('confidence')}, verified={entry.get('last_verified')})")
-        return "\n".join(lines) if lines else "Environment map is empty."
+        return format_map_context(self.map_path, active_plugins=active_plugins)
 
     def load_notes(self, active_plugins: Any = None) -> str:
         """Load persistent self notes from the workspace."""
-        try:
-            notes = self.notes_path.read_text(encoding="utf-8", errors="replace")
-        except OSError:
-            self.rewrite_notes()
-            notes = self.notes_path.read_text(encoding="utf-8", errors="replace")
-
-        lines = notes.splitlines()
-        filtered_lines: list[str] = []
-        current_section_enabled = True
-        for line in lines:
-            m = (
-                re.search(r"\[plugin:\s*([a-zA-Z0-9_-]+)\]", line)
-                or re.search(r"<!--\s*plugin:\s*([a-zA-Z0-9_-]+)", line)
-                or re.search(r"<!--\s*tags:\s*plugin=([a-zA-Z0-9_-]+)", line)
-            )
-            if m:
-                p = m.group(1).strip()
-                if active_plugins is not None:
-                    current_section_enabled = (p == "core" or p in active_plugins)
-                continue
-            elif line.startswith("#"):
-                current_section_enabled = True
-            if current_section_enabled:
-                filtered_lines.append(line)
-        notes = "\n".join(filtered_lines)
-
-        return self.logger.redactor.text(notes[:self.notes_cap])
+        return load_self_notes(
+            self.notes_path,
+            self.notes_cap,
+            self.logger.redactor,
+            rewrite_fn=self.rewrite_notes,
+            active_plugins=active_plugins,
+        )
 
     def rewrite_notes(self) -> None:
         """Replace the persistent self notes with validated content."""
-        recent = self.memory_entries()[-6:]
-        lessons = [str(entry.get("lesson", "")).replace("\n", " ")[:300] for entry in recent if entry.get("lesson")]
-        preamble = (
-            self.body.describe().notes_preamble
-            if self.body and self.body.describe().notes_preamble
-            else DEFAULT_NOTES_PREAMBLE
+        rewrite_self_notes(
+            self.notes_path,
+            self.memory_path,
+            map_context_str=self.map_context(),
+            notes_cap=self.notes_cap,
+            logger=self.logger,
+            body=self.body,
         )
-        body = [
-            "# SELF notes",
-            "",
-            preamble,
-            "",
-            "## Current environment map",
-            self.map_context(),
-            "",
-            "## Recent lessons",
-        ]
-
-        body.extend(f"- {lesson}" for lesson in lessons if lesson)
-        if not lessons:
-            body.append("- No completed exploration cycles are recorded yet.")
-        notes = self.logger.redactor.text("\n".join(body))[: self.notes_cap]
-        self.notes_path.write_text(notes.rstrip() + "\n", encoding="utf-8")
-        self.logger.log("self_notes_rewritten", chars=len(notes))
 
     def record_cycle(
         self,
@@ -390,38 +182,30 @@ class LearningStore:
         body: str = "container",
     ) -> None:
         """Summarize one cycle as a memory and refresh notes when needed."""
-        action_names = [str(action.get("name", "tool")) for action in actions]
-        failures = [name for name, action in zip(action_names, actions) if not action.get("ok", False)]
-        outcome = "completed" if not failures else f"completed with tool failures: {', '.join(failures)}"
-        tried = f"Cycle {cycle}: {task or 'standing exploration goal'}; tools: {', '.join(action_names) or 'none'}"
-
-        # Write full report to workspace/state/reports/
-        reports_dir = self.state_dir / "reports"
-        reports_dir.mkdir(parents=True, exist_ok=True)
-        report_ts = datetime.now(timezone.utc).strftime("%Y%m%dT%H%M%SZ")
-        report_filename = f"cycle_{cycle}_{report_ts}.txt"
-        report_rel_path = f"state/reports/{report_filename}"
-        (self.workspace / report_rel_path).write_text(report or "Cycle completed without a textual report.", encoding="utf-8")
-
-        # Deterministic bounded summary for lesson field
-        bounded_lesson = deterministic_summary(report)
-        tags = list(_words(f"{task} {report} {' '.join(action_names)}"))[:30]
-        self.append_memory(
-            what_was_tried=tried,
-            outcome=outcome,
-            lesson=bounded_lesson,
-            tags=tags,
+        record_cycle_memory(
+            workspace=self.workspace,
+            state_dir=self.state_dir,
+            task=task,
+            cycle=cycle,
+            actions=actions,
+            report=report,
+            append_memory_fn=self.append_memory,
+            load_notes_fn=self.load_notes,
+            rewrite_notes_fn=self.rewrite_notes,
+            notes_cap=self.notes_cap,
             plugin=plugin,
             body=body,
-            report_path=report_rel_path,
         )
-        if cycle % 3 == 0 or len(self.load_notes()) >= self.notes_cap:
-            self.rewrite_notes()
 
     def propose_curriculum(self) -> str:
         """Choose a bounded practice task from recent successes."""
-        successes = sum(1 for entry in self.memory_entries()[-12:] if str(entry.get("outcome", "")).startswith("completed"))
-        difficulty = min(5, 1 + successes // 3)
-        proposal = CURRICULUM_TASKS[difficulty - 1]
-        self.logger.log("curriculum_proposed", difficulty=difficulty, task=proposal)
-        return proposal
+        return propose_curriculum_task(self.memory_path, self.logger)
+
+
+__all__ = [
+    "LearningStore",
+    "VALID_CONFIDENCE",
+    "WORD",
+    "_words",
+    "utc_now",
+]
