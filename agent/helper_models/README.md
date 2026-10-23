@@ -15,7 +15,12 @@ Bounded helper-model probes, task decisions, and outcome records. It stores agen
 | File | Responsibility | Key classes or functions |
 | --- | --- | --- |
 | `model_probe.py` | Probe and official-page research | `ModelProber, check_code_output` |
-| `model_decisions.py` | Delegation and model-choice checkpoints | `ModelDecisions, print_decision_summary` |
+| `model_decisions.py` | Delegation and model-choice checkpoints (facade) | `ModelDecisions, print_decision_summary` |
+| `decisions/summary_entry.py` | Model candidate summary formatting | `build_summary_entry` |
+| `decisions/history_log.py` | Append and inspect model decision logs | `append_decision_record, read_last_decisions, print_decision_summary` |
+| `decisions/task_tracking.py` | Track task, tool, and delegation outcomes | `record_delegation_outcome, record_task_outcomes, record_tool_outcome, record_task_observation` |
+| `decisions/build_routes.py` | Opencode build routes and stats | `record_build_route, record_build_outcome, build_route_stats` |
+| `decisions/routing_matrix.py` | Prompt construction, model choice execution, and ask_model logic | `execute_decide_model, execute_ask_model, get_available_models` |
 | `model_outcomes.py` | Objective and self-reported outcomes | `ModelOutcomes, print_outcome_summary` |
 
 ## How it works
