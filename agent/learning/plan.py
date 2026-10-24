@@ -361,6 +361,14 @@ class PlanStore:
 
         self.plan_version += 1
         self._save_atomic(diff=diff, reason=clean_reason, cycle=cycle)
+        self.logger.log(
+            "plan_updated",
+            cycle=cycle,
+            plan_version=self.plan_version,
+            diff=diff,
+            reason=clean_reason,
+            evidence="Human input decision",
+        )
         res["plan_version"] = self.plan_version
         res["diff"] = diff
         res["plan"] = list(self.items)

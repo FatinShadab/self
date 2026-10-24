@@ -13,6 +13,7 @@ from pathlib import Path
 from typing import Any, Callable
 
 from agent.infra.event_log import EventLogger
+from agent.infra.permission_broker import PermissionLevel
 from agent.llm.llm import LLMResult
 from agent.session.coordinator import WakeCoordinator
 
@@ -658,6 +659,13 @@ class SoakRunner:
             max_iterations=self.max_iterations,
             llm_client=self.provider,
         )
+        # Temporary soak workspaces have no host /config mount. Mirror the
+        # shipped plan/map grants so the production no-progress guard does not
+        # end long-run persistence and stop-control scenarios after three cycles.
+        self.coordinator.broker.policy.action_grants.update({
+            "core:update_plan": PermissionLevel.L3,
+            "core:update_environment_map": PermissionLevel.L3,
+        })
         self.coordinator.daily_ledger.cap = daily_cap
 
         # Wire per-cycle checkpoint and invariant hook

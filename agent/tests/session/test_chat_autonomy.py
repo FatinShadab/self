@@ -138,6 +138,9 @@ class ChatAutonomyTests(unittest.TestCase):
             self.assertEqual(len(decision_events), 1)
             self.assertEqual(decision_events[0]["decision"], "noted")
             self.assertEqual(decision_events[0]["reason"], "Casual greeting; no operational change needed.")
+            plan_events = [e for e in events if e.get("event") == "plan_updated" and e.get("cycle") == 2]
+            self.assertEqual(len(plan_events), 1)
+            self.assertEqual(plan_events[0]["plan_version"], res["plan_version"])
 
     def test_conversation_context_includes_recent_decisions_and_top_plan(self) -> None:
         """Verify conversation context includes recent decisions and top active plan items."""

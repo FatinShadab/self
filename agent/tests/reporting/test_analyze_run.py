@@ -222,7 +222,7 @@ class AnalyzeRunTests(unittest.TestCase):
 
         res = analyze_run(self.workspace, max_cycles=5)
         self.assertEqual(res["cycles_analyzed"], 4)
-        self.assertEqual(res["plan_activity"]["plan_updated"], 2)
+        self.assertEqual(res["plan_activity"]["plan_updated"], 3)
         self.assertEqual(res["plan_activity"]["plan_unchanged_agent"], 1)
         self.assertEqual(res["plan_activity"]["plan_unchanged_harness_auto"], 1)
         self.assertEqual(res["human_input_decisions"]["accepted"], 1)

@@ -279,19 +279,21 @@ class AgentLoopTests(unittest.TestCase):
                 ToolRunner(logger, workspace),
             )
 
-            sleep_calls = 0
+            pause_sleep_calls = 0
 
             def _fake_sleep(duration: float) -> None:
-                nonlocal sleep_calls
-                sleep_calls += 1
-                if sleep_calls == 3:
+                nonlocal pause_sleep_calls
+                if duration != 1.0:
+                    return
+                pause_sleep_calls += 1
+                if pause_sleep_calls == 3:
                     # Trigger stop to exit the pause loop safely
                     (workspace / "STOP").write_text("stop", encoding="utf-8")
 
             with patch("time.sleep", side_effect=_fake_sleep):
                 loop._pause_until_daily_reset()
 
-            self.assertEqual(sleep_calls, 3)
+            self.assertEqual(pause_sleep_calls, 3)
             log_text = logger.path.read_text(encoding="utf-8")
             self.assertIn("daily_token_limit_paused", log_text)
             self.assertNotIn("daily_token_limit_resumed", log_text)

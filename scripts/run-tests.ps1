@@ -17,6 +17,7 @@ try {
 
     # Dockerfile supplies PYTHONPATH=/opt:/opt/agent for both suites.
     docker run --rm --entrypoint python `
+        --mount "type=bind,source=$repo/config,target=/opt/config,readonly" `
         --mount "type=bind,source=$repo/docker-compose.yml,target=/opt/eval-compose.yml,readonly" `
         $Image -m unittest discover -s /opt/agent/tests -v
     if ($LASTEXITCODE -ne 0) { throw "Harness tests failed with exit code $LASTEXITCODE." }
