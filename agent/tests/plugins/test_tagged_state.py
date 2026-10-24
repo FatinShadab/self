@@ -402,9 +402,8 @@ class TaggedStateAcceptanceTests(unittest.TestCase):
     # Test 5: Zero-plugin golden prompt fidelity & legacy untagged data
     # -------------------------------------------------------------------------
     def test_zero_plugin_golden_prompts_and_legacy_untagged_data(self) -> None:
-        container_body = ContainerBody()
-        assembled_sys = assemble_system_prompt(container_body)
-        assembled_conv = assemble_conversation_system_prompt(container_body)
+        assembled_sys = assemble_system_prompt()
+        assembled_conv = assemble_conversation_system_prompt()
 
         self.assertEqual(assembled_sys, SYSTEM_PROMPT)
 

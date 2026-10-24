@@ -25,10 +25,7 @@ def _now() -> str:
 
 def assemble_conversation_system_prompt(body: Any | None = None) -> str:
     """Assemble the conversation system prompt using core wording and body context."""
-    if body is None:
-        from agent.body.container import ContainerBody
-        body = ContainerBody()
-    env_context = body.describe().conversation_context
+    env_context = body.describe().conversation_context if body is not None else ""
     return render_conversation_system_prompt(env_context)
 
 

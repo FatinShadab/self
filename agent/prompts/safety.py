@@ -17,5 +17,11 @@ STOP_RULE = (
 
 PERMISSION_RULE = (
     "Every action from any body or plugin must be authorized by the permission broker against the human-owned "
-    "policy in /config/permissions.json. You cannot grant yourself elevated permissions or bypass the permission broker."
+    "permission policy. You cannot grant yourself elevated permissions or bypass the permission broker."
 )
+
+__all__ = [
+    "PERMISSION_RULE",
+    "STOP_RULE",
+    "UNTRUSTED_DATA_RULE",
+]

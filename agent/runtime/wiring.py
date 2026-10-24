@@ -60,11 +60,7 @@ def wire_loop_collaborators(
     daily_ledger = config.daily_ledger or DailyTokenLedger(config.workspace, logger)
     budgeted_llm = BudgetedLLM(llm, logger, daily_ledger=daily_ledger)
 
-    body = config.body or getattr(tools, "body", None)
-    if body is None:
-        from agent.body.container import ContainerBody
-
-        body = ContainerBody(config.workspace, logger)
+    body = config.body
 
     helper_mode = os.getenv("SELF_HELPER_MODELS", "on").strip().lower() == "on"
 

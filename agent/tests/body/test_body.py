@@ -31,9 +31,9 @@ class TestBodyInterfaceAndContainerBody(unittest.TestCase):
         desc = self.body.describe()
         self.assertIsInstance(desc, BodyDescription)
         self.assertIn("Linux container", desc.embodiment_text)
-        self.assertIn("whose body is this Linux container.", desc.embodiment_clause)
+        self.assertIn("expected Linux container", desc.embodiment_clause)
         self.assertTrue(len(desc.default_interests) >= 3)
-        self.assertIn("Immediately inventory", desc.initial_orientation_task)
+        self.assertIn("You have not been told where you run", desc.initial_orientation_task)
         self.assertEqual(self.body.initial_orientation_task(), desc.initial_orientation_task)
 
     def test_capabilities_schema_and_types(self) -> None:

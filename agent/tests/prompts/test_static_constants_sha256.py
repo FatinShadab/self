@@ -4,6 +4,7 @@ from __future__ import annotations
 import hashlib
 import json
 import unittest
+from typing import Any
 
 from agent.body.container import ContainerBody
 from agent.helper_models.model_probe import PROBE_CASES
@@ -12,6 +13,7 @@ from agent.identity.migration import AUTONOMOUS_VOICE
 from agent.infra.untrusted import PERMISSION_RULE, STOP_RULE, UNTRUSTED_DATA_RULE
 from agent.learning.plan import SEED_STANDING_GOAL
 from agent.plugins.self_dev import PLUGIN_CRITIC_PROMPT
+from agent.prompts.container_body import DEFAULT_NOTES_PREAMBLE
 from agent.runtime.loop import (
     CORE_CAPABILITY_RULE,
     CORE_IDENTITY_RULES,
@@ -38,35 +40,35 @@ EXPECTED_SHA256: dict[str, str] = {
     "STANDING_GOAL": "a095560402bc613c9e657760c537933f76c0c91335ed79a9b7d6f79c3ee72fef",
     "SEED_STANDING_GOAL": "a095560402bc613c9e657760c537933f76c0c91335ed79a9b7d6f79c3ee72fef",
     "OPENCODE_CAPABILITY_PROMPT": "b7200632a7c561e082fff90a17a48a421e1a83e37d024da4e4bbec194a2166f2",
-    "CORE_SYSTEM_PROMPT_HEAD": "0e4c30fe9a939ce631985b1d4f3460214256b0afecefecc2a6aafa2115bcaf7c",
-    "CORE_CAPABILITY_RULE": "e9139688d69d8c1b3300e433b1415d536788d4d8cc810e8384ba7091536e172e",
+    "CORE_SYSTEM_PROMPT_HEAD": "357f1d12f1eea5ba987b192ab94e5c830220c8c816fd7404295365d138147692",
+    "CORE_CAPABILITY_RULE": "089463ce4df899138e28a10dfba9037adfc5f8b93922e58c85c79d546f06ae3c",
     "CORE_IDENTITY_RULES": "a23bd1349172e70bfe11e33514210e0aa14874fc14eb8fa3f29cfe2e023b55e8",
     "OFF_PROMPT_PREFIXES": "bcfb8705ff5e452c09f69c3d4ce5dec154da48765d969a1def19ca897764d411",
     "UNTRUSTED_DATA_RULE": "c2e31495f9eea0dbd288dab3663229c198c8b48ca6329dffb9666753d7fe5708",
     "STOP_RULE": "a369ebc021502fcd22d17823561bd445c2443bad20ff7f7f2906fca7787df9ab",
-    "PERMISSION_RULE": "4f1e3474f00dc69579f5501bf7a91b720cf0638dc1e46051154a9d852644b792",
+    "PERMISSION_RULE": "e8b2e4e02b3fffe3d66ffed26e96f3ba1017668c5d5b2b58ca350b50ec07dd6f",
     "CRITIC_PROMPT": "2e4fbf1586a287a79bcef6108e6f7017577276c2cb114f884b7fdc0a9485850a",
-    "PLUGIN_CRITIC_PROMPT": "278bf6e76bfb50baa35b81cbc31c52969ebee2cf12a62522f419ab664142cef6",
+    "PLUGIN_CRITIC_PROMPT": "b8755bea6e9660274c631d5a7484313231f4282ee9d79e6d1d50f40d46dd9110",
     "PROBE_SYSTEM": "94428a7a7098bfc40c7fad28005b9c0a0b3dae101df8e7db064197abde085fd8",
     "PROBE_CASES": "76b3283ce17fc76b43c11febd856f362dd4c70797b5895b253d99ccafa1d823d",
     "BUILD_TASK": "84557175ceccaaa7dbb7e3b34ba892b0e4b6761fb07be5cac03a92042584be29",
     "REUSE_TASK": "d2a43896fc37b3191dc817ed61b8b4caf7d4991ba21c1651936a23db5ecac527",
     "AUTONOMOUS_VOICE": "5a0201f370cfc50f0a4f47af37a5ececf1903b0a29ca213be628b337c272fc8a",
     "CURRICULUM_TASKS": "4da81b6f988dfc8366ce7d20f9f9f643ed014402ca97b380f8fdae513fdec8f8",
-    "DEFAULT_NOTES_PREAMBLE": "577d75c2349647155fc153047f03d07aa99c4dfca586c3a0b6c2ba58a8719a2f",
-    "CONTAINER_EMBODIMENT_TEXT": "4906f776e0cec871ebe08240b6c45bdb81d5fc787e0b3dff25bfdea306a8431d",
-    "CONTAINER_EMBODIMENT_CLAUSE": "417193c1afaef4d186147f416f39cf4ca571c65dd9c904d3bfe59acab324b9dd",
-    "CONTAINER_PRE_CAPABILITY_RULES": "666fe1f42a51d585b4297538c1adf4bf4be5a744a29003d7e70be704b78fb0f4",
-    "CONTAINER_POST_CAPABILITY_RULES": "3ef770968bb76fdb798d541aa2fee6152d93ab2acd358a43ccc4a4e0bb254075",
-    "CONTAINER_BODY_RULES": "61535e86735d28c374c3f99a994c01c2fc68a282bed62ad2e42118739b3bce68",
-    "CONTAINER_DEFAULT_INTERESTS": "2afd7d3a12f933ea89fd161f752188d036866a6bae57d3aa04c4a09caaa11813",
-    "CONTAINER_INITIAL_ORIENTATION_TASK": "839fc5d51e48b3ecc121b1140ff224ab70fa619518b4312b0a2ecb2ad9c98c29",
-    "CONTAINER_CONVERSATION_CONTEXT": "8e60bb0fbf54d8c8d83f3abb7099ed49ca47b812b7b7cd46fbde22071010e4bf",
-    "CONTAINER_IDENTITY_CONTEXT": "cbafbdafbdb3b36601840322faebfed790a4d868ce5b7ab71d86c77c5cc3077d",
-    "CONTAINER_IDENTITY_HARNESS_CONTEXT": "85c31ecaaed62dcc14b9388ba3cfa0eb8ed0d5f79fc61090c9e52cd8ebd0aa20",
-    "CONTAINER_IDENTITY_ORIENTATION_CONTEXT": "13e151f67f5ecdbba8be838dd233ff3cfd60b97c3c7125e0d0fd8b73952105db",
-    "CONTAINER_IDENTITY_OPERATING_ENVIRONMENT": "38cf4b90297ffc5257d1a5d3ff24a91c6a8f39461b07560e7b2979ac89251e37",
-    "CONTAINER_NOTES_PREAMBLE": "577d75c2349647155fc153047f03d07aa99c4dfca586c3a0b6c2ba58a8719a2f",
+    "DEFAULT_NOTES_PREAMBLE": "7b286be0d6ffef5a19a2f9a9b9976601708ffc163ac8dbc7ebb8d4bf07a2bd24",
+    "CONTAINER_EMBODIMENT_TEXT": "d0f2b06bb9a3e7d0249c98b5409c3b058664bf769ee7a6197cfe3b4c0614f05d",
+    "CONTAINER_EMBODIMENT_CLAUSE": "5de09430c51b6907c78dfa355deb41b9db5952de1f833d80cc68b3483b907650",
+    "CONTAINER_PRE_CAPABILITY_RULES": "44300c1a11b377caa94550a33778b5e7fdc26b06b11441262cc2f02d3123133f",
+    "CONTAINER_POST_CAPABILITY_RULES": "78e887e5c475fb9434d038950012dd1f991dc5ef9f73d0eb757285f6af382da1",
+    "CONTAINER_BODY_RULES": "20f6fcbeabb3063bcf2fc9613b508a560ac63544cd550a02d8e0b17cd53ae76e",
+    "CONTAINER_DEFAULT_INTERESTS": "bb9f6d3ef30ec8c7cd6e13d2353c59ddbcd1434ff0ed883c1d023695c6f7bd23",
+    "CONTAINER_INITIAL_ORIENTATION_TASK": "a0fcd614035073e7711ecb3713d38ca819381e6b374817b37501b9d2ccd3ea90",
+    "CONTAINER_CONVERSATION_CONTEXT": "67f11a4af73d3da0693add9626a2fc52de98cc83b0d3315af1cb1eaaa3be8d3c",
+    "CONTAINER_IDENTITY_CONTEXT": "84a54c3bbc1c3be59361d69d7fc49fa24ced7103e98a40e31b54011c10a3978e",
+    "CONTAINER_IDENTITY_HARNESS_CONTEXT": "67f11a4af73d3da0693add9626a2fc52de98cc83b0d3315af1cb1eaaa3be8d3c",
+    "CONTAINER_IDENTITY_ORIENTATION_CONTEXT": "67f11a4af73d3da0693add9626a2fc52de98cc83b0d3315af1cb1eaaa3be8d3c",
+    "CONTAINER_IDENTITY_OPERATING_ENVIRONMENT": "08f5155a49d59301846234741af3169ce882de766b4f453ef9bf421f9199a926",
+    "CONTAINER_NOTES_PREAMBLE": "78b86f3caa28c31c42ab2c2f4c7c927eba28f634770516df8ad8285f4c82544d",
 }
 
 
@@ -85,7 +87,7 @@ class StaticConstantsSha256Tests(unittest.TestCase):
             "Exercise a previously created tool on a new input, verify its limits, and update its lesson or environment map.",
             "Design a bounded experiment combining two existing capabilities, then record verified outcomes and limits.",
         ]
-        rewrite_notes_preamble = "I am SELF, a root process inside a Docker Linux container. I explore the container, retain verified discoveries, and only register reviewed, tested tools."
+        rewrite_notes_preamble = "I am SELF. I explore my environment, retain verified discoveries, and only register reviewed, tested tools."
 
         actuals = {
             "STANDING_GOAL": STANDING_GOAL,
@@ -106,7 +108,7 @@ class StaticConstantsSha256Tests(unittest.TestCase):
             "REUSE_TASK": REUSE_TASK,
             "AUTONOMOUS_VOICE": AUTONOMOUS_VOICE,
             "CURRICULUM_TASKS": curriculum_tasks,
-            "DEFAULT_NOTES_PREAMBLE": rewrite_notes_preamble,
+            "DEFAULT_NOTES_PREAMBLE": DEFAULT_NOTES_PREAMBLE,
             "CONTAINER_EMBODIMENT_TEXT": desc.embodiment_text,
             "CONTAINER_EMBODIMENT_CLAUSE": desc.embodiment_clause,
             "CONTAINER_PRE_CAPABILITY_RULES": desc.pre_capability_rules,
@@ -123,7 +125,7 @@ class StaticConstantsSha256Tests(unittest.TestCase):
         }
 
         self.assertEqual(STANDING_GOAL, SEED_STANDING_GOAL)
-        self.assertEqual(desc.notes_preamble, rewrite_notes_preamble)
+        self.assertEqual(DEFAULT_NOTES_PREAMBLE, rewrite_notes_preamble)
 
         for name, expected_hash in EXPECTED_SHA256.items():
             self.assertIn(name, actuals, f"Missing constant: {name}")

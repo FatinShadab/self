@@ -1,4 +1,8 @@
-"""SELF task prompts."""
+"""SELF task prompts.
+
+BUILD_TASK and REUSE_TASK are demo-only benchmark tasks used exclusively by
+agent.ui.disk_tool_demo; they are never used in the default first-run flow.
+"""
 from __future__ import annotations
 
 BUILD_TASK = """Build a reusable tool named disk_usage_summary using create_tool.
@@ -24,4 +28,10 @@ CURRICULUM_TASKS: list[str] = [
     "Identify a repetitive observation task and propose or build a carefully tested local tool for it.",
     "Exercise a previously created tool on a new input, verify its limits, and update its lesson or environment map.",
     "Design a bounded experiment combining two existing capabilities, then record verified outcomes and limits.",
+]
+
+__all__ = [
+    "BUILD_TASK",
+    "CURRICULUM_TASKS",
+    "REUSE_TASK",
 ]

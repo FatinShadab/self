@@ -138,7 +138,7 @@ class GoldenPromptCharacterizationTests(unittest.TestCase):
 
             # Verify system prompt without helpers (off-prompt prefixes excluded)
             c1_sys = c1_call["system"]
-            self.assertTrue(c1_sys.startswith("You are SELF, an autonomous AI agent whose body is this Linux container."))
+            self.assertTrue(c1_sys.startswith("You are SELF, an autonomous AI agent."))
             self.assertIn("Opencode is currently unavailable", c1_sys)
             self.assertIn("IMPORTANT SAFETY RULE — UNTRUSTED DATA:", c1_sys)
             for off_prefix in OFF_PROMPT_PREFIXES:
@@ -242,7 +242,7 @@ class GoldenPromptCharacterizationTests(unittest.TestCase):
     # 2. Conversation system prompt and message wrapper
     def test_conversation_prompts(self) -> None:
         container_sys = assemble_conversation_system_prompt(ContainerBody())
-        self.assertTrue(container_sys.startswith("You are SELF speaking directly in conversation. You are an autonomous AI agent with your own goals, whose operating environment is this Linux container. Speak as yourself in the first person singular"))
+        self.assertTrue(container_sys.startswith("You are SELF speaking directly in conversation. You are an autonomous AI agent with your own goals, operating with an expected Linux container environment to verify. Speak as yourself in the first person singular"))
         self.assertIn("Keep the answer concise.", container_sys)
 
         no_env_sys = assemble_conversation_system_prompt(DummyNoEnvBody())
