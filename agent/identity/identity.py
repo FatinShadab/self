@@ -180,11 +180,22 @@ class IdentityStore:
     def _write_code_explanation(self) -> None:
         write_code_explanation(self.explanation_path, self.core_root, self.self_root, self.logger.redactor)
 
-    def _record_body_independent_orientation(self) -> None:
-        """Execute body-independent environment discovery orientation in Stage A."""
-        (self.workspace / "state").mkdir(parents=True, exist_ok=True)
-        self.logger.narrate("Orientation: No body profile configured; relying on tool-based environment discovery.")
-        self.logger.log("orientation_discovery_initiated", mode="environment_neutral")
+    def _record_body_independent_orientation(self) -> dict[str, Any]:
+        """Perform neutral, body-independent telemetry sensing during Stage A awakening."""
+        import platform
+
+        telemetry = {
+            "os_name": os.name,
+            "platform": platform.system(),
+            "platform_release": platform.release(),
+            "python_version": platform.python_version(),
+            "cpu_count": os.cpu_count(),
+        }
+        self.logger.narrate(
+            f"Orientation: No body profile configured; sensed neutral runtime telemetry: {telemetry['platform']} / Python {telemetry['python_version']}."
+        )
+        self.logger.log("initial_orientation_sensed", mode="environment_neutral", telemetry=telemetry)
+        return telemetry
 
     def _initialize_human_file(self) -> None:
         initialize_human_file(self.human_path)

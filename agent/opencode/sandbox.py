@@ -69,8 +69,8 @@ def is_protected_path(path: str | Path, workspace: Path | None = None) -> bool:
     if name == ".env" or name.startswith(".env."):
         return True
 
-    # 2. Any lock files
-    if name.endswith(".lock") or name.endswith(".lock.json"):
+    # 2. Any lock files or human request pause files
+    if name.endswith(".lock") or name.endswith(".lock.json") or name == "human_request.md":
         return True
 
     # 3. Opencode scripts and wrapper subpackage

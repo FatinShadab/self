@@ -112,6 +112,7 @@ def build_cycle_user_message(
     plan_updates_available: bool = True,
     map_updates_available: bool = True,
     opencode_status: str = "",
+    harness_instruction: str = "",
 ) -> str:
     """Build the user message starting a loop exploration cycle."""
     human_inputs_display = human_context or "None."
@@ -129,8 +130,10 @@ def build_cycle_user_message(
         "Do not repeatedly verify the same fact or claim it was saved.\n\n"
     )
     optional_coding = f"Optional coding agent: {opencode_status}\n\n" if opencode_status else ""
+    harness_part = f"Harness first-run instruction:\n{harness_instruction}\n\n" if harness_instruction else ""
     return (
         f"Begin exploration cycle {cycle}.\n\n"
+        f"{harness_part}"
         f"{helper_prompt}"
         f"Active autonomous plan (version {plan_version}):\n{plan_summary}\n\n"
         f"Primary focus for this cycle: {primary_goal}\n\n"

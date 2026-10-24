@@ -142,6 +142,7 @@ def run_agent_loop(loop: Any) -> RunSummary:
         loop.logger.narrate(f"Cycle {cycle}: retrieving relevant tools and memories for plan...")
         query = f"{plan_query}\nPrevious report: {last_report}"
         human_messages = loop.config.input_provider() if loop.config.input_provider else []
+        harness_instruction = ""
         if cycle == 1:
             init_task = loop.config.initial_context.strip()
             if not init_task:
@@ -149,8 +150,7 @@ def run_agent_loop(loop: Any) -> RunSummary:
                     init_task = loop.body.initial_orientation_task().strip()
                 else:
                     init_task = ORIENTATION_TASK
-            if init_task:
-                human_messages = [init_task, *human_messages]
+            harness_instruction = init_task
         human_context = "\n".join(f"- {loop.logger.redactor.text(message)}" for message in human_messages)
         if loop.config.retrieve_memories:
             legacy_context = retrieve_context(loop.config.workspace, query, loop.logger)
@@ -207,6 +207,7 @@ def run_agent_loop(loop: Any) -> RunSummary:
                     plan_updates_available="update_plan" in writable_names,
                     map_updates_available="update_environment_map" in writable_names,
                     opencode_status=opencode_note,
+                    harness_instruction=harness_instruction,
                 ),
             }
         ]

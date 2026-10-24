@@ -19,13 +19,35 @@ def now() -> str:
 class CapabilityRequests:
     """Record requests for capabilities outside the current environment."""
 
-    EXTERNAL_KINDS = {"credential", "host_mount", "port", "email", "money", "third_party_account", "external_service"}
+    EXTERNAL_KINDS = {
+        "credential",
+        "host_mount",
+        "port",
+        "email",
+        "money",
+        "third_party_account",
+        "external_service",
+        "human_action",
+        "other",
+        "plugin",
+    }
 
     def __init__(self, workspace: str | Path, logger: EventLogger) -> None:
-        self.path = Path(workspace) / "state" / "capability_requests.md"
+        self.workspace = Path(workspace)
+        self.path = self.workspace / "state" / "capability_requests.md"
+        self.human_request = self.workspace / "HUMAN_REQUEST.md"
         self.logger = logger
 
-    def request(self, kind: str, summary: str, reason: str, provider: str = "", env_names: list[str] | None = None, signup_url: str = "") -> dict[str, Any]:
+    def request(
+        self,
+        kind: str,
+        summary: str,
+        reason: str,
+        provider: str = "",
+        env_names: list[str] | None = None,
+        signup_url: str = "",
+        halt: bool = True,
+    ) -> dict[str, Any]:
         """Record a request and return its persisted representation."""
         if kind not in self.EXTERNAL_KINDS:
             raise ValueError(f"kind must be one of: {', '.join(sorted(self.EXTERNAL_KINDS))}")
@@ -43,7 +65,26 @@ class CapabilityRequests:
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write("\n".join(lines))
         self.logger.log("capability_requested", kind=kind, provider=provider, env_names=env_names or [], official_page=signup_url)
-        return {"ok": False, "status": "human_approval_required", "path": str(self.path)}
+        if halt:
+            hr_lines = [
+                "# Pending Human Action / Capability Request",
+                "",
+                "SELF has paused work because an external capability or human action is required:",
+                f"- Kind: {kind}",
+                f"- Summary: {self.logger.redactor.text(summary)[:500]}",
+                f"- Reason: {self.logger.redactor.text(reason)[:1_000]}",
+                f"- Provider/service: {provider or 'not specified'}",
+                f"- Environment variable names: {', '.join(env_names or []) or 'none'}",
+                f"- Official page: {signup_url or 'not specified'}",
+                "",
+                "## How to Resolve and Resume",
+                "1. Review the request above or in `state/capability_requests.md`.",
+                "2. Perform the required action or update host configuration/credentials.",
+                "3. Delete this `HUMAN_REQUEST.md` file (or run `/resume` in the TUI) to allow SELF to resume.",
+                "",
+            ]
+            self.human_request.write_text("\n".join(hr_lines), encoding="utf-8")
+        return {"ok": False, "status": "human_approval_required", "path": str(self.path), "halted": halt}
 
 
 class DailyTokenLedger:

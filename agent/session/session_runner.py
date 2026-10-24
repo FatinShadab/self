@@ -60,12 +60,13 @@ def run_session(coordinator: Any) -> Any:
         package_instructions = (
             coordinator.body.initial_orientation_task()
             if coordinator.body and hasattr(coordinator.body, "initial_orientation_task")
-            else ORIENTATION_TASK
+            else ""
         )
-        if startup_context:
-            startup_context = f"{startup_context}\n\n{package_instructions}"
-        else:
-            startup_context = package_instructions
+        if package_instructions:
+            if startup_context:
+                startup_context = f"{startup_context}\n\n{package_instructions}"
+            else:
+                startup_context = package_instructions
 
     checkpoint = _read_json(coordinator.workspace / "state" / "run_checkpoint.json")
     initial_orientation = (

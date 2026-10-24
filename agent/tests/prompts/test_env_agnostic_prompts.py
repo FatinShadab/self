@@ -1,6 +1,7 @@
 """Regression tests verifying environment-agnostic prompts and expectation-framed body profiles."""
 from __future__ import annotations
 
+import json
 import re
 import tempfile
 import unittest
@@ -397,8 +398,9 @@ class TestEnvironmentAgnosticPrompts(unittest.TestCase):
             c1_user_msg = c1_call["messages"][0]["content"]
             c1_sys_prompt = c1_call["system"]
 
-            # Assert cycle 1 user message contains ORIENTATION_TASK text
-            self.assertIn(ORIENTATION_TASK, c1_user_msg)
+            # Assert cycle 1 user message contains ORIENTATION_TASK text under Harness first-run instruction
+            self.assertIn("Harness first-run instruction:\n" + ORIENTATION_TASK, c1_user_msg)
+            self.assertIn("Human inputs to weigh since the prior cycle:\nNone.", c1_user_msg)
 
             # Assert no forbidden tokens in either user message or system prompt
             for token in FORBIDDEN_DEFAULT_TOKENS:
@@ -456,6 +458,17 @@ class TestEnvironmentAgnosticPrompts(unittest.TestCase):
             identity_store.set_name("Atlas", "test-sess-1")
             self.assertFalse(identity_store.awaiting_name())
 
+            # Verify initial_orientation_sensed event was truthfully logged with telemetry
+            log_records = [
+                json.loads(line)
+                for line in (workspace / "logs" / "actions.jsonl").read_text(encoding="utf-8").splitlines()
+                if line.strip()
+            ]
+            sensed_events = [r for r in log_records if r.get("event") == "initial_orientation_sensed"]
+            self.assertEqual(len(sensed_events), 1)
+            self.assertEqual(sensed_events[0].get("mode"), "environment_neutral")
+            self.assertIn("platform", sensed_events[0].get("telemetry", {}))
+
     def test_hardening_note_addresses_human_administrator(self) -> None:
         """Verify hardening.py capability requests clearly address the human administrator."""
         with tempfile.TemporaryDirectory() as temp:
@@ -473,6 +486,105 @@ class TestEnvironmentAgnosticPrompts(unittest.TestCase):
             req_content = (workspace / "state" / "capability_requests.md").read_text(encoding="utf-8")
             self.assertIn("human administrator", req_content.lower())
             self.assertIn("notice for the human", req_content.lower())
+
+    def test_request_capability_halts_loop_in_code_and_resumes_on_human_action(self) -> None:
+        """Verify request_capability halts loop in code with human_request_pending and resumes on human action."""
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            logger = EventLogger(workspace / "logs" / "actions.jsonl")
+            from agent.infra.hardening import CapabilityRequests
+            from agent.llm.brain_router import BrainRouter
+            from agent.runtime.loop import AgentConfig, AgentLoop
+            from agent.tests.prompts.test_golden_characterization import CapturingFakeLLM
+            from agent.tools.base_tools import ToolRunner
+
+            cap_requests = CapabilityRequests(workspace, logger)
+            runner = ToolRunner(logger, workspace)
+            runner.capabilities = cap_requests
+
+            # Test all supported external kinds including human_action and other
+            kinds = [
+                "credential", "host_mount", "port", "email", "money",
+                "third_party_account", "external_service", "human_action", "other",
+            ]
+            for kind in kinds:
+                self.assertIn(kind, CapabilityRequests.EXTERNAL_KINDS)
+
+            # 1. request_capability writes HUMAN_REQUEST.md and records the request
+            res = runner.request_capability(
+                kind="human_action",
+                summary="Please install a hardware sensor",
+                reason="Needed for physical environment sensing",
+            )
+            self.assertFalse(res["ok"])
+            self.assertEqual(res["status"], "human_approval_required")
+            human_req_file = workspace / "HUMAN_REQUEST.md"
+            self.assertTrue(human_req_file.exists())
+            req_text = human_req_file.read_text(encoding="utf-8")
+            self.assertIn("human_action", req_text)
+            self.assertIn("Please install a hardware sensor", req_text)
+
+            # 2. Next cycle ends immediately with reason=human_request_pending in code without model behavior
+            fake_llm = CapturingFakeLLM()
+            config = AgentConfig(
+                workspace=workspace,
+                max_iterations=5,
+                token_budget=10_000,
+                retrieve_memories=False,
+                body=None,
+            )
+            loop = AgentLoop(config, logger, fake_llm, runner)
+            summary = loop.run()
+            self.assertEqual(summary.reason, "human_request_pending")
+            self.assertEqual(summary.iterations, 0)
+            self.assertEqual(len(fake_llm.calls), 0)
+
+            # 3. SELF cannot clear or overwrite HUMAN_REQUEST.md using file tools
+            wf_res = runner.write_file("HUMAN_REQUEST.md", "Attempting to clear pause")
+            self.assertFalse(wf_res["ok"])
+            self.assertIn("protected", wf_res.get("error", "").lower())
+            if runner.body and hasattr(runner.body, "write_file"):
+                with self.assertRaises(PermissionError):
+                    runner.body.write_file("HUMAN_REQUEST.md", "Attempting direct write")
+
+            # 4. Human clears the request by deleting HUMAN_REQUEST.md; loop resumes
+            human_req_file.unlink()
+            self.assertFalse(human_req_file.exists())
+            summary_resumed = loop.run()
+            self.assertEqual(summary_resumed.reason, "max_iterations")
+            self.assertEqual(summary_resumed.iterations, 5)
+
+            # 5. request_provider_key stays non-blocking
+            router = BrainRouter(workspace, logger)
+            runner.brain_router = router
+            pk_res = runner.request_provider_key("groq")
+            self.assertFalse(pk_res["ok"])
+            self.assertFalse(human_req_file.exists(), "request_provider_key must not write HUMAN_REQUEST.md")
+
+    def test_tool_runner_default_body_fallback_and_neutrality(self) -> None:
+        """Verify ToolRunner definition inspection stays neutral with body=None and augments when body configured."""
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            logger = EventLogger(workspace / "logs" / "actions.jsonl")
+            from agent.body.container import ContainerBody
+            from agent.tools.base_tools import ToolRunner
+
+            # ToolRunner without body or with body=None
+            runner = ToolRunner(logger, workspace)
+            neutral_defs = runner.get_tool_definitions(body=None)
+            for tool in neutral_defs:
+                desc = tool.get("description", "")
+                for token in FORBIDDEN_DEFAULT_TOKENS:
+                    self.assertIsNone(
+                        re.search(token, desc, re.IGNORECASE),
+                        f"Forbidden token pattern '{token}' found in neutral tool def: {desc}",
+                    )
+
+            # When explicit container body is provided
+            container_body = ContainerBody(workspace, logger)
+            augmented_defs = runner.get_tool_definitions(body=container_body)
+            run_shell_desc = next(t["description"] for t in augmented_defs if t["name"] == "run_shell")
+            self.assertIn("This profile expects a Linux container environment", run_shell_desc)
 
 
 if __name__ == "__main__":

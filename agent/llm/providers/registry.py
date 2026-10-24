@@ -184,6 +184,7 @@ class ProviderRegistry:
             provider,
             list(meta.get("key_env", [])),
             str(meta.get("signup_url", "")),
+            halt=False,
         )
         self.logger.log("provider_key_requested", provider=provider, env_names=meta.get("key_env", []), signup_url=meta.get("signup_url", ""))
         return {"ok": False, "provider": provider, "status": "key_requested", "path": str(path), "env_names": meta.get("key_env", [])}

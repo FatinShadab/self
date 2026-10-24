@@ -11,7 +11,7 @@ REQUEST_CAPABILITY_DEFINITION: dict[str, Any] = {
         "properties": {
             "kind": {
                 "type": "string",
-                "enum": ["credential", "host_mount", "port", "email", "money", "third_party_account", "external_service", "plugin"],
+                "enum": ["credential", "host_mount", "port", "email", "money", "third_party_account", "external_service", "human_action", "other", "plugin"],
             },
             "summary": {"type": "string"},
             "reason": {"type": "string"},
