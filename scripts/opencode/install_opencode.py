@@ -178,6 +178,15 @@ def _github_api_get(url: str, *, timeout: int = 30) -> Any:
         return json.loads(resp.read().decode("utf-8"))
 
 
+def _npm_api_get(url: str, *, timeout: int = 30) -> Any:
+    """GET npm package metadata without GitHub-specific headers or credentials."""
+    req = urllib.request.Request(url)
+    req.add_header("Accept", "application/json")
+    req.add_header("User-Agent", "self-opencode-installer/1.0")
+    with urllib.request.urlopen(req, timeout=timeout) as resp:
+        return json.loads(resp.read().decode("utf-8"))
+
+
 def _download_file(url: str, dest: Path, *, timeout: int = 120) -> None:
     """Download *url* to *dest* using a temp file + rename for atomicity."""
     dest.parent.mkdir(parents=True, exist_ok=True)
@@ -234,7 +243,7 @@ def fetch_npm_asset(version: str, plat: dict[str, str], *, timeout: int = 30) ->
     package = f"@opencode/cli-{target}"
     npm_version = version.removeprefix("v")
     url = f"https://registry.npmjs.org/@opencode%2fcli-{target}/{npm_version}"
-    metadata = _github_api_get(url, timeout=timeout)
+    metadata = _npm_api_get(url, timeout=timeout)
     dist = metadata.get("dist", {})
     if metadata.get("name") != package or metadata.get("version") != npm_version:
         raise RuntimeError(f"Unexpected npm package metadata for {package}@{npm_version}")

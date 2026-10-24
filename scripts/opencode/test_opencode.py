@@ -167,6 +167,20 @@ class TestAssetSelection(unittest.TestCase):
 
 
 class TestNpmAsset(unittest.TestCase):
+    @mock.patch("install_opencode.urllib.request.urlopen")
+    def test_npm_request_uses_json_accept_header(self, urlopen):
+        response = mock.MagicMock()
+        response.read.return_value = b'{"name":"@opencode/cli-linux-x64"}'
+        response.__enter__.return_value = response
+        urlopen.return_value = response
+
+        metadata = installer._npm_api_get("https://registry.npmjs.org/@opencode%2fcli-linux-x64/2.0.30")
+
+        request = urlopen.call_args.args[0]
+        self.assertEqual(request.get_header("Accept"), "application/json")
+        self.assertIsNone(request.get_header("Authorization"))
+        self.assertEqual(metadata["name"], "@opencode/cli-linux-x64")
+
     def test_extracts_only_npm_cli_binary(self):
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)
@@ -208,7 +222,7 @@ class TestNpmAsset(unittest.TestCase):
         github_assets.assert_not_called()
         self.assertEqual(verify.call_args.kwargs["npm_integrity"], "sha512-YWJj")
 
-    @mock.patch("install_opencode._github_api_get")
+    @mock.patch("install_opencode._npm_api_get")
     def test_pinned_platform_package(self, get_json):
         get_json.return_value = {
             "name": "@opencode/cli-linux-x64",
@@ -223,7 +237,7 @@ class TestNpmAsset(unittest.TestCase):
         self.assertEqual(asset["name"], "cli-linux-x64-2.0.30.tgz")
         self.assertIn("cli-linux-x64/2.0.30", get_json.call_args.args[0])
 
-    @mock.patch("install_opencode._github_api_get")
+    @mock.patch("install_opencode._npm_api_get")
     def test_baseline_and_musl_target(self, get_json):
         get_json.return_value = {
             "name": "@opencode/cli-linux-x64-baseline-musl",
@@ -234,7 +248,7 @@ class TestNpmAsset(unittest.TestCase):
         installer.fetch_npm_asset("v2.0.30", plat)
         self.assertIn("cli-linux-x64-baseline-musl/2.0.30", get_json.call_args.args[0])
 
-    @mock.patch("install_opencode._github_api_get")
+    @mock.patch("install_opencode._npm_api_get")
     def test_missing_integrity_is_rejected(self, get_json):
         get_json.return_value = {
             "name": "@opencode/cli-linux-arm64",
