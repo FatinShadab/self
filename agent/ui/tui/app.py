@@ -73,7 +73,8 @@ class SelfApp(App[None]):
     #entity-monitor.monitor-thinking { color: $accent; }
     #entity-monitor.monitor-working { color: $accent; text-style: bold; }
     #conversation { height: 1fr; padding: 0 1; scrollbar-gutter: stable; }
-    #plan { height: 10; min-height: 5; padding: 1; }
+    #plan-scroll { height: 10; min-height: 5; padding: 1; scrollbar-gutter: stable; }
+    #plan { width: 100%; }
     #plan-resizer { height: 1; min-height: 1; max-height: 1; content-align: center middle; color: $text-muted; background: $panel; text-style: dim; }
     #plan-resizer:hover { color: $accent; background: $boost; text-style: bold; }
     #worklog { height: 1fr; min-height: 5; padding: 0 1; scrollbar-gutter: stable; }
@@ -83,13 +84,10 @@ class SelfApp(App[None]):
     .reflection-message { border-left: thick $success; background: $boost; }
     .human-message { border-left: thick $accent; background: $boost; }
     .typing-message { border-left: thick $secondary; background: $panel; color: $text-muted; }
-    #side { width: 1fr; }
+    #side { width: 1fr; scrollbar-gutter: stable; }
     #identity, #activity, #session, #usage, #container { border: solid $secondary; padding: 1; }
-    #identity { height: 0.85fr; }
-    #activity { height: 0.85fr; }
-    #session { height: 1.25fr; }
-    #usage { height: 1.35fr; }
-    #container { height: 1.45fr; }
+    #identity, #activity, #session, #usage, #container { height: auto; min-height: 5; }
+    #identity, #activity { min-height: 7; }
     #chat { dock: bottom; }
     """
 
@@ -100,7 +98,7 @@ class SelfApp(App[None]):
             coordinator = WakeCoordinator()
         self.coordinator = coordinator
         self.voice = VoiceController()
-        self.typing_enabled = True
+        self.typing_enabled = False
         self.typing_delay = max(0.001, min(float(os.getenv("SELF_TUI_TYPING_DELAY", "0.018")), 0.2))
         self._pending_chat: list[tuple[str, str, str]] = []
         self._pending_activity: list[str] = []
@@ -130,10 +128,11 @@ class SelfApp(App[None]):
                     yield Static(cardiac_monitor_frame(0), id="entity-monitor", markup=False)
                 yield VerticalScroll(id="conversation")
             with Vertical(id="work-pane"):
-                yield Static("Goals loading...", id="plan", markup=True)
+                with VerticalScroll(id="plan-scroll"):
+                    yield Static("Goals loading...", id="plan", markup=True)
                 yield PlanResizeHandle(self._resize_plan)
                 yield VerticalScroll(id="worklog")
-            with Vertical(id="side"):
+            with VerticalScroll(id="side"):
                 yield Static("Identity loading...", id="identity", markup=True)
                 yield Static("Activity loading...", id="activity", markup=True)
                 yield Static("Session loading...", id="session", markup=True)
@@ -156,8 +155,9 @@ class SelfApp(App[None]):
         self._load_conversation_history()
         self.coordinator.on_activity = lambda message: self.call_from_thread(self._queue_activity, message)
         self.coordinator.on_chat = lambda message, kind: self.call_from_thread(self._queue_chat, "agent", message, kind)
-        self.set_interval(0.5, self._refresh)
-        self.set_interval(0.16, self._animate_activity)
+        self._refresh()
+        self.set_interval(1.0, self._refresh)
+        self.set_interval(0.25, self._animate_activity)
         self.call_after_refresh(self._populate_initial_chat)
         self.call_after_refresh(self._start_agent)
 
@@ -171,7 +171,7 @@ class SelfApp(App[None]):
 
     def _resize_plan(self, pointer_screen_y: int) -> None:
         """Resize Plan, leaving the remaining middle-column space to worklog."""
-        plan = self.query_one("#plan", Static)
+        plan = self.query_one("#plan-scroll", VerticalScroll)
         work_pane = self.query_one("#work-pane", Vertical)
         requested = pointer_screen_y - plan.region.y + 1
         plan.styles.height = clamped_plan_height(requested, work_pane.size.height)
@@ -192,14 +192,15 @@ class SelfApp(App[None]):
         for mode in ("stopped", "thinking", "working", "idle"):
             monitor.set_class(mode == intensity.name, f"monitor-{mode}")
         frame = (self._monitor_tick // intensity.tick_divisor) * intensity.tick_stride
-        monitor.update(
-            cardiac_monitor_frame(
-                frame,
-                monitor.size.width,
-                beat_interval=intensity.beat_interval,
-                pulse_height=intensity.pulse_height,
-            )
+        monitor_frame = cardiac_monitor_frame(
+            frame,
+            monitor.size.width,
+            beat_interval=intensity.beat_interval,
+            pulse_height=intensity.pulse_height,
         )
+        if monitor_frame != getattr(self, "_last_monitor_frame", None):
+            monitor.update(monitor_frame)
+            self._last_monitor_frame = monitor_frame
         active = self._agent_running or self._draining_activity or self._draining_chat
         if not active:
             return

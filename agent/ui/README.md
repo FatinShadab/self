@@ -42,7 +42,7 @@ Wake coordinator, Textual terminal interface, optional voice, and verification C
 
 ## How it works
 
-`WakeCoordinator` coordinates startup and cycles. In interactive mode, `run_tui` launches `SelfApp`, which renders cardiac monitor presence, live activity feeds, status panels, and a chat stream with typing effects. Slash commands are dispatched through `CommandRegistry`. Overlay views (`coverage`, `archive`, `conversation_history`) provide focused full-screen views with `/back` navigation.
+`WakeCoordinator` coordinates startup and cycles. In interactive mode, `run_tui` launches `SelfApp`, which renders cardiac monitor presence, live activity feeds, status panels, and a chat stream. The typing effect is off by default and can be enabled with `/typing on`. The goals pane and status column scroll to show their full contents. Slash commands are dispatched through `CommandRegistry`. Overlay views (`coverage`, `archive`, `conversation_history`) provide focused full-screen views with `/back` navigation.
 
 ## State it touches
 

@@ -1,6 +1,7 @@
 {
     "_comment": "Opencode installer configuration. Edit version and models manually.",
     "opencode_version": "v2.0.30",
+    "source": "npm",
     "github_repo": "anomalyco/opencode",
     "install_dir": "/opt/opencode",
     "bin_link": "/usr/local/bin/opencode",
@@ -8,7 +9,7 @@
     "download_timeout_seconds": 120,
     "retry_count": 3,
     "asset_patterns": {
-        "_comment": "Maps platform keys to substrings matched against GitHub release asset names. The installer queries the GitHub releases API and selects the first asset whose name contains all the substrings for the detected platform key.",
+        "_comment": "Used for GitHub Releases installs. OpenCode 2 uses platform packages from npm instead.",
         "linux-x64-glibc": ["linux", "x64"],
         "linux-x64-musl": ["linux", "x64"],
         "linux-arm64-glibc": ["linux", "arm64"],

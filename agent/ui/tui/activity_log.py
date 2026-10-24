@@ -32,6 +32,8 @@ async def drain_activity(app: Any) -> None:
             # Activity comes from LLM and tool output, so escape it at
             # the rendering boundary to keep every literal "[" safe.
             await worklog.mount(Static(escape_rich_markup(message), classes="activity-entry", markup=True))
+            if len(worklog.children) > 300:
+                await worklog.children[0].remove()
             if follow:
                 # Mounting changes the content height asynchronously. Scroll
                 # after Textual lays out the new entry, otherwise max_scroll_y

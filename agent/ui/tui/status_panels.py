@@ -96,19 +96,23 @@ def refresh_all_status_panels(app: Any, coordinator: Any) -> None:
         )
         or "No AI calls yet"
     )
-    registered_models = coordinator.models_snapshot().get("registry", {}).get("models", [])
-    model_calls = (
-        "\n".join(
-            f"{escape_rich_markup(entry.get('name', 'unknown'))}: "
-            f"{escape_rich_markup((entry.get('measured_stats') or {}).get('calls', 0))}"
-            for entry in registered_models
+    now = time.monotonic()
+    if now >= getattr(app, "_next_model_refresh", 0.0):
+        registered_models = coordinator.models_snapshot().get("registry", {}).get("models", [])
+        app._model_calls_text = (
+            "\n".join(
+                f"{escape_rich_markup(entry.get('name', 'unknown'))}: "
+                f"{escape_rich_markup((entry.get('measured_stats') or {}).get('calls', 0))}"
+                for entry in registered_models
+            )
+            or "No model data yet"
         )
-        or "No model data yet"
-    )
+        app._next_model_refresh = now + 10.0
+    model_calls = app._model_calls_text
     try:
         plan_file = coordinator.workspace / "state" / "plan.json"
         if plan_file.exists():
-            mtime = plan_file.stat().st_mtime
+            mtime = plan_file.stat().st_mtime_ns
             if mtime != app._last_plan_mtime:
                 app._last_plan_mtime = mtime
                 coordinator.plan_store.load()
@@ -128,12 +132,19 @@ def refresh_all_status_panels(app: Any, coordinator: Any) -> None:
     usage_panel = build_usage_panel(coordinator, telemetry, calls, model_calls)
     container_panel = build_container_panel(app._container_metrics)
 
-    app.query_one("#identity", Static).update(identity_panel)
-    app.query_one("#activity", Static).update(activity_panel)
-    app.query_one("#plan", Static).update(plan_panel)
-    app.query_one("#session", Static).update(session_panel)
-    app.query_one("#usage", Static).update(usage_panel)
-    app.query_one("#container", Static).update(container_panel)
+    rendered = getattr(app, "_status_panel_text", {})
+    for panel_id, content in (
+        ("identity", identity_panel),
+        ("activity", activity_panel),
+        ("plan", plan_panel),
+        ("session", session_panel),
+        ("usage", usage_panel),
+        ("container", container_panel),
+    ):
+        if rendered.get(panel_id) != content:
+            app.query_one(f"#{panel_id}", Static).update(content)
+            rendered[panel_id] = content
+    app._status_panel_text = rendered
 
 
 __all__ = [

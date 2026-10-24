@@ -142,7 +142,9 @@ async def drain_chat(app: Any, coordinator: Any) -> None:
             if follow:
                 conversation.scroll_end(animate=False)
             if role == "agent" and app.typing_enabled:
-                step = max(1, len(message) // 90)
+                # Markdown parsing and widget layout are proportional to the
+                # whole visible message. Keep the optional effect bounded.
+                step = max(1, (len(message) + 23) // 24)
                 for index in range(step, len(message) + step, step):
                     if coordinator.stop_requested or (coordinator.workspace / "STOP").exists():
                         break

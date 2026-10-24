@@ -11,7 +11,7 @@ Installs and configures the [opencode](https://github.com/anomalyco/opencode) co
 
 | File | Purpose |
 |---|---|
-| `config.json` | Human-editable configuration: pinned version, GitHub repo, asset patterns, provider mappings, model list. |
+| `config.json` | Human-editable configuration: pinned version, package source, provider mappings, model list. |
 | `install_opencode.py` | Installer script with `--build`, `--ensure`, `--force`, `--status`, `--list-models` modes. |
 | `opencode.lock.json` | Auto-generated trust-on-first-use (TOFU) checksum lock file. Do not edit. |
 | `state/opencode_install.json` | Runtime state: platform key, version, sha256, install timestamp, last error. |
@@ -24,9 +24,9 @@ Installs and configures the [opencode](https://github.com/anomalyco/opencode) co
 ## How Install Works
 
 1. **Platform Detection** — Detects OS (Linux only), architecture (x64/arm64), libc (glibc/musl via `ldd --version` or `/lib/ld-musl-*`), and AVX2 support.
-2. **Asset Selection** — Queries the GitHub Releases API for the pinned version tag, lists all assets, and selects the one matching the detected platform key using the pattern map in `config.json`.
+2. **Asset Selection** — OpenCode 2.x resolves the pinned platform package from the npm registry. GitHub Releases remain supported for versions that publish release assets.
 3. **Download** — Downloads to a temp file with configurable timeout and retries.
-4. **Integrity** — If the release publishes a checksums file, fetches and verifies it. Otherwise uses trust-on-first-use (TOFU): records sha256 in `opencode.lock.json` on first install and verifies against it on every later install.
+4. **Integrity** — npm packages are verified against the registry's SHA-512 integrity value. GitHub assets use a published checksums file when available, otherwise trust-on-first-use (TOFU).
 5. **Install** — Extracts the archive (tar.gz or zip) into `/opt/opencode`, creates a symlink at `/usr/local/bin/opencode`, and sets world-readable/executable permissions.
 6. **Config Generation** — Creates `/opt/opencode/config/opencode.json` with auto-update disabled, telemetry disabled, shell/edit tools auto-allowed, and provider API keys referenced via environment variables.
 
@@ -34,8 +34,8 @@ Installs and configures the [opencode](https://github.com/anomalyco/opencode) co
 
 ## How to Bump the Pinned Version
 
-1. Edit `config.json` and change `"opencode_version"` to the new tag (e.g. `"v2.0.31"`).
-2. Delete the old entry from `opencode.lock.json` if present (or delete the whole file to re-record TOFU hashes).
+1. Edit `config.json` and change `"opencode_version"` to the new tag (e.g. `"v2.0.31"`). Keep `"source": "npm"` for OpenCode 2.x.
+2. For a GitHub Releases install, delete the old entry from `opencode.lock.json` if present (or delete the whole file to re-record TOFU hashes).
 3. Rebuild the Docker image: `docker compose build`.
 
 ---

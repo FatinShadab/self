@@ -13,6 +13,7 @@ Modes:
 from __future__ import annotations
 
 import argparse
+import base64
 import glob
 import hashlib
 import json
@@ -223,6 +224,29 @@ def fetch_release_assets(
     return assets
 
 
+def fetch_npm_asset(version: str, plat: dict[str, str], *, timeout: int = 30) -> dict[str, Any]:
+    """Resolve a pinned OpenCode 2 platform package from the npm registry."""
+    target = f"linux-{plat['arch']}"
+    if plat["arch"] == "x64" and plat.get("avx2") != "yes":
+        target += "-baseline"
+    if plat["libc"] == "musl":
+        target += "-musl"
+    package = f"@opencode/cli-{target}"
+    npm_version = version.removeprefix("v")
+    url = f"https://registry.npmjs.org/@opencode%2fcli-{target}/{npm_version}"
+    metadata = _github_api_get(url, timeout=timeout)
+    dist = metadata.get("dist", {})
+    if metadata.get("name") != package or metadata.get("version") != npm_version:
+        raise RuntimeError(f"Unexpected npm package metadata for {package}@{npm_version}")
+    if not dist.get("tarball") or not str(dist.get("integrity", "")).startswith("sha512-"):
+        raise RuntimeError(f"Missing tarball or SHA-512 integrity for {package}@{npm_version}")
+    return {
+        "name": f"cli-{target}-{npm_version}.tgz",
+        "browser_download_url": dist["tarball"],
+        "integrity": dist["integrity"],
+    }
+
+
 def select_asset(
     assets: list[dict[str, Any]],
     platform_key: str,
@@ -281,6 +305,7 @@ def verify_integrity(
     platform_key: str,
     *,
     timeout: int = 30,
+    npm_integrity: str = "",
 ) -> str:
     """Verify the SHA-256 of *downloaded*.
 
@@ -291,6 +316,21 @@ def verify_integrity(
     Returns the hex sha256 on success, raises on failure.
     """
     actual_hash = _sha256_file(downloaded)
+
+    if npm_integrity:
+        algorithm, _, encoded = npm_integrity.partition("-")
+        if algorithm != "sha512" or not encoded:
+            raise RuntimeError("Unsupported npm integrity value")
+        expected = base64.b64decode(encoded, validate=True)
+        hasher = hashlib.sha512()
+        with downloaded.open("rb") as handle:
+            for chunk in iter(lambda: handle.read(1 << 16), b""):
+                hasher.update(chunk)
+        digest = hasher.digest()
+        if digest != expected:
+            raise RuntimeError(f"npm SHA-512 integrity mismatch for {asset_name}")
+        logger.info("SHA-512 verified against npm package metadata.")
+        return actual_hash
 
     # --- Try official checksums ---
     checksum_asset = _find_checksum_asset(assets)
@@ -372,7 +412,9 @@ def install_binary(
 
     asset_name = downloaded.name.lower()
     # Determine extraction method.
-    if asset_name.endswith(".tar.gz") or asset_name.endswith(".tgz"):
+    if config.get("source") == "npm":
+        _extract_npm_binary(downloaded, install_dir)
+    elif asset_name.endswith(".tar.gz") or asset_name.endswith(".tgz"):
         _extract_tar(downloaded, install_dir)
     elif asset_name.endswith(".zip"):
         _extract_zip(downloaded, install_dir)
@@ -400,6 +442,21 @@ def install_binary(
     bin_link.symlink_to(binary)
 
     return binary
+
+
+def _extract_npm_binary(archive: Path, dest: Path) -> None:
+    """Extract only the CLI executable from an integrity-checked npm package."""
+    import tarfile
+
+    with tarfile.open(archive, "r:gz") as package:
+        member = package.getmember("package/bin/opencode")
+        if not member.isfile():
+            raise RuntimeError("npm package does not contain a regular opencode binary")
+        source = package.extractfile(member)
+        if source is None:
+            raise RuntimeError("Could not read opencode binary from npm package")
+        with source, (dest / "opencode").open("wb") as target:
+            shutil.copyfileobj(source, target)
 
 
 def _extract_tar(archive: Path, dest: Path) -> None:
@@ -592,6 +649,7 @@ def do_install(
             raise RuntimeError(msg)
         return False
 
+    source = config.get("source", "github")
     repo = config.get("github_repo", "anomalyco/opencode")
     timeout = int(config.get("download_timeout_seconds", 120))
     retries = int(config.get("retry_count", 3))
@@ -602,11 +660,15 @@ def do_install(
     assets: list[dict[str, Any]] = []
     for attempt in range(1, retries + 1):
         try:
-            logger.info(
-                "Fetching release %s from %s (attempt %d/%d)",
-                version, repo, attempt, retries,
-            )
-            assets = fetch_release_assets(repo, version, timeout=timeout)
+            if source == "npm":
+                logger.info("Fetching npm package %s (attempt %d/%d)", version, attempt, retries)
+                assets = [fetch_npm_asset(version, plat, timeout=timeout)]
+            else:
+                logger.info(
+                    "Fetching release %s from %s (attempt %d/%d)",
+                    version, repo, attempt, retries,
+                )
+                assets = fetch_release_assets(repo, version, timeout=timeout)
             break
         except Exception as exc:
             last_exc = exc
@@ -627,7 +689,7 @@ def do_install(
         return False
 
     # Select asset.
-    asset = select_asset(assets, plat["platform_key"], asset_patterns)
+    asset = assets[0] if source == "npm" else select_asset(assets, plat["platform_key"], asset_patterns)
     if not asset:
         available = [a.get("name", "?") for a in assets]
         msg = (
@@ -688,6 +750,7 @@ def do_install(
         sha256 = verify_integrity(
             downloaded, asset_name, assets, config, plat["platform_key"],
             timeout=timeout,
+            npm_integrity=asset.get("integrity", ""),
         )
 
         # Install.

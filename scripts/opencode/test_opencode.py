@@ -7,10 +7,13 @@ covered with mocked values.
 from __future__ import annotations
 
 import hashlib
+import base64
+import io
 import json
 import os
 import subprocess
 import sys
+import tarfile
 import tempfile
 import textwrap
 import unittest
@@ -163,6 +166,85 @@ class TestAssetSelection(unittest.TestCase):
         self.assertIsNone(asset)
 
 
+class TestNpmAsset(unittest.TestCase):
+    def test_extracts_only_npm_cli_binary(self):
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            archive = root / "cli.tgz"
+            payload = b"fake executable"
+            with tarfile.open(archive, "w:gz") as package:
+                binary = tarfile.TarInfo("package/bin/opencode")
+                binary.size = len(payload)
+                package.addfile(binary, io.BytesIO(payload))
+                ignored = tarfile.TarInfo("package/other.txt")
+                ignored.size = 4
+                package.addfile(ignored, io.BytesIO(b"skip"))
+            installer._extract_npm_binary(archive, root)
+            self.assertEqual((root / "opencode").read_bytes(), payload)
+            self.assertFalse((root / "other.txt").exists())
+
+    @mock.patch("install_opencode._update_state")
+    @mock.patch("install_opencode.generate_opencode_config")
+    @mock.patch("install_opencode.install_binary", return_value=Path("/opt/opencode/opencode"))
+    @mock.patch("install_opencode.verify_integrity", return_value="abc")
+    @mock.patch("install_opencode._download_file")
+    @mock.patch("install_opencode.fetch_npm_asset")
+    @mock.patch("install_opencode.fetch_release_assets")
+    def test_install_uses_npm_for_v2(
+        self, github_assets, npm_asset, download, verify, install, generate, update
+    ):
+        npm_asset.return_value = {
+            "name": "cli-linux-x64-2.0.30.tgz",
+            "browser_download_url": "https://registry.npmjs.org/package.tgz",
+            "integrity": "sha512-YWJj",
+        }
+        config = {
+            "opencode_version": "v2.0.30", "source": "npm", "retry_count": 1,
+            "install_dir": "/opt/opencode",
+        }
+        plat = {"platform_key": "linux-x64-glibc", "arch": "x64", "libc": "glibc", "avx2": "yes"}
+        self.assertTrue(installer.do_install(config, plat))
+        npm_asset.assert_called_once()
+        github_assets.assert_not_called()
+        self.assertEqual(verify.call_args.kwargs["npm_integrity"], "sha512-YWJj")
+
+    @mock.patch("install_opencode._github_api_get")
+    def test_pinned_platform_package(self, get_json):
+        get_json.return_value = {
+            "name": "@opencode/cli-linux-x64",
+            "version": "2.0.30",
+            "dist": {
+                "tarball": "https://registry.npmjs.org/@opencode/cli-linux-x64/-/cli-linux-x64-2.0.30.tgz",
+                "integrity": "sha512-" + base64.b64encode(b"digest").decode(),
+            },
+        }
+        plat = {"arch": "x64", "libc": "glibc", "avx2": "yes"}
+        asset = installer.fetch_npm_asset("v2.0.30", plat)
+        self.assertEqual(asset["name"], "cli-linux-x64-2.0.30.tgz")
+        self.assertIn("cli-linux-x64/2.0.30", get_json.call_args.args[0])
+
+    @mock.patch("install_opencode._github_api_get")
+    def test_baseline_and_musl_target(self, get_json):
+        get_json.return_value = {
+            "name": "@opencode/cli-linux-x64-baseline-musl",
+            "version": "2.0.30",
+            "dist": {"tarball": "https://example.test/package.tgz", "integrity": "sha512-YWJj"},
+        }
+        plat = {"arch": "x64", "libc": "musl", "avx2": "no"}
+        installer.fetch_npm_asset("v2.0.30", plat)
+        self.assertIn("cli-linux-x64-baseline-musl/2.0.30", get_json.call_args.args[0])
+
+    @mock.patch("install_opencode._github_api_get")
+    def test_missing_integrity_is_rejected(self, get_json):
+        get_json.return_value = {
+            "name": "@opencode/cli-linux-arm64",
+            "version": "2.0.30",
+            "dist": {"tarball": "https://example.test/package.tgz"},
+        }
+        with self.assertRaisesRegex(RuntimeError, "integrity"):
+            installer.fetch_npm_asset("v2.0.30", {"arch": "arm64", "libc": "glibc", "avx2": "unknown"})
+
+
 class TestChecksumVerification(unittest.TestCase):
     """Checksum verification pass/fail and TOFU lock behaviour."""
 
@@ -175,6 +257,18 @@ class TestChecksumVerification(unittest.TestCase):
     def tearDown(self):
         import shutil
         shutil.rmtree(self.tmpdir, ignore_errors=True)
+
+    def test_npm_sha512_verification(self):
+        integrity = "sha512-" + base64.b64encode(hashlib.sha512(self.test_file.read_bytes()).digest()).decode()
+        result = installer.verify_integrity(
+            self.test_file, "test_binary", [], {}, "linux-x64-glibc", npm_integrity=integrity
+        )
+        self.assertEqual(result, self.expected_hash)
+        with self.assertRaisesRegex(RuntimeError, "integrity mismatch"):
+            installer.verify_integrity(
+                self.test_file, "test_binary", [], {}, "linux-x64-glibc",
+                npm_integrity="sha512-" + base64.b64encode(b"wrong").decode(),
+            )
 
     def test_checksum_pass_with_official_file(self):
         """Verify passes when the official checksums file contains the correct hash."""

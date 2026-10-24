@@ -5,6 +5,7 @@ import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 
 from agent.infra.event_log import EventLogger
@@ -12,6 +13,7 @@ from agent.identity.identity import IdentityStore
 from agent.llm.llm import LLMResult
 from agent.session.session import HumanInbox, SessionStore
 from agent.ui.wake import build_archive_views, cardiac_monitor_frame, cardiac_monitor_intensity, escape_rich_markup, format_conversation_history_view, WakeCoordinator, clamped_plan_height, format_goals_panel, format_starting_plan, normalized_plan, visible_plan_items
+from agent.ui.tui.status_panels import build_activity_panel, build_identity_panel
 
 
 class WakeFakeLLM:
@@ -33,6 +35,20 @@ class WakeFakeLLM:
 
 
 class SessionTests(unittest.TestCase):
+    def test_identity_and_activity_panels_include_their_values(self) -> None:
+        from rich.text import Text
+
+        coordinator = SimpleNamespace(
+            identity=SimpleNamespace(load=lambda: {"name": "toothless", "human_name": "Alex"})
+        )
+        identity = Text.from_markup(build_identity_panel(coordinator)).plain
+        activity = Text.from_markup(build_activity_panel({"state": "WORKING", "current_ai": "local-model"})).plain
+
+        self.assertIn("Agent: toothless", identity)
+        self.assertIn("Human: Alex", identity)
+        self.assertIn("Presence: WORKING", activity)
+        self.assertIn("AI: local-model", activity)
+
     def test_escape_rich_markup_keeps_bracketed_tool_output_literal(self) -> None:
         from rich.text import Text
         from textual.widgets import Static
@@ -163,7 +179,7 @@ class SessionTests(unittest.TestCase):
         self.assertNotIn("Now", panel)
         self.assertNotIn("tool: ask_model", panel)
 
-    def test_format_goals_panel_handles_empty_and_caps_long_lists(self) -> None:
+    def test_format_goals_panel_handles_empty_and_shows_long_lists(self) -> None:
         empty_panel = format_goals_panel([])
         self.assertIn("No goals recorded yet", empty_panel)
 
@@ -173,12 +189,9 @@ class SessionTests(unittest.TestCase):
         many_goals = [
             {"goal": f"Active task {i}", "status": "todo", "priority": 2, "created_cycle": i} for i in range(1, 9)
         ]
-        capped_panel = format_goals_panel(many_goals, current_cycle=10)
-        # Max 5 unfinished goals shown
-        self.assertIn("Active task 1", capped_panel)
-        self.assertIn("Active task 5", capped_panel)
-        self.assertNotIn("Active task 6", capped_panel)
-        self.assertIn("(+3 more pending)", capped_panel)
+        panel = format_goals_panel(many_goals, current_cycle=10)
+        self.assertIn("Active task 1", panel)
+        self.assertIn("Active task 8", panel)
 
     def test_build_archive_views_renders_two_columns(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

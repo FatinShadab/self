@@ -26,7 +26,7 @@ def format_goals_panel(
     current_activity: str = "",
     current_cycle: int = 1,
 ) -> str:
-    """Format goals panel showing max 5 unfinished goals ordered with in-progress first, then priority."""
+    """Format unfinished goals ordered with in-progress first, then priority."""
     unfinished: list[dict[str, Any]] = []
 
     for item in goals:
@@ -54,7 +54,7 @@ def format_goals_panel(
     lines: list[str] = []
 
     if unfinished:
-        for item in unfinished[:5]:
+        for item in unfinished:
             desc = escape_rich_markup(item.get("goal") or item.get("step", ""))
             status = str(item.get("status", "todo")).strip().lower()
             created = item.get("created_cycle")
@@ -68,8 +68,6 @@ def format_goals_panel(
                 prio_tag = f"[red]! (p{prio})[/red] " if prio == 1 else ""
                 cycle_tag = f" [dim](c{created})[/dim]" if created else ""
                 lines.append(f"[white]• (todo)[/white] {prio_tag}{desc}{cycle_tag}")
-        if len(unfinished) > 5:
-            lines.append(f"[dim]  (+{len(unfinished) - 5} more pending)[/dim]")
     elif not goals:
         lines.append("[dim]No goals recorded yet[/dim]")
     else:
