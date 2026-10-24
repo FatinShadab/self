@@ -59,7 +59,11 @@ def create_custom_tool(
             "ok": False,
             "name": name,
             "attempts_remaining": 0,
-            "error": "Three attempts exhausted in this run; failure recorded as a lesson.",
+            "error": (
+                f"Three attempts exhausted in this run for tool '{name}'. This tool name is locked for this session. "
+                "Do NOT retry create_tool with this name in this cycle. Use an alternative tool, direct shell command, "
+                "or defer/update the goal in your plan."
+            ),
         }
     registry.attempt_counts[name] = count + 1
     attempt = count + 1
@@ -250,11 +254,19 @@ def create_custom_tool(
         if not critic_approved:
             raise ValueError("Critic rejected tool: " + json.dumps(verdict["issues"]))
         if not tested["timed_out"] and match is not None and int(match[1]) == 0:
-            raise ValueError("No unittest tests were executed")
+            raise ValueError(
+                "No unittest tests were executed. Test code must define a class subclassing "
+                "unittest.TestCase (e.g. 'class TestTool(unittest.TestCase):') with test methods named 'test_*' "
+                "(e.g. 'def test_run(self):'). Top-level test functions (pytest-style) are not discovered by unittest."
+            )
         if tested["timed_out"] or tested["exit_code"] != 0 or tested["truncated"]:
             raise ValueError("Tool tests failed or timed out:\n" + tested["output"])
         if match is None or int(match[1]) == 0:
-            raise ValueError("No unittest tests were executed")
+            raise ValueError(
+                "No unittest tests were executed. Test code must define a class subclassing "
+                "unittest.TestCase (e.g. 'class TestTool(unittest.TestCase):') with test methods named 'test_*' "
+                "(e.g. 'def test_run(self):'). Top-level test functions (pytest-style) are not discovered by unittest."
+            )
         if "skipped=" in tested["output"] or "expected failures=" in tested["output"]:
             raise ValueError("Skipped or expected-failure tests do not qualify for registration")
         if (
