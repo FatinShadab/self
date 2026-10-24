@@ -23,7 +23,7 @@ class BodyDescription:
     body_rules: list[str] = field(default_factory=list)
     pre_capability_rules: list[str] = field(default_factory=list)
     post_capability_rules: list[str] = field(default_factory=list)
-
+    extra_tool_descriptions: dict[str, str] = field(default_factory=dict)
 
 
 @dataclass(frozen=True)

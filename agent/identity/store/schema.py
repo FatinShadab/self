@@ -17,20 +17,17 @@ def safe_text(value: Any, redactor: Any = None, limit: int = 4_000) -> str:
 
 def get_default_identity(body: Any | None = None) -> dict[str, Any]:
     """Return a new identity record with default fields."""
-    if body is None:
-        from agent.body.container import ContainerBody
-        body = ContainerBody()
     raw_interests = (
         list(body.describe().default_interests)
-        if body.describe().default_interests
+        if body is not None and hasattr(body, "describe") and body.describe().default_interests
         else [
-            "mapping the container accurately",
+            "mapping my environment accurately",
             "building reliable, tested tools",
             "learning from evidence and human feedback",
         ]
     )
     interests = [
-        {"interest": it, "plugin": "core", "body": "container"}
+        {"interest": it, "plugin": "core", "body": "environment"}
         for it in raw_interests
     ]
     return {

@@ -40,6 +40,7 @@ from agent.prompts.container_body import (
     CONTAINER_NOTES_PREAMBLE,
     CONTAINER_POST_CAPABILITY_RULES,
     CONTAINER_PRE_CAPABILITY_RULES,
+    CONTAINER_TOOL_DESCRIPTIONS,
 )
 
 __all__ = [
@@ -92,6 +93,7 @@ class ContainerBody(Body):
             body_rules=list(CONTAINER_BODY_RULES),
             pre_capability_rules=list(CONTAINER_PRE_CAPABILITY_RULES),
             post_capability_rules=list(CONTAINER_POST_CAPABILITY_RULES),
+            extra_tool_descriptions=dict(CONTAINER_TOOL_DESCRIPTIONS),
         )
 
     def capabilities(self) -> list[Capability]:

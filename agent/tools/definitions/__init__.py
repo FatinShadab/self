@@ -77,8 +77,44 @@ TOOL_DEFINITIONS: list[dict[str, Any]] = [
     REQUEST_PLUGIN_REVIEW_DEFINITION,
 ]
 
+
+def get_tool_definitions(
+    body: Any = None,
+    extra_descriptions: dict[str, str] | None = None,
+) -> list[dict[str, Any]]:
+    """Return tool definitions, optionally augmented with extra description text from a body profile or caller."""
+    extra: dict[str, str] = {}
+    if body is not None:
+        desc = getattr(body, "describe", lambda: body)()
+        body_extra = getattr(desc, "extra_tool_descriptions", None) or getattr(desc, "tool_descriptions", None)
+        if body_extra and isinstance(body_extra, dict):
+            extra.update(body_extra)
+    if extra_descriptions:
+        extra.update(extra_descriptions)
+
+    if not extra:
+        return [dict(t) for t in TOOL_DEFINITIONS]
+
+    result: list[dict[str, Any]] = []
+    for tool in TOOL_DEFINITIONS:
+        name = tool.get("name")
+        if name in extra:
+            copied = dict(tool)
+            extra_text = extra[name]
+            base_desc = copied.get("description", "")
+            if extra_text.startswith(" ") or extra_text.startswith("\n"):
+                copied["description"] = f"{base_desc}{extra_text}"
+            else:
+                copied["description"] = f"{base_desc} {extra_text}"
+            result.append(copied)
+        else:
+            result.append(dict(tool))
+    return result
+
+
 __all__ = [
     "TOOL_DEFINITIONS",
+    "get_tool_definitions",
     "HELPER_TOOL_NAMES",
     "MODEL_TOOL_SPECS",
     "LIST_MODELS_DEFINITION",

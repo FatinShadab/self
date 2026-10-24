@@ -17,7 +17,7 @@ def now() -> str:
 
 
 class CapabilityRequests:
-    """Record requests for capabilities outside the current container."""
+    """Record requests for capabilities outside the current environment."""
 
     EXTERNAL_KINDS = {"credential", "host_mount", "port", "email", "money", "third_party_account", "external_service"}
 
@@ -37,7 +37,7 @@ class CapabilityRequests:
             f"- Provider/service: {provider or 'not specified'}",
             f"- Environment variable names: {', '.join(env_names or []) or 'none'}",
             f"- Official page: {signup_url or 'not specified'}",
-            "- Human action required: approve by editing the host .env or docker-compose.yml yourself, then recreate the container.",
+            "- Human action required: approve by editing host configuration or environment yourself, then restart or resume.",
             "- SELF cannot create accounts, edit host configuration, open host ports, add mounts, send email, or make financial actions.", "",
         ]
         with self.path.open("a", encoding="utf-8") as handle:

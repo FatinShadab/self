@@ -61,7 +61,7 @@ def execute_model_research(
         stored["body_excerpt"] = ""
         return stored
     if status != 200:
-        msg = "Official documentation page unreachable from container network"
+        msg = "Official documentation page unreachable from current network"
         stored = prober.registry.record_research(
             name,
             status="unreachable",

@@ -244,9 +244,14 @@ def run_agent_loop(loop: Any) -> RunSummary:
                 loop.config.top_k_tools,
                 active_plugins=active_plugins_set,
             )
+            base_defs = (
+                getattr(loop.tools, "get_tool_definitions", lambda: TOOL_DEFINITIONS)()
+                if hasattr(loop, "tools")
+                else TOOL_DEFINITIONS
+            )
             base = [
                 tool
-                for tool in TOOL_DEFINITIONS
+                for tool in base_defs
                 if (loop.config.base_tool_names is None or tool["name"] in loop.config.base_tool_names)
                 and (loop.helper_mode or tool["name"] not in HELPER_TOOL_NAMES)
             ]

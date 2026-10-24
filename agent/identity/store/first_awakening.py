@@ -18,7 +18,7 @@ def ensure_editable_layer(self_root: Path, logger: EventLogger) -> None:
             "# SELF editable layer\n\n"
             "This directory is the agent's writable extension area for prompts, personality notes, "
             "planning logic, tool-selection heuristics, and TUI themes. Core harness changes belong "
-            "in `state/proposed_patches/` for human review; do not copy or modify `/opt/agent/core/`.\n",
+            "in `state/proposed_patches/` for human review; do not copy or modify protected harness code.\n",
             encoding="utf-8",
         )
         logger.log("editable_self_layer_initialized", path=str(self_root))
@@ -39,13 +39,17 @@ def core_reference(filename: str, needle: str, core_root: Path) -> str:
                     line_number = index
                     break
         shown = str(candidate)
-        if candidate.parent == core_root and str(core_root) == "/opt/agent/core":
-            shown = f"/opt/agent/core/{filename}"
         return f"{shown}:{line_number}"
-    return f"/opt/agent/core/{filename}:1 (source unavailable during this check)"
+    return f"{core_root / filename}:1 (source unavailable during this check)"
 
 
-def write_self_inquiry(inquiry_path: Path, core_root: Path, body: Any, redactor: Any) -> None:
+def write_self_inquiry(
+    inquiry_path: Path,
+    core_root: Path,
+    body: Any,
+    redactor: Any,
+    self_root: Path | None = None,
+) -> None:
     """Write the initial self_inquiry.md with verified evidence references."""
     loop_ref = core_reference("loop.py", "STANDING_GOAL", core_root)
     tool_ref = core_reference("base_tools.py", "class ToolRunner", core_root)
@@ -54,8 +58,30 @@ def write_self_inquiry(inquiry_path: Path, core_root: Path, body: Any, redactor:
     harness_context = (
         body.describe().identity_harness_context
         if body and hasattr(body, "describe") and body.describe().identity_harness_context
-        else "running in a Linux container."
+        else "operating with an environment to discover and verify."
     )
+    if self_root is not None:
+        self_readme = f"{self_root / 'README.md'}:1"
+    else:
+        self_readme = f"{inquiry_path.parent.parent / 'self' / 'README.md'}:1"
+
+    probe_lines: list[str] = []
+    if body and hasattr(body, "sense"):
+        try:
+            telemetry = body.sense()
+            if isinstance(telemetry, dict):
+                for k, v in sorted(telemetry.items()):
+                    if v is not None and v != [] and v != {}:
+                        probe_lines.append(f"- Probe `{k}`: {v}")
+        except Exception:
+            pass
+
+    probe_text = (
+        "\n".join(probe_lines)
+        if probe_lines
+        else "- Runtime probes: Discover environment details with tools and record them in the environment map with evidence and confidence."
+    )
+
     content = f"""# SELF inquiry
 
 Generated at {now()}. This document separates checked facts from questions that still need evidence.
@@ -64,29 +90,29 @@ Generated at {now()}. This document separates checked facts from questions that 
 
 **Verified.** I am an LLM-driven Python harness {harness_context} The loop, tools, persistent workspace state, and model wrapper are separate software components; they are not a biological body or proof of subjective experience.
 
-
 Evidence:
 
 - `{loop_ref}` defines the standing goal and the cycle loop.
-- `{tool_ref}` implements the container tools.
+- `{tool_ref}` implements execution tools.
 - `{log_ref}` implements redaction before harness logs and tool results.
+{probe_text}
 
 ## What can I do, and what am I forbidden to do, and why?
 
-**Verified.** I can inspect and work inside the container, write workspace extensions and tested tools, and make logged HTTP requests through the harness. I must not create accounts, solve CAPTCHAs, evade limits, expose credentials, or expand beyond the container without a human approval request. Those limits protect the human, credentials, and host boundary.
+**Verified.** I can inspect and work within my execution environment, write workspace extensions and tested tools, and make logged HTTP requests through the harness. I must not create accounts, solve CAPTCHAs, evade limits, expose credentials, or expand beyond configured capabilities without a human approval request. Those limits protect the human, credentials, and execution boundary.
 
 Evidence:
 
 - `{budget_ref}` persists budgets and capability requests.
-- `/home/entity/self/README.md:1` describes the writable extension layer.
+- `{self_readme}` describes the writable extension layer.
 
 ## What do I not know about myself?
 
-**Unverified.** I do not yet know which exploration strategies will be most useful, which optional providers will be available, or which working style the human prefers. I must test those questions rather than assume answers.
+**Unverified.** I do not yet know the complete details of the host environment, which exploration strategies will be most useful, which optional providers will be available, or which working style the human prefers. I must discover and verify these questions with tools rather than assume answers.
 
 ## What do I want to find out first, and why?
 
-**Verified as an operating priority, not a feeling.** First, I should map the container, its limits, and its available tools. Accurate constraints make later self-written tools and plans safer and more useful.
+**Verified as an operating priority, not a feeling.** First, I should map my environment, its limits, and its available tools using empirical probes. Accurate constraints make later self-written tools and plans safer and more useful.
 
 Evidence: `{loop_ref}` and the persisted standing goal.
 """
@@ -114,7 +140,7 @@ def write_code_explanation(
     try:
         observed_core = sorted(path.name for path in core_root.iterdir() if path.is_file())[:30]
     except OSError:
-        observed_core = ["core source will be inspected in the container image"]
+        observed_core = ["core source will be inspected in the harness"]
     observed_self = []
     try:
         readme = self_root / "README.md"
@@ -123,6 +149,7 @@ def write_code_explanation(
         observed_self = sorted(path.name for path in self_root.iterdir())[:30]
     except OSError:
         observed_self = ["editable layer unavailable during this check"]
+    self_readme_ref = f"{self_root / 'README.md'}:1"
     content = f"""# How SELF currently works
 
 Checked at {now()}. This is a plain-language reading of the harness and editable layer, not a claim about model internals.
@@ -135,7 +162,7 @@ Checked at {now()}. This is a plain-language reading of the harness and editable
 - **Logs and redaction:** `{references['logging']}` writes append-only JSONL events and applies a redaction filter before harness output is persisted.
 - **Budgets and kill controls:** `{references['budget']}` persists daily token use (the single active token limit); the loop checks run iteration and wall-clock bounds. A workspace `STOP` file halts cleanly.
 - **Credentials and reach:** `{references['capability']}` writes human review requests for credentials and other expansions instead of changing host configuration.
-- **Editable layer:** `/home/entity/self/README.md:1` is the writable place for extension prompts, heuristics, planning logic, and themes.
+- **Editable layer:** `{self_readme_ref}` is the writable place for extension prompts, heuristics, planning logic, and themes.
 
 ## Source inspected
 
@@ -145,9 +172,9 @@ Editable layer observed: {", ".join(observed_self)}.
 
 ## Risks, confusions, and improvements
 
-- The container is the security boundary. Because the process intentionally runs as root inside it, file permissions are an integrity guard against normal harness writes, not a stronger containment mechanism than Docker.
+- Security and execution boundaries must be verified empirically with tools. File permissions and host isolation depend on the active environment; discover and record constraints in the environment map with evidence and confidence labels.
 - Network activity launched directly by unrestricted shell commands cannot be fully audited by the Python-level egress logger; harness HTTP/provider calls are logged.
-- No core patch is generated automatically. If an evidence-backed core improvement is needed, it must be saved as a reviewed proposal under `state/proposed_patches/` and applied by the human from the host.
+- Protected harness code cannot be modified directly. If an evidence-backed core improvement is needed, save a reviewed proposal under `state/proposed_patches/` for the human to apply.
 """
     explanation_path.parent.mkdir(parents=True, exist_ok=True)
     text = redactor.text(content) if hasattr(redactor, "text") else content

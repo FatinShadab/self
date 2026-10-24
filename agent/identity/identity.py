@@ -175,7 +175,7 @@ class IdentityStore:
         return core_reference(filename, needle, self.core_root)
 
     def _write_self_inquiry(self) -> None:
-        write_self_inquiry(self.inquiry_path, self.core_root, self.body, self.logger.redactor)
+        write_self_inquiry(self.inquiry_path, self.core_root, self.body, self.logger.redactor, self_root=self.self_root)
 
     def _write_code_explanation(self) -> None:
         write_code_explanation(self.explanation_path, self.core_root, self.self_root, self.logger.redactor)
@@ -200,13 +200,18 @@ class IdentityStore:
             orient_ctx = (
                 self.body.describe().identity_orientation_context
                 if self.body and hasattr(self.body, "describe") and self.body.describe().identity_orientation_context
-                else "running inside this Linux container."
+                else "operating with an environment to discover and verify."
             )
             op_env = (
                 self.body.describe().identity_operating_environment
                 if self.body and hasattr(self.body, "describe") and self.body.describe().identity_operating_environment
-                else "The container is my operating environment, not a biological body."
+                else "The operating environment is not a biological body."
             )
+            if self.body and hasattr(self.body, "sense"):
+                try:
+                    self.body.sense()
+                except Exception:
+                    pass
             message = (
                 f"A — Orientation: I am an LLM-driven agent {orient_ctx} "
                 "I have a standing exploration goal, no name yet, and no memory before the files created now. "

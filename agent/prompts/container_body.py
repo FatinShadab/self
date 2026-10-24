@@ -44,9 +44,13 @@ CONTAINER_IDENTITY_CONTEXT = (
     "Confirm environment boundaries and tools with evidence; the environment is not a biological body."
 )
 
-CONTAINER_IDENTITY_HARNESS_CONTEXT = "operating with an expected Linux container environment to verify."
+CONTAINER_IDENTITY_HARNESS_CONTEXT = (
+    "harness expected to execute within a Linux container; confirm with orientation probes."
+)
 
-CONTAINER_IDENTITY_ORIENTATION_CONTEXT = "operating with an expected Linux container environment to verify."
+CONTAINER_IDENTITY_ORIENTATION_CONTEXT = (
+    "expected to run within a Linux container to discover and verify."
+)
 
 CONTAINER_IDENTITY_OPERATING_ENVIRONMENT = (
     "This profile expects a Linux container; confirm with orientation probes and evidence."
@@ -60,6 +64,10 @@ CONTAINER_NOTES_PREAMBLE = (
     "I am SELF. This profile expects a Linux container; confirm with orientation probes. "
     "I explore my environment, retain verified discoveries, and only register reviewed, tested tools."
 )
+
+CONTAINER_TOOL_DESCRIPTIONS: dict[str, str] = {
+    "run_shell": "This profile expects a Linux container environment; verify with orientation probes.",
+}
 
 __all__ = [
     "CONTAINER_BODY_RULES",
@@ -75,5 +83,6 @@ __all__ = [
     "CONTAINER_NOTES_PREAMBLE",
     "CONTAINER_POST_CAPABILITY_RULES",
     "CONTAINER_PRE_CAPABILITY_RULES",
+    "CONTAINER_TOOL_DESCRIPTIONS",
     "DEFAULT_NOTES_PREAMBLE",
 ]

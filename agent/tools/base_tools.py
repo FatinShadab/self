@@ -13,6 +13,7 @@ from agent.tools.definitions import (
     HELPER_TOOL_NAMES,
     MODEL_TOOL_SPECS,
     TOOL_DEFINITIONS,
+    get_tool_definitions,
 )
 from agent.tools.dispatch import dispatch_tool
 from agent.tools.execution.authorization import (
@@ -380,6 +381,10 @@ class ToolRunner:
         """Return schema definitions for opencode delegation tools."""
         return get_opencode_tool_definitions()
 
+    def get_tool_definitions(self) -> list[dict[str, Any]]:
+        """Return tool definitions, optionally augmented by active body profile."""
+        return get_tool_definitions(self.body)
+
 
 __all__ = [
     "DEFAULT_OUTPUT_CAP",
@@ -389,4 +394,5 @@ __all__ = [
     "TOOL_PERMISSION_LEVELS",
     "ToolRunner",
     "_LoggingRedirectHandler",
+    "get_tool_definitions",
 ]

@@ -27,11 +27,11 @@ def build_sim_description(scenario: dict[str, Any]) -> BodyDescription:
     return BodyDescription(
         embodiment_text=desc.get(
             "embodiment_text",
-            "Your body is a deterministic simulated environment driven by scenario parameters.",
+            "This profile expects a deterministic simulated environment driven by scenario parameters; confirm with telemetry and probes.",
         ),
         embodiment_clause=desc.get(
             "embodiment_clause",
-            "operating inside a simulated environment.",
+            "operating with an expected simulated environment to verify.",
         ),
         default_interests=default_interests,
         initial_orientation_task=desc.get(
@@ -40,15 +40,15 @@ def build_sim_description(scenario: dict[str, Any]) -> BodyDescription:
         ),
         conversation_context=desc.get(
             "conversation_context",
-            "operating inside a simulated environment.",
+            "operating with an expected simulated environment to verify.",
         ),
         identity_context=desc.get(
             "identity_context",
-            "operating inside a deterministic simulated scenario.",
+            "operating with an expected deterministic simulated scenario.",
         ),
         notes_preamble=desc.get(
             "notes_preamble",
-            "I am SELF operating in a deterministic simulation scenario. I verify state observations and respect operating limits.",
+            "I am SELF operating in an expected simulation scenario. I verify state observations and respect operating limits.",
         ),
         body_rules=body_rules,
         pre_capability_rules=desc.get("pre_capability_rules", body_rules[:1]),

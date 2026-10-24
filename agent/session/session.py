@@ -211,4 +211,6 @@ class SessionStore:
 
 def default_plan() -> list[dict[str, Any]]:
     """Return the initial persistent plan."""
-    return [{"step": "Inspect current state and verify one environment fact.", "why": "Maintain an accurate model of the container.", "priority": 2, "status": "todo"}]
+    from agent.prompts.system import STANDING_GOAL
+
+    return [{"step": "Inspect current state and verify one environment fact.", "why": STANDING_GOAL, "priority": 2, "status": "todo"}]
