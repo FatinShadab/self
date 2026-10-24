@@ -96,11 +96,6 @@ class WakeCoordinator:
     ) -> None:
         self.workspace = Path(workspace)
         self.logger = EventLogger(self.workspace / "logs" / "actions.jsonl")
-        if body is None:
-            body = ContainerBody(
-                workspace=self.workspace,
-                logger=self.logger,
-            )
         self.body = body
         self.learning = LearningStore(self.workspace, self.logger, body=self.body)
         self.sessions = SessionStore(self.workspace, self.logger)
@@ -175,7 +170,8 @@ class WakeCoordinator:
             logger=self.logger,
             audit_trail=self.audit_trail,
         )
-        self.body.broker = self.broker
+        if self.body is not None:
+            self.body.broker = self.broker
         self.plugins.broker = self.broker
         self.stop_watcher = StopWatcher(
             workspace=self.workspace,

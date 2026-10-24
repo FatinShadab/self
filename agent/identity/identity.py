@@ -180,6 +180,12 @@ class IdentityStore:
     def _write_code_explanation(self) -> None:
         write_code_explanation(self.explanation_path, self.core_root, self.self_root, self.logger.redactor)
 
+    def _record_body_independent_orientation(self) -> None:
+        """Execute body-independent environment discovery orientation in Stage A."""
+        (self.workspace / "state").mkdir(parents=True, exist_ok=True)
+        self.logger.narrate("Orientation: No body profile configured; relying on tool-based environment discovery.")
+        self.logger.log("orientation_discovery_initiated", mode="environment_neutral")
+
     def _initialize_human_file(self) -> None:
         initialize_human_file(self.human_path)
 
@@ -212,6 +218,8 @@ class IdentityStore:
                     self.body.sense()
                 except Exception:
                     pass
+            else:
+                self._record_body_independent_orientation()
             message = (
                 f"A — Orientation: I am an LLM-driven agent {orient_ctx} "
                 "I have a standing exploration goal, no name yet, and no memory before the files created now. "

@@ -75,6 +75,9 @@ from agent.tools.handlers.system import (
 from agent.tools.permissions import DEFAULT_OUTPUT_CAP, TOOL_PERMISSION_LEVELS
 
 
+_DEFAULT_BODY = object()
+
+
 class ToolRunner:
     """Execute built-in tools subject to workspace and harness boundaries."""
 
@@ -381,9 +384,10 @@ class ToolRunner:
         """Return schema definitions for opencode delegation tools."""
         return get_opencode_tool_definitions()
 
-    def get_tool_definitions(self) -> list[dict[str, Any]]:
+    def get_tool_definitions(self, body: Any = _DEFAULT_BODY) -> list[dict[str, Any]]:
         """Return tool definitions, optionally augmented by active body profile."""
-        return get_tool_definitions(self.body)
+        target_body = self.body if body is _DEFAULT_BODY else body
+        return get_tool_definitions(target_body)
 
 
 __all__ = [

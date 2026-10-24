@@ -15,7 +15,7 @@ from agent.prompts.cycle import (
     build_cycle_user_message,
     build_mid_cycle_human_input_message,
 )
-from agent.prompts.system import STANDING_GOAL
+from agent.prompts.system import ORIENTATION_TASK, STANDING_GOAL
 from agent.runtime.config import RunSummary
 from agent.runtime.context_retrieval import WORD, retrieve_context
 from agent.runtime.tool_round import execute_tool_round
@@ -142,8 +142,15 @@ def run_agent_loop(loop: Any) -> RunSummary:
         loop.logger.narrate(f"Cycle {cycle}: retrieving relevant tools and memories for plan...")
         query = f"{plan_query}\nPrevious report: {last_report}"
         human_messages = loop.config.input_provider() if loop.config.input_provider else []
-        if cycle == 1 and loop.config.initial_context.strip():
-            human_messages = [loop.config.initial_context.strip(), *human_messages]
+        if cycle == 1:
+            init_task = loop.config.initial_context.strip()
+            if not init_task:
+                if loop.body and hasattr(loop.body, "initial_orientation_task") and loop.body.initial_orientation_task():
+                    init_task = loop.body.initial_orientation_task().strip()
+                else:
+                    init_task = ORIENTATION_TASK
+            if init_task:
+                human_messages = [init_task, *human_messages]
         human_context = "\n".join(f"- {loop.logger.redactor.text(message)}" for message in human_messages)
         if loop.config.retrieve_memories:
             legacy_context = retrieve_context(loop.config.workspace, query, loop.logger)
@@ -245,7 +252,7 @@ def run_agent_loop(loop: Any) -> RunSummary:
                 active_plugins=active_plugins_set,
             )
             base_defs = (
-                getattr(loop.tools, "get_tool_definitions", lambda: TOOL_DEFINITIONS)()
+                getattr(loop.tools, "get_tool_definitions", lambda *_: TOOL_DEFINITIONS)(loop.body)
                 if hasattr(loop, "tools")
                 else TOOL_DEFINITIONS
             )

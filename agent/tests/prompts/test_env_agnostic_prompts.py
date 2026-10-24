@@ -369,6 +369,111 @@ class TestEnvironmentAgnosticPrompts(unittest.TestCase):
             CORE_SYSTEM_PROMPT_HEAD,
         )
 
+    def test_cycle_1_trace_end_to_end_neutral_and_orientation_task(self) -> None:
+        """Trace cycle 1 end-to-end with config.body=None, asserting ORIENTATION_TASK and no forbidden tokens."""
+        from agent.runtime.loop import AgentConfig, AgentLoop
+        from agent.prompts.system import ORIENTATION_TASK
+        from agent.tools.base_tools import ToolRunner
+        from agent.tests.prompts.test_golden_characterization import CapturingFakeLLM
+
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            logger = EventLogger(workspace / "logs" / "actions.jsonl")
+            fake_llm = CapturingFakeLLM()
+            runner = ToolRunner(logger, workspace)
+
+            config = AgentConfig(
+                workspace=workspace,
+                max_iterations=1,
+                token_budget=10_000,
+                retrieve_memories=False,
+                body=None,
+            )
+            loop = AgentLoop(config, logger, fake_llm, runner)
+            summary = loop.run()
+
+            self.assertEqual(len(fake_llm.calls), 1)
+            c1_call = fake_llm.calls[0]
+            c1_user_msg = c1_call["messages"][0]["content"]
+            c1_sys_prompt = c1_call["system"]
+
+            # Assert cycle 1 user message contains ORIENTATION_TASK text
+            self.assertIn(ORIENTATION_TASK, c1_user_msg)
+
+            # Assert no forbidden tokens in either user message or system prompt
+            for token in FORBIDDEN_DEFAULT_TOKENS:
+                self.assertIsNone(
+                    re.search(token, c1_user_msg, re.IGNORECASE),
+                    f"Forbidden token pattern '{token}' found in cycle 1 user message: {c1_user_msg}",
+                )
+                self.assertIsNone(
+                    re.search(token, c1_sys_prompt, re.IGNORECASE),
+                    f"Forbidden token pattern '{token}' found in cycle 1 system prompt: {c1_sys_prompt}",
+                )
+            for tool_spec in c1_call.get("tools", []):
+                tool_desc = tool_spec.get("description", "")
+                for token in FORBIDDEN_DEFAULT_TOKENS:
+                    self.assertIsNone(
+                        re.search(token, tool_desc, re.IGNORECASE),
+                        f"Forbidden token pattern '{token}' found in tool '{tool_spec.get('name')}' description: {tool_desc}",
+                    )
+
+    def test_first_awakening_stage_a_neutral_without_body(self) -> None:
+        """Verify Stage A executes body-independent orientation without errors when body=None."""
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            logger = EventLogger(workspace / "logs" / "actions.jsonl")
+            identity_store = IdentityStore(workspace, logger, body=None)
+
+            messages = identity_store.run_first_awakening("test-sess-1")
+            self.assertEqual(len(messages), 5)
+            # Stage A message contains neutral orientation wording
+            self.assertIn("A — Orientation", messages[0])
+            self.assertIn("operating with an environment to discover and verify", messages[0])
+
+            # awaiting_name() is True before human sets a name
+            self.assertTrue(identity_store.awaiting_name())
+
+            # Verify awaiting_name does not block autonomous loop cycles
+            from agent.runtime.loop import AgentConfig, AgentLoop
+            from agent.tests.prompts.test_golden_characterization import CapturingFakeLLM
+            from agent.tools.base_tools import ToolRunner
+            fake_llm = CapturingFakeLLM()
+            runner = ToolRunner(logger, workspace)
+            config = AgentConfig(
+                workspace=workspace,
+                max_iterations=1,
+                token_budget=10_000,
+                retrieve_memories=False,
+                body=None,
+            )
+            loop = AgentLoop(config, logger, fake_llm, runner)
+            summary = loop.run()
+            self.assertEqual(summary.reason, "max_iterations")
+            self.assertEqual(summary.iterations, 1)
+
+            # Name can be set afterwards
+            identity_store.set_name("Atlas", "test-sess-1")
+            self.assertFalse(identity_store.awaiting_name())
+
+    def test_hardening_note_addresses_human_administrator(self) -> None:
+        """Verify hardening.py capability requests clearly address the human administrator."""
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            logger = EventLogger(workspace / "logs" / "actions.jsonl")
+            from agent.infra.hardening import CapabilityRequests
+            cap_requests = CapabilityRequests(workspace, logger)
+            cap_requests.request(
+                kind="credential",
+                summary="Need API key for model",
+                reason="Expanding inference capabilities",
+                provider="groq",
+                env_names=["GROQ_API_KEY"],
+            )
+            req_content = (workspace / "state" / "capability_requests.md").read_text(encoding="utf-8")
+            self.assertIn("human administrator", req_content.lower())
+            self.assertIn("notice for the human", req_content.lower())
+
 
 if __name__ == "__main__":
     unittest.main()

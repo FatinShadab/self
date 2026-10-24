@@ -37,8 +37,8 @@ class CapabilityRequests:
             f"- Provider/service: {provider or 'not specified'}",
             f"- Environment variable names: {', '.join(env_names or []) or 'none'}",
             f"- Official page: {signup_url or 'not specified'}",
-            "- Human action required: approve by editing host configuration or environment yourself, then restart or resume.",
-            "- SELF cannot create accounts, edit host configuration, open host ports, add mounts, send email, or make financial actions.", "",
+            "- Note for the human administrator (Human action required): Approve this request by editing host configuration or environment yourself, then restart or resume.",
+            "- Notice for the human: SELF cannot create accounts, edit host configuration, open host ports, add mounts, send email, or make financial actions.", "",
         ]
         with self.path.open("a", encoding="utf-8") as handle:
             handle.write("\n".join(lines))

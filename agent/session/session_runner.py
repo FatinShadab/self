@@ -7,6 +7,7 @@ from typing import Any
 from agent.infra.file_lock import locked_file
 from agent.llm.llm import LLMClient
 from agent.prompts.reflection import build_startup_eval_instructions
+from agent.prompts.system import ORIENTATION_TASK
 from agent.runtime.loop import AgentConfig, AgentLoop, STANDING_GOAL
 from agent.session.handoff_builder import _read_json
 from agent.session.plan_recovery import normalized_plan, visible_plan_items
@@ -56,14 +57,23 @@ def run_session(coordinator: Any) -> Any:
     package_value = package_entry.get("value")
     if package_value is None or package_value == "not yet inventoried":
         coordinator.logger.narrate("Startup priority: I will immediately inventory installed Python packages before broader exploration.")
-        package_instructions = coordinator.body.initial_orientation_task()
+        package_instructions = (
+            coordinator.body.initial_orientation_task()
+            if coordinator.body and hasattr(coordinator.body, "initial_orientation_task")
+            else ORIENTATION_TASK
+        )
         if startup_context:
             startup_context = f"{startup_context}\n\n{package_instructions}"
         else:
             startup_context = package_instructions
 
     checkpoint = _read_json(coordinator.workspace / "state" / "run_checkpoint.json")
-    initial_task_prefix = coordinator.body.initial_orientation_task()[:40]
+    initial_orientation = (
+        coordinator.body.initial_orientation_task()
+        if coordinator.body and hasattr(coordinator.body, "initial_orientation_task")
+        else ORIENTATION_TASK
+    )
+    initial_task_prefix = initial_orientation[:40]
     stale_startup_task = (
         (bool(initial_task_prefix) and str(checkpoint.get("task", "")).startswith(initial_task_prefix))
         or str(checkpoint.get("task", "")).startswith("Helper models needing evaluation")

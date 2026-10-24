@@ -21,10 +21,16 @@ def now_utc() -> str:
 
 def orientation_changes(body: Any) -> list[str]:
     """Query the body for sensor/environment changes since last session."""
-    sense_data = body.sense()
-    changes = sense_data.get("orientation_changes")
-    if isinstance(changes, list) and changes:
-        return changes
+    if body is None:
+        return ["no tracked workspace, tool, credential-presence, or uptime change"]
+    if hasattr(body, "sense"):
+        try:
+            sense_data = body.sense()
+            changes = sense_data.get("orientation_changes")
+            if isinstance(changes, list) and changes:
+                return changes
+        except Exception:
+            pass
     if hasattr(body, "orientation_changes"):
         return body.orientation_changes()
     return ["no tracked workspace, tool, credential-presence, or uptime change"]
