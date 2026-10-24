@@ -45,7 +45,9 @@ def enable_by_human(
     plugin_hash = compute_plugin_hash(plugin.plugin_dir)
     cfg = read_config(config_file)
     plugins_cfg = cfg.setdefault("plugins", {})
+    previous = plugins_cfg.get(name, {})
     plugins_cfg[name] = {
+        **(previous if isinstance(previous, dict) else {}),
         "enabled": True,
         "hash": plugin_hash,
         "enabled_at": datetime.now(timezone.utc).isoformat(),

@@ -20,13 +20,13 @@ SELF maintains two distinct, decoupled version tracks:
 - **Plugin API Specification (`1.1.0` in `VERSION` and `CORE_API_VERSION`):** Strict SemVer specification governing the public plugin interface, manifest schema, dynamic tool registration, lifecycle hooks, and custom slash commands. Plugins declare compatibility ranges against this specification (e.g. `core_api: ">=1.1.0,<2.0.0"`).
 
 ### What Has Been Verified
-- **Automated Offline Test Suites:** 337 collected harness test methods across all 12 Python packages (verified via `unittest` discovery in `agent/tests`). In container CI, 337 harness tests and 20 eval tests pass completely (357 total tests) without live network traffic or provider spend. On Windows host testing: 334 passed, 2 failures, 1 error due to Windows environment differences (subprocess pipe buffering before 0.2s timeout, file lock on temporary directory rmdir during active process cleanup, host vs container environment detection); container run: NOT RUN on current host (Docker daemon unavailable on Windows named pipe).
+- **Automated Offline Test Suites:** The repository includes harness and evaluation tests. The permission and plugin regression selection passed locally (37 tests). A full container test run has not been repeated for these changes.
 - **Deterministic Soak Suite:** Scenarios B1 through B10 run continuously for 60 to 200 cycles against a scripted provider and historical replay fixtures (`scripts/soak.ps1`), validating per-cycle invariants: daily token ledger accounting, bounded handoffs (≤ 6,000 characters), plan hygiene, header deduplication, and absence of tight spins.
-- **Static Documentation & Architecture Guards:** `scripts/check_architecture_docs.py` and `scripts/check_docs_claims.py` verify that all tool definitions (29 tools), events (135 events), state files (42 files), environment variables (44 vars), relative links, code symbols, and numerical claims match code ground truth.
+- **Static Documentation & Architecture Guards:** `scripts/check_architecture_docs.py` and `scripts/check_docs_claims.py` verify that all tool definitions (29 tools), events (140 events), state files (42 files), environment variables (44 vars), relative links, code symbols, and numerical claims match code ground truth.
 
 ### What Has NOT Been Verified
 - **No Live Multi-Cycle Run on Release Candidate 3:** No extended multi-cycle autonomous run has been executed or validated against live commercial LLM endpoints using the `core-v0.1.0-rc3` release candidate.
-- **Container Test Suite on Current Host:** Container run is NOT RUN on the local developer workstation because the Docker daemon is unreachable on the Windows named pipe.
+- **Container Test Suite on Current Host:** The updated Docker image built successfully, but its full test suite has not been run in the container.
 - **Unverified Provider Tiers:** Third-party provider free-tier quotas and rate limits remain unverified until verified by live research tools.
 
 ### Known Limitations
@@ -124,7 +124,7 @@ flowchart TD
 - **Memory & Notes:** Append-only episodic memory (`state/memory.jsonl`), verified environment facts (`state/map.json`), and bounded self-notes (`state/self_notes.md`).
 - **Handoff:** Bounded wake/sleep summary (`state/handoff.json` capped at 6,000 characters) and human-readable session diary (`state/journal.md`).
 - **Budgets & Stop Controls:** `DailyTokenLedger` enforcing `SELF_MAX_TOKENS_PER_DAY` with midnight UTC resets, coupled with immediate `/stop` command and `workspace/STOP` file honoring.
-- **Permission Broker:** Evaluates action requests against four hierarchical risk levels (`L0_OBSERVE` to `L3_ACTUATION`), defaulting to denying all actions above L0 unless granted in `config/permissions.json`.
+- **Permission Broker:** Evaluates action requests against four hierarchical risk levels (`L0_OBSERVE` to `L3_ACTUATION`). Built-in core actions have an L3 ceiling, while body `run_shell` and `write_file` have scoped L2 grants. Plugins default to L0 and can receive per-plugin ceilings in `config/plugins.json`.
 - **Audit Trail:** Append-only cryptographic log (`state/audit_trail.jsonl`) recording action authorizations and execution outcomes with SHA-256 hash chaining.
 
 ---
@@ -134,7 +134,7 @@ flowchart TD
 | Subsystem | Capabilities & Mechanisms |
 | :--- | :--- |
 | **Base Tools** | 29 built-in tools: `run_shell`, `read_file`, `write_file`, `list_dir`, `http_get`, `update_environment_map`, `read_plan`, `update_plan`, `create_tool`, model management tools (`list_models`, `probe_model`, `ask_model`, etc.), and 6 plugin self-dev tools. |
-| **Plugin System** | Modular specialization framework for bodies and skills. Includes static SDK CLI (`new`, `validate`, `list`, `check`), 15-field manifest schema (`plugin.json`), cycle-boundary hot plug/unplug, SHA-256 hash pinning via `config/plugins.json`, isolated state (`plugins/<name>/state/`), custom slash commands, and shipped `pet_companion` reference demo. |
+| **Plugin System** | Modular specialization framework for bodies and skills. Includes static SDK CLI (`new`, `validate`, `list`, `check`), 15-field manifest schema (`plugin.json`), cycle-boundary hot plug/unplug, SHA-256 hash pinning and L0–L3 permission ceilings via `config/plugins.json`, isolated state (`plugins/<name>/state/`), custom slash commands, and shipped `pet_companion` reference demo. |
 | **Self-Development** | 5-rung capability ladder (existing tools -> helper model -> create tool -> develop plugin -> request capability). Cost ledger (`state/cost_ledger.jsonl`) tracking token/time baselines. 10-field proposals (`propose_plugin`), isolated drafts (`workspace/plugin_dev/<name>`), static validation, sandboxed child testing, 5-factor critic reviews, and mandatory stop-loss review checkpoints at 25%, 50%, and 100% of estimate. |
 | **Reporting & Telemetry** | Session activity reports (`python -m agent.report`), 30-cycle execution trace analysis (`agent.reporting.run_analysis`), live diagnostic health checks (`scripts/live-check.ps1`), deterministic soak simulation (`scripts/soak.ps1`), and pre-live soak invariant gate (`scripts/live-soak-gate.ps1`). |
 
@@ -143,8 +143,8 @@ flowchart TD
 ## Safety Model
 
 1. **Container Security Boundary:** The primary security boundary is the Docker container. By default, the only host paths mounted are `./workspace` (at `/home/entity`) and `./config` (read-only at `/config`). The host filesystem, Docker socket, and evaluation harness are inaccessible.
-2. **Human Control Supremacy:** Hard stop controls (`/stop`, `/pause`, `/resume`, `workspace/STOP`, SIGINT/SIGTERM) bypass autonomous cycles and immediately halt actuation. Plugin promotions, enablement, and permission grants require host-side human file edits.
-3. **Permission Broker & Hash Pinning:** Actions with external or irreversible side-effects (L1–L3) are denied by default unless granted by human operators in `config/permissions.json`. Plugin directories are verified against SHA-256 digests pinned in `config/plugins.json`.
+2. **Human Control Supremacy:** Hard stop controls (`/stop`, `/pause`, `/resume`, `workspace/STOP`, SIGINT/SIGTERM) bypass autonomous cycles and immediately halt actuation. The running container cannot edit its host-mounted `config`; operators change plugin enablement and permission ceilings on the host.
+3. **Permission Broker & Hash Pinning:** Core actions have an L3 ceiling by default. Body `run_shell` and `write_file` have scoped L2 grants; shell commands run as container root and can modify the mounted workspace. Plugin actions above L0 require an explicit per-plugin ceiling in the host-owned `config/plugins.json` or an existing grant in `config/permissions.json`. Plugin directories are verified against SHA-256 digests pinned in `config/plugins.json`.
 4. **Token Ceilings & Stop-Loss:** Spend is constrained by `DailyTokenLedger` tracking against `SELF_MAX_TOKENS_PER_DAY`. In plugin development, spend reaching 25%, 50%, or 100% of upper bounds blocks draft modifications until an explicit plan decision is recorded.
 5. **Limits of Static Validation:** Static AST checkers (`validate_plugin`) identify obvious syntax and manifest defects, but cannot guarantee absence of malicious dynamic behavior. Hard security relies on downstream human review, permission enforcement, and container isolation.
 6. **Secrets Handling:** Known credentials and tokens are redacted before event logging and stripped from child process environments. API keys are never stored in workspace state or logs.
@@ -181,9 +181,9 @@ self/
 
 ### Suites and Verified Counts
 The codebase contains two isolated test suites:
-- **Agent Harness Suite (`agent/tests/`):** 337 unit and integration tests covering all 12 harness packages, ContainerBody, SimBody, soak scenarios, and documentation guards.
+- **Agent Harness Suite (`agent/tests/`):** 353 collected tests covering all 12 harness packages, ContainerBody, SimBody, soak scenarios, and documentation guards.
 - **Hidden Eval Suite (`eval/tests/`):** 20 tests verifying evaluation harness mechanics, scenario scoring, and strict container isolation.
-- **Total Test Count:** 357 tests.
+- **Total Test Count:** 373 collected tests.
 
 ### Deterministic Soak Testing
 The soak suite (`scripts/soak.ps1`) runs multi-cycle executions against a deterministic `ScriptedProvider` or historical replay fixture. It validates that state invariants (token budget accounting, bounded handoffs, plan hygiene, and spin-free daily pauses) hold across dozens of cycles. **What it does not prove:** Soak testing validates deterministic software invariants; it does not prove LLM reasoning quality or live API provider reliability.

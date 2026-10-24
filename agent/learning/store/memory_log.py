@@ -86,7 +86,16 @@ def retrieve_memory_excerpt(
         if score:
             ranked.append((score, index, entry))
     ranked.sort(key=lambda item: (item[0], item[1]), reverse=True)
-    selected = [entry for _, _, entry in ranked[:max(0, limit)]]
+    selected: list[dict[str, Any]] = []
+    seen: set[tuple[str, str, str]] = set()
+    for _, _, entry in ranked:
+        if len(selected) >= max(0, limit):
+            break
+        key = tuple(str(entry.get(field, "")) for field in ("what_was_tried", "outcome", "lesson"))
+        if key in seen:
+            continue
+        seen.add(key)
+        selected.append(entry)
     logger.log("memory_retrieval", query=query[:500], selected=len(selected), total=len(entries))
     if not selected:
         return "No closely related persistent memories yet."

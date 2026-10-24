@@ -28,6 +28,7 @@ def build_system_prompt_for_cycle(
     plugins: Any,
     helper_mode: bool,
     identity_context_provider: Callable[[], str] | None = None,
+    opencode_status: dict[str, Any] | None = None,
 ) -> str:
     """Load fresh identity, model context, and plugin embodiment into the cycle system prompt."""
     active_plugins_set = set(plugins.active_plugins.keys()) if plugins else set()
@@ -75,7 +76,15 @@ def build_system_prompt_for_cycle(
         if plugin_embodiment_text
         else ""
     )
-    opencode_context = f"\n\n{OPENCODE_CAPABILITY_PROMPT}"
+    if opencode_status is not None and not opencode_status.get("usable", False):
+        reason = logger.redactor.text(str(opencode_status.get("reason") or "no usable provider"))[:240]
+        opencode_context = (
+            "\n\n## Optional coding agent\n"
+            f"Opencode is currently unavailable ({reason}). Continue with available tools. "
+            "Do not spend cycles retrying delegation until availability changes."
+        )
+    else:
+        opencode_context = f"\n\n{OPENCODE_CAPABILITY_PROMPT}"
 
     return assemble_loop_system_prompt(
         system_prompt=system_prompt,

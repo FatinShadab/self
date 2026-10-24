@@ -16,13 +16,13 @@ def check_is_stopped(
     logger: EventLogger,
 ) -> bool:
     """Check whether any graceful stop condition is triggered."""
-    if watcher is not None and watcher.is_stopped():
-        logger.narrate("Stop requested via watcher; halting cleanly.")
-        logger.log("run_stopped", reason="stop_watcher")
-        return True
     if broker is not None and getattr(broker, "in_panic", False):
         logger.narrate("Permission broker panic detected; halting cleanly.")
         logger.log("run_stopped", reason="broker_panic")
+        return True
+    if watcher is not None and watcher.is_stopped():
+        logger.narrate("Stop requested via watcher; halting cleanly.")
+        logger.log("run_stopped", reason="stop_watcher")
         return True
     if stop_file.exists():
         logger.narrate("STOP file detected; halting cleanly.")

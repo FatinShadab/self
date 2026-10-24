@@ -38,6 +38,24 @@ class LearningStoreTests(unittest.TestCase):
             self.assertIn("Disk statistics", result)
             self.assertNotIn("Package inventory", result)
 
+    def test_retrieval_deduplicates_repeated_status_memories(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            logger = EventLogger(root / "logs" / "actions.jsonl")
+            store = LearningStore(root, logger)
+            store.initialize()
+            for _ in range(4):
+                store.append_memory(
+                    "wake-up opencode status check", "Opencode is unavailable.",
+                    "Opencode status noted at wake-up", ["startup", "opencode"],
+                )
+            store.append_memory("Inspect local files", "Found project files.", "Continue locally", ["local"])
+
+            result = store.retrieve_memories("opencode local", limit=4)
+
+            self.assertEqual(result.count("Opencode is unavailable."), 1)
+            self.assertIn("Found project files.", result)
+
     def test_map_entries_have_confidence_and_verification_time(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

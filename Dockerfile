@@ -48,7 +48,7 @@ COPY plugins/_template /opt/agent/plugins/_template/
 # Opencode installer: copy scripts and run --build (non-strict by default so
 # the image still builds if the download fails or we are offline).
 COPY scripts/opencode/ /opt/scripts/opencode/
-RUN python /opt/scripts/opencode/install_opencode.py --build \
+RUN timeout --signal=TERM --kill-after=5s 90s python /opt/scripts/opencode/install_opencode.py --build \
     || echo "[opencode] Build-time install failed (non-strict); will retry at startup."
 
 # Keep the full package tree image-owned and read-only.  The legacy core

@@ -1,11 +1,16 @@
 {
   "default_level": "L0",
   "grants": {
-    "core": "L0",
+    "core": "L3",
     "body": "L0",
     "tools": "L0"
   },
-  "action_grants": {},
+  "action_grants": {
+    "core:update_plan": "L3",
+    "core:update_environment_map": "L3",
+    "body:run_shell": "L2",
+    "body:write_file": "L2"
+  },
   "rate_limits": {
     "default": {
       "max_actions": 120,

@@ -128,6 +128,16 @@ class StopWatcher:
         if self.logger:
             self.logger.log("stop_watcher_panic_triggered", reason=reason)
 
+    def reset_stop(self) -> bool:
+        """Clear a prior hard stop only after its file and broker panic are cleared."""
+        if self.stop_file.exists() or (self.broker is not None and self.broker.in_panic):
+            return False
+        self._stop_event.clear()
+        self._emergency_stop_called = False
+        if self.logger:
+            self.logger.log("stop_watcher_reset")
+        return True
+
     def pause(self) -> None:
         """Pause execution."""
         self._pause_event.set()

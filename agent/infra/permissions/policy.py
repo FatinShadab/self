@@ -15,10 +15,40 @@ class PermissionPolicy:
         self.default_level: PermissionLevel = PermissionLevel.L0
         self.grants: dict[str, PermissionLevel] = {}
         self.action_grants: dict[str, PermissionLevel] = {}
+        self.plugin_grants: dict[str, PermissionLevel] = {}
         self.rate_limits: dict[str, RateLimitConfig] = {}
         self.config_path: Path | None = Path(config_file) if config_file else None
         if self.config_path and self.config_path.exists():
             self.load(self.config_path)
+            plugin_config = self.config_path.parent / "plugins.json"
+            if plugin_config.exists():
+                try:
+                    self.set_plugin_grants_from_config(json.loads(plugin_config.read_text(encoding="utf-8")))
+                except (OSError, json.JSONDecodeError):
+                    pass
+
+    def set_plugin_grants_from_config(self, config: dict) -> None:
+        """Apply host-configured plugin ceilings; unpinned plugins stay at L0."""
+        self.plugin_grants.clear()
+        entries = config.get("plugins", {}) if isinstance(config, dict) else {}
+        if not isinstance(entries, dict):
+            return
+        for name, entry in entries.items():
+            if not isinstance(name, str) or not isinstance(entry, dict):
+                continue
+            if "permission_level" not in entry:
+                continue
+            level = str(entry["permission_level"]).upper()
+            if level not in {"L0", "L1", "L2", "L3"}:
+                continue
+            pinned_hash = entry.get("hash", "")
+            pinned = (
+                isinstance(pinned_hash, str)
+                and len(pinned_hash) == 64
+                and all(c in "0123456789abcdef" for c in pinned_hash.lower())
+            )
+            allowed = PermissionLevel.from_value(level) if entry.get("enabled") and pinned else PermissionLevel.L0
+            self.plugin_grants[f"plugins.{name}"] = allowed
 
     def load(self, path: Path) -> None:
         """Load policy definitions from JSON file."""
@@ -65,6 +95,8 @@ class PermissionPolicy:
 
     def max_allowed_level(self, source: str, action: str) -> PermissionLevel:
         """Resolve highest allowed level for a given source and action."""
+        if source in self.plugin_grants:
+            return self.plugin_grants[source]
         scoped = f"{source}:{action}"
         if scoped in self.action_grants:
             return self.action_grants[scoped]

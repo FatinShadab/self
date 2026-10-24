@@ -18,11 +18,11 @@ The plugin lifecycle progresses through distinct stages:
 2. **Validation:**
    Static verification of manifest schema, version ranges, tool namespacing, permissions, and test folder presence via `python -m agent.plugins validate`.
 
-3. **Approval & Hash Pinning:**
-   Human operator enables the plugin by updating `/config/plugins.json` (or via `/plugins enable <name>`). The core computes a deterministic SHA-256 hash of the plugin directory and pins it in configuration.
+3. **Approval, Hash Pinning, and Permission Ceiling:**
+   The operator enables the plugin with a pinned SHA-256 hash in host-owned `config/plugins.json` and optionally sets `permission_level` (L0–L3). `/plugins enable <name>` can write the pin only where config is writable; the default Docker Compose mount is read-only inside the container.
 
 4. **Activation (Cycle Boundary Synchronization):**
-   Plugins are enabled or disabled exclusively at autonomous cycle boundaries—never mid-cycle.
+   Plugins are enabled or disabled exclusively at autonomous cycle boundaries—never mid-cycle. Changes to a plugin's permission ceiling are also applied at cycle boundaries.
 
 5. **Deactivation (Disable / Unplug):**
    When disabled by the operator, the plugin's tools and sensors are removed from the active loop. Any plan goals tagged with the plugin are marked `"suspended: plugin disabled"`.
@@ -54,10 +54,7 @@ When legitimate changes are made to a plugin (such as editing its manifest, upda
    ```bash
    python -m agent.plugins validate plugins/<name>
    ```
-2. Re-enable the plugin to recompute and update its pinned hash:
-   - Via TUI slash command: `/plugins enable <name>`
-   - Or programmatically via `PluginManager.enable_by_human("<name>")`
-   - Or by updating `/config/plugins.json` with the new SHA-256 hash output by `python -m agent.plugins list`.
+2. Re-pin the approved plugin hash in host-owned `config/plugins.json`. Where config is writable, `/plugins enable <name>` or `PluginManager.enable_by_human("<name>")` can recompute and write the pin. The default container cannot write `/config`.
 
 ---
 

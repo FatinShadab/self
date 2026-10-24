@@ -109,18 +109,34 @@ def build_cycle_user_message(
     plugin_projects_section: str,
     human_context: str,
     failure_context: str,
+    plan_updates_available: bool = True,
+    map_updates_available: bool = True,
+    opencode_status: str = "",
 ) -> str:
     """Build the user message starting a loop exploration cycle."""
     human_inputs_display = human_context or "None."
+    plan_review = (
+        "Review your plan against previous cycle results. You must either update the plan "
+        "(using update_plan to add, edit, drop, reorder, or mark done with a reason citing evidence) "
+        "or state why no change is needed in your response."
+        if plan_updates_available else
+        "Plan updates are blocked by the current permission policy. Do not claim to have changed goals. "
+        "State any proposed goal changes in your report so the human can review them."
+    )
+    map_review = (
+        "" if map_updates_available else
+        "Environment-map updates are blocked by the current permission policy. "
+        "Do not repeatedly verify the same fact or claim it was saved.\n\n"
+    )
+    optional_coding = f"Optional coding agent: {opencode_status}\n\n" if opencode_status else ""
     return (
         f"Begin exploration cycle {cycle}.\n\n"
         f"{helper_prompt}"
         f"Active autonomous plan (version {plan_version}):\n{plan_summary}\n\n"
         f"Primary focus for this cycle: {primary_goal}\n\n"
-        "Plan review requirement:\n"
-        "Review your plan against previous cycle results. You must either update the plan "
-        "(using update_plan to add, edit, drop, reorder, or mark done with a reason citing evidence) "
-        "or state why no change is needed in your response.\n\n"
+        f"Plan review requirement:\n{plan_review}\n\n"
+        f"{map_review}"
+        f"{optional_coding}"
         f"Previous cycle results:\n- Report: {last_report}\n- Actions: {actions_summary}\n\n"
         f"Relevant tools and memories:\n{context}\n\n"
         f"{plugin_section}"

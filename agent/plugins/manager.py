@@ -255,6 +255,8 @@ class PluginManager:
         """
         self.discover()
         cfg = self.read_config()
+        if self.broker is not None:
+            self.broker.policy.set_plugin_grants_from_config(cfg)
         ps = plan_store if plan_store is not None else getattr(self, "plan_store", None)
         ls = learning_store if learning_store is not None else getattr(self, "learning_store", None)
         sync.sync_plugins_at_cycle_boundary(

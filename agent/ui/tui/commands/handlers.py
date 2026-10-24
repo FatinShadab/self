@@ -131,6 +131,8 @@ class LifecycleCommandHandler:
                 return True
             stop_path = coordinator.workspace / "STOP"
             try:
+                if coordinator.broker is not None:
+                    coordinator.broker.reset_panic()
                 if stop_path.exists():
                     stop_path.unlink()
                 request_path = coordinator.workspace / "HUMAN_REQUEST.md"
@@ -143,6 +145,9 @@ class LifecycleCommandHandler:
                         )
             except OSError as exc:
                 app._command_response(f"I could not remove STOP: {type(exc).__name__}.", "error")
+                return True
+            if coordinator.stop_watcher is not None and not coordinator.stop_watcher.reset_stop():
+                app._command_response("I could not clear the stop condition; check STOP and the permission broker.", "error")
                 return True
             coordinator.stop_requested = False
             coordinator.resume()

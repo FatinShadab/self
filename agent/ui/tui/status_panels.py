@@ -27,14 +27,16 @@ def build_activity_panel(telemetry: dict[str, Any]) -> str:
     )
 
 
-def build_session_panel(coordinator: Any, active_provider: str, active_model: str) -> str:
+def build_session_panel(coordinator: Any, active_provider: str, active_model: str, active_cycle: int = 0) -> str:
     """Format the Session panel text."""
     uptime = int(time.monotonic() - coordinator.status.started_monotonic)
     since_human = int(time.monotonic() - coordinator.status.last_human_input)
+    cycle_line = f"Cycle: {active_cycle} (running)\n" if active_cycle else ""
     return (
         "[b]Session[/b]\n"
         f"ID: {escape_rich_markup(coordinator.status.session_id[:12] or 'starting')}\n"
-        f"Iteration: {escape_rich_markup(coordinator.status.iteration)}\n"
+        f"{cycle_line}"
+        f"Completed cycles: {escape_rich_markup(coordinator.status.iteration)}\n"
         f"Model: {escape_rich_markup(active_provider)}/{escape_rich_markup(active_model)}\n"
         f"Tools: {len(coordinator._tool_list())}\n"
         f"Uptime: {uptime}s\n"
@@ -123,12 +125,12 @@ def refresh_all_status_panels(app: Any, coordinator: Any) -> None:
 
     goals_list = coordinator.plan_store.items or coordinator.plan
     current_activity = " ".join(str(telemetry.get("current_activity", "")).split())[:220]
-    current_cycle = coordinator.status.iteration or 1
+    current_cycle = telemetry["active_cycle"] or coordinator.status.iteration or 1
     plan_panel = format_goals_panel(goals_list, current_activity=current_activity, current_cycle=current_cycle)
 
     identity_panel = build_identity_panel(coordinator)
     activity_panel = build_activity_panel(telemetry)
-    session_panel = build_session_panel(coordinator, active_provider, active_model)
+    session_panel = build_session_panel(coordinator, active_provider, active_model, telemetry["active_cycle"])
     usage_panel = build_usage_panel(coordinator, telemetry, calls, model_calls)
     container_panel = build_container_panel(app._container_metrics)
 

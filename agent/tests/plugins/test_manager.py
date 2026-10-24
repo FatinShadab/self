@@ -8,6 +8,7 @@ import unittest
 from pathlib import Path
 
 from agent.infra.event_log import EventLogger
+from agent.infra.permission_broker import PermissionBroker, PermissionLevel
 from agent.plugins.manager import PluginManager, compute_plugin_hash
 
 
@@ -40,6 +41,7 @@ class PluginManagerTests(unittest.TestCase):
         self.assertEqual(len(hello.manifest.tools), 1)
 
     def test_enable_and_disable_by_human_records_in_config(self) -> None:
+        self.manager.write_config({"plugins": {"hello": {"permission_level": "L2"}}})
         res = self.manager.enable_by_human("hello")
         self.assertTrue(res["enabled"])
         self.assertTrue(len(res["hash"]) == 64)
@@ -49,6 +51,7 @@ class PluginManagerTests(unittest.TestCase):
         self.assertIn("hello", cfg["plugins"])
         self.assertTrue(cfg["plugins"]["hello"]["enabled"])
         self.assertEqual(cfg["plugins"]["hello"]["hash"], res["hash"])
+        self.assertEqual(cfg["plugins"]["hello"]["permission_level"], "L2")
 
         # Sync at boundary enables it
         self.manager.sync_at_cycle_boundary()
@@ -68,6 +71,20 @@ class PluginManagerTests(unittest.TestCase):
         # Sync at boundary disables it
         self.manager.sync_at_cycle_boundary()
         self.assertNotIn("hello", self.manager.active_plugins)
+
+    def test_plugin_permission_ceiling_refreshes_at_cycle_boundary(self) -> None:
+        self.manager.write_config({"plugins": {"hello": {"permission_level": "L2"}}})
+        self.manager.enable_by_human("hello")
+        broker = PermissionBroker(policy_path=self.config_dir / "permissions.json")
+        self.manager.broker = broker
+        self.manager.sync_at_cycle_boundary()
+        self.assertEqual(broker.policy.max_allowed_level("plugins.hello", "hello.ping"), PermissionLevel.L2)
+
+        config = self.manager.read_config()
+        config["plugins"]["hello"]["permission_level"] = "L1"
+        self.manager.write_config(config)
+        self.manager.sync_at_cycle_boundary()
+        self.assertEqual(broker.policy.max_allowed_level("plugins.hello", "hello.ping"), PermissionLevel.L1)
 
     def test_core_tool_collision_rejected(self) -> None:
         # Create a workspace plugin that attempts to define a tool named 'run_shell'

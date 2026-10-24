@@ -4,6 +4,7 @@ from __future__ import annotations
 import json
 import time
 import uuid
+from difflib import SequenceMatcher
 from typing import Any
 
 from agent.infra.untrusted import wrap_untrusted
@@ -19,7 +20,11 @@ from agent.runtime.config import RunSummary
 from agent.runtime.context_retrieval import WORD, retrieve_context
 from agent.runtime.tool_round import execute_tool_round
 from agent.tools.base_tools import HELPER_TOOL_NAMES, TOOL_DEFINITIONS
+from agent.tools.execution.authorization import offered_authorized_tools
 from agent.tools.tool_registry import CREATE_TOOL_DEFINITION
+
+
+CHAT_PROGRESS_INTERVAL_SECONDS = 60
 
 
 def run_agent_loop(loop: Any) -> RunSummary:
@@ -67,6 +72,8 @@ def run_agent_loop(loop: Any) -> RunSummary:
     ask_model_followed = False
     tool_error_count = 0
     provider_error_count = 0
+    repeated_report_count = 0
+    previous_goal = ""
     if loop.model_decisions is not None:
         loop.model_decisions.start_task(task_id)
 
@@ -113,6 +120,24 @@ def run_agent_loop(loop: Any) -> RunSummary:
         active_plugins_set = set(loop.plugins.active_plugins.keys()) if loop.plugins else set()
         top_items = loop.plan_store.top_items(limit=3, active_plugins=active_plugins_set)
         primary_goal = top_items[0]["goal"] if top_items else (active_task or STANDING_GOAL)
+        writable_tools = offered_authorized_tools(
+            [{"name": "update_plan"}, {"name": "update_environment_map"}],
+            loop.broker,
+            loop.plugins,
+        )
+        writable_names = {tool["name"] for tool in writable_tools}
+        try:
+            loop._opencode_status = loop.tools.opencode_status()
+        except Exception as exc:
+            loop.logger.log("opencode_status_failed", error_type=type(exc).__name__)
+            loop._opencode_status = {"usable": False, "reason": "status check failed"}
+        opencode_usable = bool(loop._opencode_status.get("usable", False))
+        opencode_note = "" if opencode_usable else (
+            f"unavailable ({str(loop._opencode_status.get('reason') or 'no usable provider')[:160]}); "
+            "continue with available tools and do not retry delegation this cycle."
+        )
+        loop.logger.log("cycle_started", cycle=cycle, goal=primary_goal)
+        last_progress_at = time.monotonic()
         plan_query = loop.plan_store.retrieval_query()
         loop.logger.narrate(f"Cycle {cycle}: retrieving relevant tools and memories for plan...")
         query = f"{plan_query}\nPrevious report: {last_report}"
@@ -172,6 +197,9 @@ def run_agent_loop(loop: Any) -> RunSummary:
                     plugin_projects_section=plugin_projects_section,
                     human_context=human_context,
                     failure_context=failure_context,
+                    plan_updates_available="update_plan" in writable_names,
+                    map_updates_available="update_environment_map" in writable_names,
+                    opencode_status=opencode_note,
                 ),
             }
         ]
@@ -223,8 +251,15 @@ def run_agent_loop(loop: Any) -> RunSummary:
                 and (loop.helper_mode or tool["name"] not in HELPER_TOOL_NAMES)
             ]
             plugin_tools = loop.plugins.get_active_tool_definitions() if loop.plugins else []
-            opencode_tools = getattr(loop.tools, "get_opencode_tool_definitions", lambda: [])()
-            definitions = base + [CREATE_TOOL_DEFINITION] + selected + plugin_tools + opencode_tools
+            opencode_tools = (
+                getattr(loop.tools, "get_opencode_tool_definitions", lambda: [])()
+                if opencode_usable else []
+            )
+            definitions = offered_authorized_tools(
+                base + [CREATE_TOOL_DEFINITION] + selected + plugin_tools + opencode_tools,
+                loop.broker,
+                loop.plugins,
+            )
             try:
                 result = loop.llm.call(
                     system=loop._system_prompt(),
@@ -268,6 +303,15 @@ def run_agent_loop(loop: Any) -> RunSummary:
             if asked:
                 ask_model_followed = True
 
+            if time.monotonic() - last_progress_at >= CHAT_PROGRESS_INTERVAL_SECONDS:
+                loop.logger.log(
+                    "cycle_progress",
+                    cycle=cycle,
+                    actions=len(cycle_actions),
+                    goal=primary_goal,
+                )
+                last_progress_at = time.monotonic()
+
             if stop_reason is not None:
                 reason = stop_reason
                 break
@@ -292,7 +336,21 @@ def run_agent_loop(loop: Any) -> RunSummary:
         }:
             break
         completed_iterations += 1
-        last_report = cycle_report or "Cycle completed without a textual report."
+        next_report = cycle_report or "Cycle completed without a textual report."
+        if (
+            cycle > 1
+            and primary_goal == previous_goal
+            and "update_plan" not in writable_names
+            and "update_environment_map" not in writable_names
+            and SequenceMatcher(
+                None, next_report[:500].strip().lower(), last_report[:500].strip().lower(),
+            ).ratio() >= 0.95
+        ):
+            repeated_report_count += 1
+        else:
+            repeated_report_count = 0
+        previous_goal = primary_goal
+        last_report = next_report
         loop.logger.log(
             "cycle_completed",
             cycle=cycle,
@@ -301,11 +359,14 @@ def run_agent_loop(loop: Any) -> RunSummary:
             actions=cycle_actions,
         )
         if loop.plan_store.plan_version == plan_version_before:
-            unchanged_reason = (
-                cycle_report[:300]
-                if cycle_report and cycle_report != "Cycle completed without a textual report."
-                else f"Plan remains valid; continuing progress on primary goal: {primary_goal}"
-            )
+            if "update_plan" not in writable_names:
+                unchanged_reason = "The permission policy blocked agent plan updates this cycle."
+            else:
+                unchanged_reason = (
+                    cycle_report[:300]
+                    if cycle_report and cycle_report != "Cycle completed without a textual report."
+                    else f"Plan remains valid; continuing progress on primary goal: {primary_goal}"
+                )
             loop.plan_store.record_unchanged(
                 cycle=cycle,
                 reason=unchanged_reason,
@@ -327,6 +388,15 @@ def run_agent_loop(loop: Any) -> RunSummary:
         if loop.human_request.exists():
             loop.logger.narrate("A human request was created; pausing further cycles.")
             reason = "human_request_pending"
+            break
+
+        if repeated_report_count >= 2:
+            loop.logger.log("run_no_progress", cycle=cycle, goal=primary_goal)
+            loop.logger.narrate(
+                "I am repeating the same result while plan and environment-map updates are blocked. "
+                "I am pausing this run until the available permissions or goal changes."
+            )
+            reason = "no_progress"
             break
 
         cycle += 1

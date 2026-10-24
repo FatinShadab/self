@@ -57,6 +57,18 @@ def handle_session_event(
         diff = str(record.get("diff", "")).strip()
         if diff:
             activity = f"goal: {diff}"
+    elif event == "cycle_started":
+        goal = str(record.get("goal", "")).strip()
+        message = f"Cycle {record.get('cycle', '?')} started."
+        if goal:
+            message += f"\nGoal: {goal[:240]}"
+        if coordinator.on_chat and not coordinator.stop_requested and not (coordinator.workspace / "STOP").exists():
+            coordinator.on_chat(message, "progress")
+    elif event == "cycle_progress":
+        actions = int(record.get("actions", 0) or 0)
+        message = f"Cycle {record.get('cycle', '?')} is still running. {actions} tool action(s) completed."
+        if coordinator.on_chat and not coordinator.stop_requested and not (coordinator.workspace / "STOP").exists():
+            coordinator.on_chat(message, "progress")
     elif event == "cycle_completed":
         with coordinator.lock:
             coordinator.plan_store.load()

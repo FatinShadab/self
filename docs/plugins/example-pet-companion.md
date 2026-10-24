@@ -218,20 +218,23 @@ When the agent attempts to call `pet_companion.release_pet`:
 ```
 The core logs an `action_denied` event. The simulation is unaffected.
 
-### Human Grant Flow
+### Host Permission Grant
 
-To permit releasing the pet, the human grants `L2` permissions in `config/permissions.json`:
+To permit releasing the pet, set `permission_level` to `L2` in its enabled, hash-pinned `config/plugins.json` entry:
 
 ```json
 {
-  "default_level": "L0",
-  "grants": {
-    "plugins.pet_companion": "L2"
+  "plugins": {
+    "pet_companion": {
+      "enabled": true,
+      "hash": "<sha256_hash_from_list>",
+      "permission_level": "L2"
+    }
   }
 }
 ```
 
-With this policy active, calling `pet_companion.release_pet` succeeds:
+Replace the hash placeholder with the actual 64-character pin. At the next cycle boundary, the plugin ceiling updates. With this policy active, calling `pet_companion.release_pet` succeeds:
 ```json
 {
   "ok": true,

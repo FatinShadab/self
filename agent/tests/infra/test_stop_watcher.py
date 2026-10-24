@@ -5,11 +5,14 @@ import tempfile
 import time
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
+from unittest.mock import Mock
 
 from agent.infra.event_log import EventLogger
 from agent.infra.permission_broker import ActionRequest, PermissionBroker, PermissionLevel
 from agent.infra.stop_watcher import StopWatcher
+from agent.ui.tui.commands.handlers import LifecycleCommandHandler
 
 
 class MockBody:
@@ -75,6 +78,37 @@ class TestStopWatcher(unittest.TestCase):
         self.assertTrue(watcher.is_stopped())
         self.assertTrue((self.workspace / "STOP").exists())
         self.assertTrue(body.emergency_stop_called)
+
+    def test_restart_clears_prior_stop_and_rearms_emergency_stop(self) -> None:
+        body = MockBody()
+        broker = PermissionBroker(workspace=self.workspace, logger=self.logger)
+        watcher = StopWatcher(workspace=self.workspace, body=body, broker=broker, logger=self.logger, install_signals=False)
+        watcher.request_stop("unit_test")
+        self.assertFalse(watcher.reset_stop())
+        (self.workspace / "STOP").unlink()
+        self.assertTrue(watcher.reset_stop())
+        self.assertFalse(watcher.is_stopped())
+        watcher.request_stop("again")
+        self.assertEqual(body.emergency_stop_count, 2)
+
+    def test_tui_restart_resets_broker_and_watcher(self) -> None:
+        broker = PermissionBroker(workspace=self.workspace, logger=self.logger, max_consecutive_denials=1)
+        watcher = StopWatcher(workspace=self.workspace, broker=broker, logger=self.logger, install_signals=False)
+        broker.authorize(ActionRequest(action="blocked", level=PermissionLevel.L2))
+        watcher.trigger_panic("test")
+        coordinator = SimpleNamespace(
+            workspace=self.workspace,
+            broker=broker,
+            stop_watcher=watcher,
+            stop_requested=True,
+            resume=Mock(),
+        )
+        app = Mock(_agent_running=False)
+        self.assertTrue(LifecycleCommandHandler().handle(app, coordinator, "/restart"))
+        self.assertFalse(broker.in_panic)
+        self.assertFalse(watcher.is_stopped())
+        self.assertFalse(coordinator.stop_requested)
+        app._start_agent.assert_called_once()
 
     def test_pause_and_resume(self) -> None:
         watcher = StopWatcher(

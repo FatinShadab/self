@@ -1,13 +1,16 @@
 """SELF test loop module."""
 from __future__ import annotations
 
+import json
 import tempfile
 import unittest
 from pathlib import Path
+from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
 from agent.infra.hardening import DailyTokenLedger
+from agent.infra.permission_broker import PermissionBroker
 from agent.tools.base_tools import ToolRunner
 from agent.infra.event_log import EventLogger
 from agent.llm.llm import LLMResult
@@ -33,6 +36,68 @@ class FakeLLM:
 
 
 class AgentLoopTests(unittest.TestCase):
+    def test_repeated_read_only_cycles_stop_without_opencode(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            logger = EventLogger(workspace / "logs" / "actions.jsonl")
+            broker = PermissionBroker(workspace=workspace, logger=logger)
+            runner = ToolRunner(logger, workspace, broker=broker)
+            runner.opencode_status = lambda: {"usable": False, "reason": "no configured providers"}
+            fake = FakeLLM([
+                LLMResult(content=[{"type": "text", "text": "The same fact was observed."}],
+                          input_tokens=1, output_tokens=1, stop_reason="end_turn", model="fake")
+                for _ in range(5)
+            ])
+
+            summary = AgentLoop(
+                AgentConfig(workspace=workspace, max_iterations=5, broker=broker),
+                logger, fake, runner,
+            ).run()
+
+            self.assertEqual(summary.reason, "no_progress")
+            self.assertEqual(summary.iterations, 3)
+            self.assertEqual(fake.calls, 3)
+            events = [json.loads(line) for line in logger.path.read_text(encoding="utf-8").splitlines()]
+            self.assertEqual(len([event for event in events if event["event"] == "run_no_progress"]), 1)
+
+    def test_default_l0_policy_does_not_offer_state_writes(self) -> None:
+        class CapturingLLM(FakeLLM):
+            def __init__(self) -> None:
+                super().__init__()
+                self.offered: list[str] = []
+                self.system_prompt = ""
+                self.cycle_prompt = ""
+
+            def call(self, **kwargs: Any) -> LLMResult:
+                self.offered = [tool["name"] for tool in kwargs["tools"]]
+                self.system_prompt = str(kwargs["system"])
+                self.cycle_prompt = str(kwargs["messages"][0]["content"])
+                return super().call(**kwargs)
+
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            logger = EventLogger(workspace / "logs" / "actions.jsonl")
+            broker = PermissionBroker(workspace=workspace, logger=logger)
+            llm = CapturingLLM()
+            runner = ToolRunner(logger, workspace, broker=broker)
+            runner.opencode_status = lambda: {"usable": False, "reason": "no configured providers"}
+            loop = AgentLoop(
+                AgentConfig(workspace=workspace, max_iterations=1, token_budget=10_000, broker=broker),
+                logger,
+                llm,
+                runner,
+            )
+            summary = loop.run()
+            self.assertEqual(summary.reason, "max_iterations")
+            self.assertIn("read_file", llm.offered)
+            self.assertNotIn("update_plan", llm.offered)
+            self.assertNotIn("update_environment_map", llm.offered)
+            self.assertNotIn("opencode_status", llm.offered)
+            self.assertIn("Plan updates are blocked", llm.cycle_prompt)
+            self.assertIn("Opencode is currently unavailable", llm.system_prompt)
+            self.assertIn("no configured providers", llm.system_prompt)
+            self.assertFalse(broker.in_panic)
+
     def test_fixed_base_and_model_registry_tools_reach_agent(self) -> None:
         class ModelAwareLLM(FakeLLM):
             def __init__(self) -> None:
@@ -137,15 +202,21 @@ class AgentLoopTests(unittest.TestCase):
             workspace = Path(temp)
             logger = EventLogger(workspace / "logs" / "actions.jsonl")
             fake = FakeLLM(responses)
-            summary = AgentLoop(
-                AgentConfig(workspace=workspace, max_iterations=1, token_budget=10_000),
-                logger,
-                fake,
-                ToolRunner(logger, workspace),
-            ).run()
+            clock = iter(range(0, 600, 61))
+            with patch("agent.runtime.cycle_runner.time", SimpleNamespace(monotonic=lambda: next(clock))):
+                summary = AgentLoop(
+                    AgentConfig(workspace=workspace, max_iterations=1, token_budget=10_000),
+                    logger,
+                    fake,
+                    ToolRunner(logger, workspace),
+                ).run()
             self.assertEqual(summary.iterations, 1)
             self.assertEqual(fake.calls, 2)
-            self.assertIn('"event":"tool_result"', logger.path.read_text())
+            events = [json.loads(line) for line in logger.path.read_text().splitlines()]
+            names = [event["event"] for event in events]
+            self.assertLess(names.index("cycle_started"), names.index("tool_result"))
+            self.assertLess(names.index("tool_result"), names.index("cycle_progress"))
+            self.assertLess(names.index("cycle_progress"), names.index("cycle_completed"))
 
     def test_repeated_tool_action_is_blocked(self) -> None:
         responses = [

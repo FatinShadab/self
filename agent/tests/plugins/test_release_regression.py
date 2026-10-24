@@ -4,7 +4,7 @@ Verifies:
 1. Zero-plugin regression & golden prompt snapshots:
    - System prompt, conversation prompt, and cycle prompt match golden baseline character-for-character
      when PluginManager is present with no active plugins.
-   - Core tools (36 tools: 29 base + 7 opencode) offered cleanly without namespacing.
+   - Base tools and usable OpenCode tools offered cleanly without namespacing.
    - Cycle executes cleanly without plugin leakage.
 2. Pet companion demo round-trip:
    - Enable -> Disable -> Replug round trips.
@@ -37,6 +37,7 @@ from agent.infra.permission_broker import PermissionBroker, PermissionLevel, Per
 from agent.learning.learning import LearningStore
 from agent.learning.plan import PlanStore
 from agent.llm.llm import LLMResult
+from agent.opencode.tools import OPENCODE_TOOL_DEFINITIONS
 from agent.plugins.manager import PluginManager, compute_plugin_hash
 from agent.plugins.manifest import parse_manifest
 from agent.plugins.self_dev import PluginDevManager
@@ -187,10 +188,14 @@ class ReleaseRegressionTests(unittest.TestCase):
         self.assertNotIn("Active Plugins Notes", sys_prompt)
         self.assertNotIn("plugins:embodiment", sys_prompt)
 
-        # Verify offered tools: all 36 core tools (29 base + 7 opencode), no dot-namespaced tools
+        # OpenCode tools are offered only when a usable provider is available.
         offered_tools = call["tools"]
         tool_names = [t["name"] for t in offered_tools]
-        self.assertEqual(len(tool_names), 36)
+        optional_names = {tool["name"] for tool in OPENCODE_TOOL_DEFINITIONS}
+        expected_names = {tool["name"] for tool in TOOL_DEFINITIONS} | {"create_tool"}
+        if not agent._opencode_status.get("usable", False):
+            expected_names -= optional_names
+        self.assertEqual(set(tool_names), expected_names)
         for name in tool_names:
             self.assertNotIn(".", name)
         self.assertIn("run_shell", tool_names)

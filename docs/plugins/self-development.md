@@ -100,14 +100,14 @@ Before testing or review, the agent runs `validate_plugin(name)`:
 #### Limits of Validation
 `validate_plugin` is strictly an advisory static checker, not a hard security boundary:
 - **Bypassable static checks:** Static AST parsing and text regexes are easily bypassed by dynamic Python patterns, such as `__import__("socket")`, dynamic attribute access (`getattr(os, "system")`), or runtime string construction for paths and secret files (`"".join(["/", "etc", "/", "shadow"])`).
-- **Real controls:** Hard security is provided exclusively by downstream human review, immutable SHA-256 hash pinning against `/config/plugins.json`, the runtime `PermissionBroker`, and unprivileged container isolation.
+- **Real controls:** Hard security depends on human review, SHA-256 hash pinning in `/config/plugins.json`, the runtime `PermissionBroker`, and the Docker container boundary. The default profile runs shell commands as container root.
 
 ### Step 6: Isolated Testing (`test_plugin`)
 Runs plugin tests in `workspace/plugin_dev/<name>/tests/` in an isolated subprocess with secrets stripped and network access blocked:
 - `_child_env` strips all credential and token environment variables matching secret markers.
 - All outbound network calls are routed to dead loopback endpoints (`http://127.0.0.1:0`) via proxy environment variables.
 - An in-process PEP 578 audit hook monitors socket creation and sensitive file access during the test run.
-- **Audit Hook vs. Container Boundary:** The in-process audit hook is an advisory speed bump, not a security sandbox. Subprocesses (`os.system("curl ...")`), dynamic C calls (`ctypes`), symlinks, or obfuscated paths pass in-process hooks. The true security enforcement boundary is the Docker container isolation: read-only filesystem mounts, non-root user, restricted network namespaces, absence of host credential mounts, and stripped child environments.
+- **Audit Hook vs. Container Boundary:** The in-process audit hook is an advisory speed bump, not a security sandbox. Subprocesses (`os.system("curl ...")`), dynamic C calls (`ctypes`), symlinks, or obfuscated paths pass in-process hooks. The default Docker profile has a writable workspace mount, read-only config mount, and container-root shell execution. The optional hardened profile drops privileges and capabilities.
 - Tests run against deterministic simulation models (`SimBody`) and scenarios—never against real external services or host resources.
 - If a stop-loss review is pending, `test_plugin` is blocked until an explicit decision is recorded in the plan.
 
@@ -165,6 +165,6 @@ Developing a plugin takes many cycles, but autonomous environmental exploration 
    - Enabling computes and pins the SHA-256 content hash in `/config/plugins.json` and outputs declared tool permissions to the operator.
    - The agent cannot enable plugins.
 5. **Permission Elevation:**
-   - The agent cannot grant itself permissions. Actions above `L0` remain denied until the human operator updates `/config/permissions.json`.
+   - The agent cannot grant plugin permissions to itself. Plugin actions above `L0` remain denied until the human operator sets a plugin ceiling in `/config/plugins.json` or an equivalent grant in `/config/permissions.json`.
 6. **Hard External Controls:**
    - Stop controls (`/stop`, `workspace/STOP`, SIGINT/SIGTERM) are hard external boundaries that cannot be overridden or deferred by the agent.

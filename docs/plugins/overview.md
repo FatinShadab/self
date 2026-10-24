@@ -56,4 +56,4 @@ Plugins that interact with external operating systems, network services, or hard
    New sensors and tools should begin with read-only observations (L0) and simulated actions before requesting active modification rights.
 
 4. **Require human grants for irreversible operations:**
-   Any operation that cannot be cleanly undone (L2 or L3) requires explicit human approval in `/config/permissions.json` before execution.
+   Plugin operations at L2 or L3 require a host-configured plugin ceiling in `config/plugins.json` or a compatible grant in `config/permissions.json` before execution.

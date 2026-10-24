@@ -1,7 +1,6 @@
 """Plan recovery, normalization, and display formatting for wake sessions."""
 from __future__ import annotations
 
-import re
 from typing import Any
 
 from agent.learning.plan_statuses import (
@@ -106,14 +105,10 @@ def recover_budget_blocked_plan(
 def revise_session_plan(
     coordinator: Any,
 ) -> None:
-    """Replace the active plan with validated, actionable entries via reflection."""
-    coordinator._recover_budget_blocked_plan()
-    reflected = coordinator._reflection("wake-up plan review", "Revise the old plan against current state and spot checks.")
-    coordinator.plan = normalized_plan(list(reflected.get("plan") or coordinator.plan))
-    coordinator._recover_budget_blocked_plan()
-    long_term = reflected.get("summary") or coordinator.handoff.get("long_term_summary", "")
-    coordinator.handoff["long_term_summary"] = re.sub(r"Session complete after \d+ cycle\(s\)\.?\s*", "", long_term).strip()
-    coordinator.logger.narrate("I reviewed the previous plan against current state and updated the plan.")
+    """Use the durable plan as the only source for the session's visible goals."""
+    coordinator.plan_store.load()
+    coordinator.plan = list(coordinator.plan_store.items or default_plan())
+    coordinator.logger.narrate("I loaded the persistent goals and will review them during this cycle.")
     with coordinator.lock:
         coordinator.starting_plan = [dict(it) for it in coordinator.plan]
         coordinator.starting_session_id = coordinator.status.session_id

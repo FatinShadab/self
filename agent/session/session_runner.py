@@ -24,6 +24,8 @@ def _compute_end_reason(reason: str, stop_requested: bool) -> str:
         return "budget_exhausted"
     if reason == "provider_error":
         return "provider_error"
+    if reason == "no_progress":
+        return "needs_attention"
     return "clean_shutdown"
 
 
@@ -118,7 +120,15 @@ def run_session(coordinator: Any) -> Any:
             return summary
 
         session_attempt = startup_context or STANDING_GOAL
-        if coordinator.stop_requested or summary.reason in {"stop_file", "stop_watcher", "broker_panic"}:
+        if summary.reason == "no_progress":
+            reflection = {
+                "attempted": session_attempt,
+                "achieved": "No new durable progress; repeated cycle reports while plan and map writes were unavailable.",
+                "plan": loop.plan_store.items or coordinator.plan,
+                "summary": "Paused after repeated results; review permissions or choose another goal.",
+                "failures_and_lessons": [],
+            }
+        elif coordinator.stop_requested or summary.reason in {"stop_file", "stop_watcher", "broker_panic"}:
             reflection = {
                 "attempted": session_attempt,
                 "achieved": coordinator.handoff.get("summary", "The session stopped at a safe boundary."),

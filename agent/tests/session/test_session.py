@@ -13,7 +13,8 @@ from agent.identity.identity import IdentityStore
 from agent.llm.llm import LLMResult
 from agent.session.session import HumanInbox, SessionStore
 from agent.ui.wake import build_archive_views, cardiac_monitor_frame, cardiac_monitor_intensity, escape_rich_markup, format_conversation_history_view, WakeCoordinator, clamped_plan_height, format_goals_panel, format_starting_plan, normalized_plan, visible_plan_items
-from agent.ui.tui.status_panels import build_activity_panel, build_identity_panel
+from agent.ui.tui.status_panels import build_activity_panel, build_identity_panel, build_session_panel
+from agent.ui.tui.app import SelfApp
 
 
 class WakeFakeLLM:
@@ -100,9 +101,73 @@ class SessionTests(unittest.TestCase):
             messages: list[tuple[str, str]] = []
             coordinator.on_chat = lambda message, kind: messages.append((message, kind))
             coordinator.stop_requested = True
+            coordinator._event_listener({"event": "cycle_started", "cycle": 1, "goal": "Inspect state"})
+            coordinator._event_listener({"event": "cycle_progress", "cycle": 1, "actions": 3})
             coordinator._event_listener({"event": "cycle_completed", "cycle": 1, "report": "retrying test"})
             coordinator._event_listener({"event": "session_summary", "message": "session complete"})
             self.assertEqual(messages, [])
+
+    def test_cycle_updates_reach_chat_before_completion(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            coordinator = WakeCoordinator(temp, llm_client=WakeFakeLLM())
+            messages: list[tuple[str, str]] = []
+            coordinator.on_chat = lambda message, kind: messages.append((message, kind))
+
+            coordinator._event_listener({"event": "cycle_started", "cycle": 1, "goal": "Inspect state"})
+            coordinator._event_listener({"event": "cycle_progress", "cycle": 1, "actions": 3})
+
+            self.assertEqual(messages, [
+                ("Cycle 1 started.\nGoal: Inspect state", "progress"),
+                ("Cycle 1 is still running. 3 tool action(s) completed.", "progress"),
+            ])
+            snapshot = coordinator.runtime_snapshot()
+            self.assertEqual(snapshot["active_cycle"], 1)
+            panel = build_session_panel(coordinator, "fake", "model", snapshot["active_cycle"])
+            self.assertIn("Cycle: 1 (running)", panel)
+            self.assertIn("Completed cycles: 0", panel)
+
+            coordinator._event_listener({"event": "cycle_completed", "cycle": 1, "report": "Inspection complete"})
+            self.assertEqual(messages[-1], ("Cycle 1 summary\nInspection complete", "cycle"))
+            self.assertEqual(coordinator.runtime_snapshot()["active_cycle"], 0)
+
+    def test_wake_plan_review_uses_persistent_goals(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            coordinator = WakeCoordinator(temp, llm_client=WakeFakeLLM())
+            coordinator.plan_store.initialize(seed_task="Saved goal")
+            coordinator.plan_store.update_plan(
+                action="add", goal="Next saved goal", reason="Verified need", cycle=1,
+            )
+            coordinator.plan = [{"goal": "Old handoff goal", "status": "todo"}]
+            coordinator._reflection = lambda *args: self.fail("Wake review should not invoke an LLM")
+
+            coordinator.revise_plan()
+
+            self.assertEqual(
+                [item["goal"] for item in coordinator.plan],
+                ["Saved goal", "Next saved goal"],
+            )
+            self.assertEqual(coordinator.starting_plan, coordinator.plan_store.items)
+            narrations = [
+                json.loads(line).get("message", "")
+                for line in coordinator.logger.path.read_text(encoding="utf-8").splitlines()
+                if json.loads(line).get("event") == "narration"
+            ]
+            self.assertFalse(any("updated the plan" in message for message in narrations))
+
+    def test_no_progress_does_not_schedule_another_session(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            notices: list[str] = []
+            timers: list[float] = []
+            app = SimpleNamespace(
+                coordinator=SimpleNamespace(workspace=Path(temp)),
+                _command_response=lambda message, kind: notices.append(message),
+                set_timer=lambda delay, callback: timers.append(delay),
+            )
+
+            SelfApp._finish_agent_turn(app, "Paused after no progress.", -1.0)
+
+            self.assertEqual(notices, ["Paused after no progress."])
+            self.assertEqual(timers, [])
 
     def test_recovery_removes_stale_daily_budget_plan_item(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
@@ -402,7 +467,7 @@ class SessionTests(unittest.TestCase):
             self.assertIn("session", (root / "state" / "journal.md").read_text())
             row = json.loads((root / "state" / "sessions.jsonl").read_text().splitlines()[-1])
             self.assertEqual(row["end_reason"], "clean_shutdown")
-            self.assertGreaterEqual(fake.calls, 3)  # wake reflection, actor, shutdown reflection
+            self.assertGreaterEqual(fake.calls, 2)  # actor and shutdown reflection; no redundant wake reflection
 
     def test_later_wake_uses_human_name_and_stored_voice(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

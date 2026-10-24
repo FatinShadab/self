@@ -32,9 +32,9 @@ Welcome to the **SELF Plugin Developer Guide**. This document explains what a SE
 5. [How to Attach a Plugin to SELF](#5-how-to-attach-a-plugin-to-self)
    - [Plugin Discovery Paths](#plugin-discovery-paths)
    - [Cryptographic Hash Pinning](#cryptographic-hash-pinning)
-   - [Method A: Attach via Slash Command (Recommended)](#method-a-attach-via-slash-command-recommended)
+   - [Method A: Attach via Slash Command (Writable Config)](#method-a-attach-via-slash-command-writable-config)
    - [Method B: Attach via Host Configuration (`config/plugins.json`)](#method-b-attach-via-host-configuration-configpluginsjson)
-   - [Configuring Permissions (`config/permissions.json`)](#configuring-permissions-configpermissionsjson)
+   - [Configuring Plugin Permissions (`config/plugins.json`)](#configuring-plugin-permissions-configpluginsjson)
    - [Cycle-Boundary Synchronization & Hot Pluggability](#cycle-boundary-synchronization--hot-pluggability)
    - [Detaching or Updating a Plugin](#detaching-or-updating-a-plugin)
 6. [Autonomous Self-Development & Promotion](#6-autonomous-self-development--promotion)
@@ -665,9 +665,9 @@ To guarantee software supply-chain integrity, SELF enforces **SHA-256 Content Ha
 
 ---
 
-### Method A: Attach via Slash Command (Recommended)
+### Method A: Attach via Slash Command (Writable Config)
 
-The easiest and safest way to attach a plugin is using SELF's `/plugins enable` command. This automatically validates the plugin, computes its SHA-256 digest, and writes the pin to configuration.
+When SELF can write the configured `config` directory, `/plugins enable` computes the plugin's SHA-256 digest and writes the pin. In the default Docker Compose setup, `/config` is mounted read-only, so this command reports that the host configuration must be edited instead. Use Method B for that setup.
 
 #### In Interactive Session UI (TUI):
 Type directly in the command prompt:
@@ -698,7 +698,7 @@ Takes effect at the next cycle boundary.
 
 ### Method B: Attach via Host Configuration (`config/plugins.json`)
 
-If the agent container's `/config` directory is mounted read-only (standard production hardening), human operators attach plugins directly on the host by editing `config/plugins.json`.
+In the default Docker Compose setup, `/config` is mounted read-only. Operators attach plugins by editing `config/plugins.json` on the host.
 
 1. **Calculate the plugin's hash:**
    Run `python -m agent.plugins list` to inspect discovered plugins and view current digests:
@@ -713,7 +713,8 @@ If the agent container's `/config` directory is mounted read-only (standard prod
      "plugins": {
        "disk_sentinel": {
          "enabled": true,
-         "hash": "7f3b8a1c9d2e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a"
+         "hash": "7f3b8a1c9d2e4f5a6b7c8d9e0f1a2b3c4d5e6f7a8b9c0d1e2f3a4b5c6d7e8f9a",
+         "permission_level": "L0"
        }
      }
    }
@@ -727,30 +728,25 @@ If the agent container's `/config` directory is mounted read-only (standard prod
 
 ---
 
-### Configuring Permissions (`config/permissions.json`)
+### Configuring Plugin Permissions (`config/plugins.json`)
 
-SELF operates under a strict **default-deny** policy for actions exceeding read-only observation:
-- **`L0` (Observe / Reads):** Automatically allowed. Sensors and read-only tools run without special configuration.
-- **`L1` (Reversible Change / Writes):** Denied by default until granted by the operator.
-- **`L2` (Irreversible Change / Executes):** Denied by default until granted by the operator.
-- **`L3` (Actuation / External Boundary):** Denied by default until granted by the operator.
+SELF's core actions have an L3 ceiling, and its built-in `run_shell` and `write_file` tools have scoped L2 grants. Plugin actions remain separate: a plugin defaults to L0, and the maximum level for its declared tools is set by its host-owned `config/plugins.json` entry.
 
-If your plugin declares actions or tools requiring `L1` or higher (such as `purge_scratch` in our example), grant permission in `config/permissions.json`:
+For a plugin with an enabled, SHA-256-pinned entry, add `permission_level` at the level it needs (L0, L1, L2, or L3). For example, to allow the `purge_scratch` L1 action:
 
 ```json
 {
-  "default_level": "L0",
-  "grants": {
-    "plugin:disk_sentinel": "L1"
-  },
-  "action_grants": {
-    "disk_sentinel.purge_scratch": "L1"
+  "plugins": {
+    "disk_sentinel": {
+      "enabled": true,
+      "hash": "<64-character SHA-256 hash of approved plugin contents>",
+      "permission_level": "L1"
+    }
   }
 }
 ```
 
-- `grants["plugin:<name>"]`: Sets the maximum permission level granted to the entire plugin actor.
-- `action_grants["<plugin>.<action>"]`: Sets granular permission for an individual action.
+Replace the hash placeholder with the actual pin. Changes to a plugin's permission ceiling take effect at a cycle boundary. Enabling or re-enabling the plugin preserves an existing `permission_level` entry. The manifest's `required_permission_level` declares what an action needs; the host setting caps what the plugin may execute. Existing `plugins.<name>` grants in `config/permissions.json` also work when no `permission_level` is set in `config/plugins.json`.
 
 ---
 
@@ -919,7 +915,7 @@ When authoring plugins that interact with host resources, networks, or filesyste
 
 #### Issue: `Action denied by permission broker`
 - **Cause:** An action declared with permission level `L1`, `L2`, or `L3` was invoked, but has not been granted by the operator.
-- **Fix:** Grant the required permission level in `config/permissions.json` under `grants` or `action_grants`.
+- **Fix:** Set `permission_level` to at least the required level in the plugin's enabled, hash-pinned `config/plugins.json` entry. Existing `plugins.<name>` grants in `config/permissions.json` are also supported.
 
 #### Issue: `Plugin tests folder missing or contains no non-empty test files`
 - **Cause:** `validate_plugin` requires a `tests/` directory containing at least one non-empty test file starting with `test_` or ending with `_test.py`.

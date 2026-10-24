@@ -304,6 +304,8 @@ class SelfApp(App[None]):
             )
         if (self.coordinator.workspace / "STOP").exists():
             return
+        if restart_delay is not None and restart_delay < 0:
+            return
         if (self.coordinator.workspace / "HUMAN_REQUEST.md").exists():
             self.set_timer(2.0, self._watch_human_request)
         else:
@@ -315,7 +317,12 @@ class SelfApp(App[None]):
         try:
             result = self.coordinator.run()
             if not (result is None and (self.coordinator.workspace / "STOP").exists()):
-                if (self.coordinator.workspace / "STOP").exists():
+                if getattr(result, "reason", "") == "broker_panic":
+                    final_message = "I paused because the permission broker blocked repeated tool actions. Check the recent action_denied events; /restart resumes after the cause is resolved."
+                elif getattr(result, "reason", "") == "no_progress":
+                    final_message = "I paused after repeating the same result with plan and map writes unavailable. Review config/permissions.json or choose another goal, then use /restart."
+                    restart_delay = -1.0
+                elif (self.coordinator.workspace / "STOP").exists():
                     final_message = "I am paused because STOP was requested. Remove workspace/STOP or use /restart when you want me to continue."
                 elif (self.coordinator.workspace / "HUMAN_REQUEST.md").exists():
                     final_message = "I am waiting for your decision in HUMAN_REQUEST.md. Resolve it and remove the file; I will wake automatically."

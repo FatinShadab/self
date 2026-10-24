@@ -139,7 +139,7 @@ class GoldenPromptCharacterizationTests(unittest.TestCase):
             # Verify system prompt without helpers (off-prompt prefixes excluded)
             c1_sys = c1_call["system"]
             self.assertTrue(c1_sys.startswith("You are SELF, an autonomous AI agent whose body is this Linux container."))
-            self.assertIn("## Opencode delegation capability", c1_sys)
+            self.assertIn("Opencode is currently unavailable", c1_sys)
             self.assertIn("IMPORTANT SAFETY RULE — UNTRUSTED DATA:", c1_sys)
             for off_prefix in OFF_PROMPT_PREFIXES:
                 self.assertNotIn(off_prefix, c1_sys)

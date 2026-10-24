@@ -39,6 +39,7 @@ class RuntimeTelemetry:
     daily_cap: int = 0
     daily_blocked: bool = False
     current_activity: str = ""
+    active_cycle: int = 0
 
 
 def update_telemetry(
@@ -52,8 +53,13 @@ def update_telemetry(
     def _apply() -> None:
         if event == "run_started":
             telemetry.state = "THINKING"
+            telemetry.active_cycle = 0
             telemetry.run_budget = int(record.get("token_budget", 0) or telemetry.run_budget)
             telemetry.daily_cap = int(record.get("daily_token_budget", 0) or telemetry.daily_cap)
+        elif event == "cycle_started":
+            telemetry.active_cycle = int(record.get("cycle", 0) or 0)
+        elif event == "cycle_completed":
+            telemetry.active_cycle = 0
         elif event == "llm_call_started":
             ai = f"{record.get('provider', 'unknown')}/{record.get('model', 'unknown')}"
             telemetry.active_calls += 1
@@ -105,6 +111,7 @@ def update_telemetry(
             telemetry.daily_cap = int(record.get("cap", telemetry.daily_cap) or 0)
             telemetry.state = "WAITING FOR HUMAN"
         elif event == "run_completed":
+            telemetry.active_cycle = 0
             telemetry.state = "IDLE" if record.get("reason") != "human_request_pending" else "WAITING FOR HUMAN"
 
     if lock is not None:
@@ -137,6 +144,7 @@ def build_runtime_snapshot(
             "daily_cap": telemetry.daily_cap,
             "daily_blocked": telemetry.daily_blocked,
             "current_activity": telemetry.current_activity,
+            "active_cycle": telemetry.active_cycle,
             "activity": list(activity)[-80:],
         }
 

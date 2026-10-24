@@ -8,6 +8,7 @@ from pathlib import Path
 from typing import Any
 
 from agent.infra.event_log import EventLogger
+from agent.infra.permission_broker import PermissionBroker
 from agent.learning.plan import (
     PlanStore,
     SEED_STANDING_GOAL,
@@ -64,6 +65,57 @@ class ScriptedLLM:
 
 
 class PlanTests(unittest.TestCase):
+    def test_plan_and_map_updates_work_without_opencode_under_shipped_policy(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            policy_path = Path(__file__).resolve().parents[3] / "config" / "permissions.json"
+            logger = EventLogger(root / "logs" / "actions.jsonl")
+            broker = PermissionBroker(policy_path=policy_path, workspace=root, logger=logger)
+            runner = ToolRunner(logger, root, broker=broker)
+            runner.opencode_status = lambda: {"usable": False, "reason": "no configured providers"}
+            llm = ScriptedLLM([
+                {"tool_calls": [
+                    {"name": "update_plan", "arguments": {
+                        "action": "add", "goal": "Inspect another local fact", "reason": "New observation",
+                    }},
+                    {"name": "update_environment_map", "arguments": {"entries": [{
+                        "key": "local_probe", "value": "observed", "confidence": "high",
+                        "evidence": "read_file result",
+                    }]}},
+                ]},
+                {"text": "Saved the next investigation."},
+            ])
+
+            summary = AgentLoop(
+                AgentConfig(workspace=root, max_iterations=1, broker=broker, retrieve_memories=False),
+                logger, llm, runner,
+            ).run()
+
+            self.assertEqual(summary.iterations, 1)
+            self.assertIn("Inspect another local fact", [item["goal"] for item in json.loads(
+                (root / "state" / "plan.json").read_text(encoding="utf-8")
+            )["items"]])
+            self.assertEqual(json.loads((root / "state" / "map.json").read_text(encoding="utf-8"))[
+                "entries"
+            ]["local_probe"]["value"], "observed")
+            self.assertFalse(broker.in_panic)
+            self.assertNotIn("Plan updates are blocked", llm.received_messages[0][0]["content"])
+
+    def test_editing_next_steps_preserves_goal_status(self) -> None:
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            logger = EventLogger(root / "logs" / "actions.jsonl")
+            store = PlanStore(root, logger)
+            store.initialize(seed_task="Investigate")
+            store.update_plan(action="edit", id="goal-1", status="in_progress", reason="Started work")
+
+            store.update_plan(
+                action="edit", id="goal-1", next_steps="Check another file", reason="New evidence",
+            )
+
+            self.assertEqual(store.items[0]["status"], "in_progress")
+            self.assertEqual(store.items[0]["next_steps"], "Check another file")
+
     def test_plan_changes_after_a_cycle(self) -> None:
         """Requirement 7.1: Verify plan changes after a cycle via update_plan tool call."""
         with tempfile.TemporaryDirectory() as temp:

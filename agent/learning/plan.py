@@ -151,7 +151,7 @@ class PlanStore:
         evidence: str = "",
         next_steps: str = "",
         priority: int = 2,
-        status: str = "todo",
+        status: str = "",
         order: list[str] | None = None,
         cycle: int = 0,
         **extra: Any,
@@ -197,7 +197,7 @@ class PlanStore:
                 evidence=evidence_ref,
                 next_steps=next_steps,
                 priority=priority,
-                status=status,
+                status=status or "todo",
                 cycle=cycle,
                 extra=extra,
             )

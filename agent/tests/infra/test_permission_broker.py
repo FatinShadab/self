@@ -17,9 +17,58 @@ from agent.infra.permission_broker import (
     PermissionPolicy,
     RateLimitConfig,
 )
+from agent.tools.base_tools import ToolRunner
+from agent.tools.execution.authorization import offered_authorized_tools
 
 
 class TestPermissionBroker(unittest.TestCase):
+    def test_shipped_policy_grants_core_max_but_keeps_plugins_separate(self) -> None:
+        policy_path = Path(__file__).resolve().parents[3] / "config" / "permissions.json"
+        policy = PermissionPolicy(policy_path)
+        self.assertEqual(policy.max_allowed_level("core", "update_plan"), PermissionLevel.L3)
+        self.assertEqual(policy.max_allowed_level("core", "update_environment_map"), PermissionLevel.L3)
+        self.assertEqual(policy.max_allowed_level("core", "create_tool"), PermissionLevel.L3)
+        self.assertEqual(policy.max_allowed_level("body", "run_shell"), PermissionLevel.L2)
+        self.assertEqual(policy.max_allowed_level("body", "write_file"), PermissionLevel.L2)
+        self.assertEqual(policy.max_allowed_level("body", "read_file"), PermissionLevel.L0)
+        self.assertEqual(policy.max_allowed_level("plugins.example", "example.action"), PermissionLevel.L0)
+        broker = PermissionBroker(policy_path=policy_path, logger=self.logger)
+        offered = offered_authorized_tools(
+            [{"name": "run_shell"}, {"name": "write_file"}, {"name": "create_tool"}], broker
+        )
+        self.assertEqual([item["name"] for item in offered], ["run_shell", "write_file", "create_tool"])
+        for action in ("run_shell", "write_file"):
+            verdict = broker.authorize(ActionRequest(action=action, source="body", level=PermissionLevel.L2))
+            self.assertTrue(verdict.allowed)
+
+    def test_plugin_level_from_host_config_requires_enabled_pinned_entry(self) -> None:
+        config_dir = self.workspace / "config"
+        config_dir.mkdir()
+        (config_dir / "permissions.json").write_text(
+            json.dumps({"default_level": "L0", "grants": {"core": "L3"}}), encoding="utf-8"
+        )
+        plugin_config = config_dir / "plugins.json"
+        plugin_config.write_text(json.dumps({"plugins": {
+            "example": {"enabled": True, "hash": "a" * 64, "permission_level": "L2"},
+            "unapproved": {"enabled": True, "permission_level": "L3"},
+        }}), encoding="utf-8")
+        policy = PermissionPolicy(config_dir / "permissions.json")
+        self.assertEqual(policy.max_allowed_level("plugins.example", "example.action"), PermissionLevel.L2)
+        self.assertEqual(policy.max_allowed_level("plugins.unapproved", "unapproved.action"), PermissionLevel.L0)
+        self.assertEqual(policy.max_allowed_level("core", "create_tool"), PermissionLevel.L3)
+        policy.set_plugin_grants_from_config({"plugins": {
+            "example": {"enabled": True, "hash": "a" * 64, "permission_level": "L1"},
+        }})
+        self.assertEqual(policy.max_allowed_level("plugins.example", "example.action"), PermissionLevel.L1)
+        policy.set_plugin_grants_from_config({"plugins": {
+            "example": {"enabled": True, "hash": "a" * 64, "permission_level": "L3"},
+        }})
+        self.assertEqual(policy.max_allowed_level("plugins.example", "example.action"), PermissionLevel.L3)
+        policy.set_plugin_grants_from_config({"plugins": {
+            "example": {"enabled": False, "hash": "a" * 64, "permission_level": "L3"},
+        }})
+        self.assertEqual(policy.max_allowed_level("plugins.example", "example.action"), PermissionLevel.L0)
+
     def setUp(self) -> None:
         self.temp_dir = tempfile.TemporaryDirectory()
         self.workspace = Path(self.temp_dir.name)
@@ -28,6 +77,34 @@ class TestPermissionBroker(unittest.TestCase):
 
     def tearDown(self) -> None:
         self.temp_dir.cleanup()
+
+    def test_ungranted_tools_are_not_offered(self) -> None:
+        policy_path = self.workspace / "l0-only.json"
+        policy_path.write_text(json.dumps({"default_level": "L0"}), encoding="utf-8")
+        broker = PermissionBroker(policy_path=policy_path, logger=self.logger)
+        definitions = [
+            {"name": "read_file"},
+            {"name": "update_plan"},
+            {"name": "update_environment_map"},
+            {"name": "run_shell"},
+        ]
+        offered = offered_authorized_tools(definitions, broker)
+        self.assertEqual([item["name"] for item in offered], ["read_file"])
+        self.assertEqual(broker._consecutive_denials, 0)
+
+        broker.policy.action_grants["core:update_plan"] = PermissionLevel.L1
+        offered = offered_authorized_tools(definitions, broker)
+        self.assertEqual([item["name"] for item in offered], ["read_file", "update_plan"])
+
+    def test_denied_tool_is_not_counted_as_execution_failure(self) -> None:
+        broker = PermissionBroker(workspace=self.workspace, logger=self.logger)
+        runner = ToolRunner(self.logger, self.workspace, broker=broker)
+        result = runner.execute("update_plan", {"action": "add", "goal": "Inspect"})
+        self.assertTrue(result["permission_denied"])
+        self.assertEqual(broker._consecutive_denials, 1)
+        self.assertEqual(broker._consecutive_failures, 0)
+        events = [json.loads(line)["event"] for line in self.logger.path.read_text().splitlines()]
+        self.assertNotIn("action_executed", events)
 
     def test_default_policy_denies_above_l0(self) -> None:
         broker = PermissionBroker(logger=self.logger, audit_trail=self.audit)

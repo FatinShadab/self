@@ -83,6 +83,7 @@ class AgentLoop:
         self.watcher = wired.watcher
         self.stop_file = wired.stop_file
         self.human_request = wired.human_request
+        self._opencode_status: dict[str, Any] | None = None
 
     def _stopped(self) -> bool:
         """Check whether any graceful stop condition is triggered."""
@@ -143,6 +144,7 @@ class AgentLoop:
             plugins=self.plugins,
             helper_mode=self.helper_mode,
             identity_context_provider=self.config.identity_context_provider,
+            opencode_status=self._opencode_status,
         )
 
     def _refresh_learning_runtime(self) -> None:

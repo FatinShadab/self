@@ -68,13 +68,36 @@ def authorize_tool_action(
     return None
 
 
+def offered_authorized_tools(
+    definitions: list[dict[str, Any]],
+    broker: PermissionBroker | None,
+    plugins: Any = None,
+) -> list[dict[str, Any]]:
+    """Offer only tools allowed by the current policy without recording denials."""
+    if broker is None:
+        return definitions
+    return [
+        definition
+        for definition in definitions
+        if (
+            (request := build_action_request(definition["name"], {}, plugins)).level
+            <= broker.policy.max_allowed_level(request.source, request.action)
+        )
+    ]
+
+
 def record_action_execution(
     broker: PermissionBroker | None,
     action_request: ActionRequest | None,
     safe_result: dict[str, Any],
 ) -> None:
     """Record execution outcome in the permission broker ledger."""
-    if broker is not None and action_request is not None and not action_request.dry_run:
+    if (
+        broker is not None
+        and action_request is not None
+        and not action_request.dry_run
+        and not safe_result.get("permission_denied")
+    ):
         broker.record_execution(
             action_request,
             success=bool(safe_result.get("ok", False)),
