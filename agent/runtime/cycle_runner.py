@@ -93,7 +93,7 @@ def run_agent_loop(loop: Any) -> RunSummary:
         if loop._stopped():
             reason = "stop_file"
             break
-        if loop.human_request.exists():
+        if loop.has_pending_human_request():
             loop.logger.narrate("A human request is pending; waiting for it to be resolved.")
             loop.logger.log("run_stopped", reason="human_request_pending")
             reason = "human_request_pending"
@@ -398,7 +398,7 @@ def run_agent_loop(loop: Any) -> RunSummary:
         if loop.config.on_cycle is not None:
             loop.config.on_cycle(cycle, last_report, loop.llm.tokens_used)
 
-        if loop.human_request.exists():
+        if loop.has_pending_human_request():
             loop.logger.narrate("A human request was created; pausing further cycles.")
             reason = "human_request_pending"
             break

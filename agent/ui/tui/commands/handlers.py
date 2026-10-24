@@ -139,7 +139,7 @@ class LifecycleCommandHandler:
                 if request_path.exists():
                     request_text = request_path.read_text(encoding="utf-8", errors="replace").lower()
                     if "daily token-budget decision" in request_text:
-                        request_path.unlink()
+                        coordinator.clear_human_request()
                         app._command_response(
                             "I cleared the previous token-budget request; the new daily limit will be used for this run."
                         )

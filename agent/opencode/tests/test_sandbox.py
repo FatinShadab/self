@@ -172,7 +172,13 @@ class TestProtectedPaths(unittest.TestCase):
         self.assertTrue(is_protected_path("state/opencode_status.json"))
         self.assertTrue(is_protected_path("workspace/state/opencode_status.lock"))
         self.assertTrue(is_protected_path("HUMAN_REQUEST.md"))
+        self.assertTrue(is_protected_path("human_request.md"))
+        self.assertTrue(is_protected_path("Human_Request.MD"))
         self.assertTrue(is_protected_path("workspace/HUMAN_REQUEST.md"))
+        self.assertTrue(is_protected_path("workspace/human_request.md"))
+        self.assertTrue(is_protected_path("pending_human_request.json"))
+        self.assertTrue(is_protected_path(".self_harness/pending_human_request.json"))
+        self.assertTrue(is_protected_path("/opt/harness/.self_harness/pending_human_request.json"))
 
         # Non-protected files
         self.assertFalse(is_protected_path("workspace/tools/new_tool.py"))

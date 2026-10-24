@@ -11,7 +11,12 @@ from agent.helper_models.model_decisions import ModelDecisions
 from agent.helper_models.model_probe import ModelProber
 from agent.identity.identity import IdentityStore
 from agent.infra.event_log import EventLogger
-from agent.infra.hardening import CapabilityRequests, DailyTokenLedger, RunCheckpoint
+from agent.infra.hardening import (
+    CapabilityRequests,
+    DailyTokenLedger,
+    RunCheckpoint,
+    get_harness_request_path,
+)
 from agent.learning.learning import LearningStore
 from agent.learning.plan import PlanStore
 from agent.llm.brain_router import BrainRouter
@@ -48,6 +53,7 @@ class LoopCollaborators:
     watcher: Any
     stop_file: Path
     human_request: Path
+    harness_human_request: Path
 
 
 def wire_loop_collaborators(
@@ -154,6 +160,7 @@ def wire_loop_collaborators(
 
     stop_file = config.workspace / "STOP"
     human_request = config.workspace / "HUMAN_REQUEST.md"
+    harness_human_request = get_harness_request_path(config.workspace)
 
     return LoopCollaborators(
         daily_ledger=daily_ledger,
@@ -178,4 +185,5 @@ def wire_loop_collaborators(
         watcher=config.stop_watcher,
         stop_file=stop_file,
         human_request=human_request,
+        harness_human_request=harness_human_request,
     )

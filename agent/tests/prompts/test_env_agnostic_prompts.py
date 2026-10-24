@@ -16,7 +16,7 @@ from agent.identity.store.first_awakening import (
 )
 from agent.identity.store.schema import get_default_identity
 from agent.infra.event_log import EventLogger
-from agent.infra.untrusted import UNTRUSTED_DATA_RULE
+from agent.infra.untrusted import PERMISSION_RULE, UNTRUSTED_DATA_RULE
 from agent.prompts.container_body import (
     CONTAINER_BODY_RULES,
     CONTAINER_CONVERSATION_CONTEXT,
@@ -126,6 +126,12 @@ class TestEnvironmentAgnosticPrompts(unittest.TestCase):
                     match,
                     f"Forbidden token pattern '{pattern}' found in {path_name}:\n...{text[max(0, match.start()-40):match.end()+40] if match else ''}...",
                 )
+
+        # Verify PERMISSION_RULE is wired into assembled loop system prompt before UNTRUSTED_DATA_RULE
+        self.assertIn(PERMISSION_RULE, loop_sys)
+        perm_idx = loop_sys.index(PERMISSION_RULE)
+        untrusted_idx = loop_sys.index(UNTRUSTED_DATA_RULE)
+        self.assertLess(perm_idx, untrusted_idx, "PERMISSION_RULE must precede UNTRUSTED_DATA_RULE")
 
     def test_optional_container_profile_wraps_claims_as_expectations(self) -> None:
         """Verify that the optional container profile wraps claims as expectations with no unconditional facts."""
@@ -510,7 +516,9 @@ class TestEnvironmentAgnosticPrompts(unittest.TestCase):
             for kind in kinds:
                 self.assertIn(kind, CapabilityRequests.EXTERNAL_KINDS)
 
-            # 1. request_capability writes HUMAN_REQUEST.md and records the request
+            # 1. request_capability writes HUMAN_REQUEST.md and records the request in harness state
+            from agent.infra.hardening import get_harness_request_path, clear_pending_human_request
+
             res = runner.request_capability(
                 kind="human_action",
                 summary="Please install a hardware sensor",
@@ -519,7 +527,9 @@ class TestEnvironmentAgnosticPrompts(unittest.TestCase):
             self.assertFalse(res["ok"])
             self.assertEqual(res["status"], "human_approval_required")
             human_req_file = workspace / "HUMAN_REQUEST.md"
+            harness_req_file = get_harness_request_path(workspace)
             self.assertTrue(human_req_file.exists())
+            self.assertTrue(harness_req_file.exists(), "Harness-owned pending request must exist outside workspace")
             req_text = human_req_file.read_text(encoding="utf-8")
             self.assertIn("human_action", req_text)
             self.assertIn("Please install a hardware sensor", req_text)
@@ -547,19 +557,33 @@ class TestEnvironmentAgnosticPrompts(unittest.TestCase):
                 with self.assertRaises(PermissionError):
                     runner.body.write_file("HUMAN_REQUEST.md", "Attempting direct write")
 
-            # 4. Human clears the request by deleting HUMAN_REQUEST.md; loop resumes
+            # 4. Stop durability: simulating rm of HUMAN_REQUEST.md does NOT resume the loop
             human_req_file.unlink()
+            self.assertFalse(human_req_file.exists(), "Workspace file was deleted (e.g. via rm)")
+            self.assertTrue(harness_req_file.exists(), "Harness state outside workspace remains")
+            summary_stale_rm = loop.run()
+            self.assertEqual(
+                summary_stale_rm.reason,
+                "human_request_pending",
+                "Loop must stay halted while harness-owned state is pending even if workspace file was deleted",
+            )
+            self.assertEqual(summary_stale_rm.iterations, 0)
+
+            # 5. Resume via human channel (clearing both / TUI /resume); loop resumes
+            clear_pending_human_request(workspace)
             self.assertFalse(human_req_file.exists())
+            self.assertFalse(harness_req_file.exists())
             summary_resumed = loop.run()
             self.assertEqual(summary_resumed.reason, "max_iterations")
             self.assertEqual(summary_resumed.iterations, 5)
 
-            # 5. request_provider_key stays non-blocking
+            # 6. request_provider_key stays non-blocking
             router = BrainRouter(workspace, logger)
             runner.brain_router = router
             pk_res = runner.request_provider_key("groq")
             self.assertFalse(pk_res["ok"])
             self.assertFalse(human_req_file.exists(), "request_provider_key must not write HUMAN_REQUEST.md")
+            self.assertFalse(harness_req_file.exists(), "request_provider_key must not write harness state")
 
     def test_tool_runner_default_body_fallback_and_neutrality(self) -> None:
         """Verify ToolRunner definition inspection stays neutral with body=None and augments when body configured."""

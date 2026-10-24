@@ -70,7 +70,13 @@ def is_protected_path(path: str | Path, workspace: Path | None = None) -> bool:
         return True
 
     # 2. Any lock files or human request pause files
-    if name.endswith(".lock") or name.endswith(".lock.json") or name == "human_request.md":
+    if (
+        name.endswith(".lock")
+        or name.endswith(".lock.json")
+        or name == "human_request.md"
+        or name == "pending_human_request.json"
+        or ".self_harness" in norm_lower
+    ):
         return True
 
     # 3. Opencode scripts and wrapper subpackage

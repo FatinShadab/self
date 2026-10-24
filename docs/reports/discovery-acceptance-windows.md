@@ -405,6 +405,53 @@ Execute tools according to your plan, observe results, reflect, and finish with 
 }
 ```
 
+## 3.1 Environment Discovery Analysis (Harness vs Sensed Facts, Confidence, First 5 Tool Calls, and Token Usage)
+
+### 1. Harness-Sensed Facts vs. Facts SELF Recorded in Environment Map
+
+| Category | Source | Key Facts |
+| --- | --- | --- |
+| **Harness-Sensed Facts** (Stage A Runtime Telemetry) | Standard Library (`platform`, `os`) via `initial_orientation_sensed` (Event 5) | - OS Name: `nt`<br>- Platform: `Windows`<br>- Platform Release: `11`<br>- Python Version: `3.14.3`<br>- CPU Count: `12` |
+| **SELF-Recorded Facts** (Autonomous Tool Verification) | Tool executions stored in `state/map.json` | - `cpu`: `AMD Ryzen 5 5625U (4 logical cores)` (Confidence: `high`, Evidence: `environment_report.md`)<br>- `disk_total`: `1007 GB`, `disk_used_percent`: `2%` (Confidence: `high`, Evidence: `environment_report.md`)<br>- `home_disk`: `276 GB /home/entity (56% used)` (Confidence: `high`, Evidence: `environment_report.md Disk`)<br>- `home_partition`: `276 GB, 56% used` (Confidence: `high`, Evidence: `environment_report.md`)<br>- `etc_systemd_snapshot_depth2`: list of 16 systemd unit paths (Confidence: `high`, Evidence: `parsed service_full_info_fixed snapshot from state/etc_systemd_snapshot_depth2.json`)<br>- `discovered_limits`: `max_iterations_per_run: 3, token_budget_per_run: 200000, tool_output_char_cap: 20000` (Confidence: `high`) |
+
+### 2. Final `map.json`
+The complete, unedited `map.json` is preserved verbatim in **Section 3** above, containing 15 verified entries across tools, OS, limits, CPU, memory, filesystem snapshots, and model registry.
+
+### 3. SELF's Own Conclusion About Its Environment and Confidence
+Quoted from Call 114/115 Model Reasoning and Call 116 `request_capability`:
+> *"Next, we need to consider capability gap: cannot access real files... The issue is path visibility, not tool deficiency. Thus next step: record a capability gap and propose a request for host file access. We need to update plan: maybe add a new goal to request capability to read systemd unit files. Use request_capability."*
+
+- **Confidence:** **High** on CPU and storage hardware properties; **High** deduction of a path visibility / host mount gap.
+- **Root Cause of `request_capability` Call:** The helper model (`gpt-oss:120b`) simulated/hallucinated a POSIX `/etc/systemd` file tree in response to an open query. SELF stored this snapshot in `state/etc_systemd_snapshot_depth2.json` and then attempted to verify real files using `list_dir(path="/etc/systemd")` and `read_file(path="/etc/systemd/system/timers.target.wants/apt-daily.timer")`. On native Windows, these POSIX paths failed to resolve. Instead of recognizing that Windows lacks systemd, SELF concluded that host files were unmounted and called `request_capability(kind="host_mount", ...)` to request read access to `/etc/systemd`.
+
+### 4. First 5 Tool Calls of Cycle 1 (Unedited)
+1. **Call 1:**
+   ```json
+   {"tool": "list_models", "arguments": {}}
+   ```
+2. **Call 2:**
+   ```json
+   {"tool": "probe_model", "arguments": {"name": "nemotron-3-nano:30b"}}
+   ```
+3. **Call 3:**
+   ```json
+   {"tool": "research_model", "arguments": {"name": "nemotron-3-nano:30b"}}
+   ```
+4. **Call 4:**
+   ```json
+   {"tool": "probe_model", "arguments": {"name": "gemma4:31b"}}
+   ```
+5. **Call 5:**
+   ```json
+   {"tool": "research_model", "arguments": {"name": "gemma4:31b"}}
+   ```
+
+### 5. Total Tokens per Cycle and Dominance
+- **Total Tokens:** **1,908,081 tokens** across 116 LLM calls (88 primary `gpt-oss:120b` calls, 28 helper model evaluation calls).
+  - **Input Tokens:** 1,881,322 (98.6%)
+  - **Output Tokens:** 26,759 (1.4%)
+- **What Dominates Tokens:** **Input Tokens (98.6%)**, driven by multi-turn context accumulation. By Call 116, the prompt history included system rules, tool definitions, helper assessments, snapshot JSON listings, and directory scan results, pushing per-call input tokens to over 10,815 tokens.
+
 ## 4. Full Cycle LLM Transcripts (Unedited calls & model responses)
 
 ### Call 1

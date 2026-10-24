@@ -1,6 +1,7 @@
 """Stop file, pause condition, and daily token budget reset control."""
 from __future__ import annotations
 
+import json
 import time
 from pathlib import Path
 from typing import Any, Callable
@@ -53,6 +54,7 @@ def wait_while_paused(
 
 def request_daily_budget_action(workspace: Path, logger: EventLogger) -> None:
     """Pause safely and write HUMAN_REQUEST.md asking for a budget decision."""
+    from agent.infra.hardening import get_harness_request_path, now
     request = workspace / "HUMAN_REQUEST.md"
     if not request.exists():
         request.write_text(
@@ -74,6 +76,19 @@ def request_daily_budget_action(workspace: Path, logger: EventLogger) -> None:
             encoding="utf-8",
         )
         logger.log("daily_budget_human_request_created", path=str(request))
+        harness_path = get_harness_request_path(workspace)
+        try:
+            harness_path.parent.mkdir(parents=True, exist_ok=True)
+            payload = {
+                "kind": "daily_budget",
+                "summary": "Daily token-budget decision required",
+                "reason": "SELF reached local daily token limit",
+                "timestamp": now(),
+                "workspace": str(workspace.resolve()),
+            }
+            harness_path.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+        except OSError:
+            pass
 
 
 def pause_until_daily_reset(
@@ -107,6 +122,12 @@ def pause_until_daily_reset(
                     text = human_request.read_text(encoding="utf-8", errors="replace")
                     if "daily token-budget decision" in text.lower():
                         human_request.unlink(missing_ok=True)
+                        from agent.infra.hardening import get_harness_request_path
+
+                        try:
+                            get_harness_request_path(workspace).unlink(missing_ok=True)
+                        except OSError:
+                            pass
                 except OSError:
                     pass
             return

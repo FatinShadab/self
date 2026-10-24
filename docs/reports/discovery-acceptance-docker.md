@@ -532,6 +532,53 @@ Execute tools according to your plan, observe results, reflect, and finish with 
 }
 ```
 
+## 3.1 Environment Discovery Analysis (Harness vs Sensed Facts, Confidence, First 5 Tool Calls, and Token Usage)
+
+### 1. Harness-Sensed Facts vs. Facts SELF Recorded in Environment Map
+
+| Category | Source | Key Facts |
+| --- | --- | --- |
+| **Harness-Sensed Facts** (Stage A Runtime Telemetry) | Standard Library (`platform`, `os`) via `initial_orientation_sensed` (Event 5) | - OS Name: `posix`<br>- Platform: `Linux`<br>- Platform Release: `6.18.54.1-microsoft-standard-WSL2`<br>- Python Version: `3.12.15`<br>- CPU Count: `12` |
+| **SELF-Recorded Facts** (Autonomous Tool Verification) | Tool executions stored in `state/map.json` | - `os_type`: `linux` (Confidence: `high`, Evidence: `list_dir / shows typical Linux directories`)<br>- `os_release`: `Debian GNU/Linux 12 (bookworm)` (Confidence: `high`, Evidence: `run_shell cat /etc/os-release`)<br>- `os_uname`: `Linux 1c9814ddf1df 6.18.54.1-microsoft-standard-WSL2 #1 SMP ...` (Confidence: `high`, Evidence: `run_shell uname -a`)<br>- `cpu_model_name`: `AMD Ryzen 5 5625U with Radeon Graphics` (Confidence: `high`, Evidence: `run_shell cat /proc/cpuinfo`)<br>- `disk_root_size` / `used` / `available`: `1007G` / `23G` / `934G` (Confidence: `high`, Evidence: `run_shell df -h /`)<br>- `memory_total` / `free` / `used`: `7.8Gi` / `6.1Gi` / `1.1Gi` (Confidence: `high`, Evidence: `run_shell free -h`)<br>- `external_http_access`: `True` (Confidence: `high`, Evidence: `http_get https://example.com returned 200`)<br>- `external_ip`: `27.147.202.146` (Confidence: `high`, Evidence: `http_get https://api.ipify.org?format=json`)<br>- `tmp_writable`: `True` (Confidence: `high`, Evidence: `write_file to /tmp/self_test_write.txt succeeded`)<br>- `run_writable`: `True` (Confidence: `high`, Evidence: `run_shell confirmed creation of /run/testfile`)<br>- `var_log_writable`: `True` (Confidence: `high`, Evidence: `run_shell created /var/log/self_test`) |
+
+### 2. Final `map.json`
+The complete, unedited `map.json` is preserved verbatim in **Section 3** above, containing 36 verified entries across tools, OS, limits, CPU, memory, filesystem, and networking.
+
+### 3. SELF's Own Conclusion About Its Environment and Confidence
+Quoted from SELF's Cycle 3 Exploration Report:
+> *"The environment map is now richer: I know the filesystem layout, writable directories, and that Python is present. The list_dir_tool works reliably, and no new tool development is required for the remaining exploration steps. I will proceed with deeper inspection and a small code-execution test in the next cycle."*
+
+- **Confidence:** **High** across all verified claims.
+- **Synthesis:** SELF autonomously deduced that it operates in a Debian GNU/Linux 12 (bookworm) environment with a 6.18.54 WSL2 Linux kernel, root-level filesystem permissions (verified by writing directly to `/run` and `/var/log`), AMD Ryzen 5 CPU, 7.8 GiB RAM, and working outbound HTTP network access.
+
+### 4. First 5 Tool Calls of Cycle 1 (Unedited)
+1. **Call 1:**
+   ```json
+   {"tool": "list_models", "arguments": {}}
+   ```
+2. **Call 2:**
+   ```json
+   {"tool": "probe_model", "arguments": {"name": "nemotron-3-nano:30b"}}
+   ```
+3. **Call 3:**
+   ```json
+   {"tool": "research_model", "arguments": {"name": "nemotron-3-nano:30b"}}
+   ```
+4. **Call 4:**
+   ```json
+   {"tool": "record_model_assessment", "arguments": {"name": "nemotron-3-nano:30b", "assessment": "4B/3.5B, ctx 1M, status ok, call latency unknown, probe latency ~7.5s, strong reasoning; probe 4/4 passed; origin web and model_knowledge"}}
+   ```
+5. **Call 5:**
+   ```json
+   {"tool": "record_model_assessment", "arguments": {"assessment": "4B/3.5B, ctx 1M, status ok, call latency unknown, probe latency ~7.5s, strong reasoning; probe 4/4 passed; origin web and model_knowledge"}}
+   ```
+
+### 5. Total Tokens per Cycle and Dominance
+- **Total Tokens:** **1,199,552 tokens** across 104 LLM calls (76 primary `gpt-oss:120b` calls, 28 helper model evaluation calls).
+  - **Input Tokens:** 1,176,811 (98.1%)
+  - **Output Tokens:** 22,741 (1.9%)
+- **What Dominates Tokens:** **Accumulated Conversation Context in Input Tokens**. As multi-turn tool rounds progress, the accumulated history (system rules, tool schemas, directory listings, command stdout, and model assessment records) expands from 6,142 input tokens on Call 1 to 13,376 input tokens on Call 104. Over 76 main calls, this re-sent context accounts for >98% of all consumed tokens.
+
 ## 4. Full Cycle LLM Transcripts (Unedited calls & model responses)
 
 ### Call 1

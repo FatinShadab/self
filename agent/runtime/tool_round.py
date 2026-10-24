@@ -121,7 +121,7 @@ def execute_tool_round(
         if name == "ask_model":
             ask_model_followed = True
             remind_outcome = bool(observation.get("call_id"))
-        if loop.human_request.exists():
+        if loop.has_pending_human_request():
             loop.logger.narrate("A human request was created; pausing immediately.")
             stop_reason = "human_request_pending"
             break

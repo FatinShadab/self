@@ -16,6 +16,44 @@ def now() -> str:
     return datetime.now(timezone.utc).isoformat()
 
 
+def get_harness_request_path(workspace: Path | str) -> Path:
+    """Return the durable path for pending human request outside the workspace."""
+    env_dir = os.environ.get("SELF_HARNESS_STATE_DIR")
+    if env_dir:
+        return Path(env_dir) / "pending_human_request.json"
+    cfg_dir = os.environ.get("SELF_CONFIG_DIR")
+    if cfg_dir and Path(cfg_dir).exists():
+        return Path(cfg_dir) / "pending_human_request.json"
+    ws = Path(workspace).resolve()
+    import hashlib
+    ws_hash = hashlib.sha256(str(ws).encode("utf-8")).hexdigest()[:12]
+    candidate = ws.parent / f".self_harness_{ws_hash}" / "pending_human_request.json"
+    try:
+        candidate.parent.mkdir(parents=True, exist_ok=True)
+        return candidate
+    except OSError:
+        import tempfile
+
+        fallback = Path(tempfile.gettempdir()) / f".self_harness_{ws_hash}" / "pending_human_request.json"
+        fallback.parent.mkdir(parents=True, exist_ok=True)
+        return fallback
+
+
+def clear_pending_human_request(workspace: Path | str) -> None:
+    """Clear both workspace HUMAN_REQUEST.md and harness-owned pending request."""
+    ws = Path(workspace).resolve()
+    hr = ws / "HUMAN_REQUEST.md"
+    try:
+        hr.unlink(missing_ok=True)
+    except OSError:
+        pass
+    harness_hr = get_harness_request_path(ws)
+    try:
+        harness_hr.unlink(missing_ok=True)
+    except OSError:
+        pass
+
+
 class CapabilityRequests:
     """Record requests for capabilities outside the current environment."""
 
@@ -36,6 +74,7 @@ class CapabilityRequests:
         self.workspace = Path(workspace)
         self.path = self.workspace / "state" / "capability_requests.md"
         self.human_request = self.workspace / "HUMAN_REQUEST.md"
+        self.harness_request = get_harness_request_path(self.workspace)
         self.logger = logger
 
     def request(
@@ -84,6 +123,21 @@ class CapabilityRequests:
                 "",
             ]
             self.human_request.write_text("\n".join(hr_lines), encoding="utf-8")
+            try:
+                self.harness_request.parent.mkdir(parents=True, exist_ok=True)
+                payload = {
+                    "kind": kind,
+                    "summary": summary,
+                    "reason": reason,
+                    "provider": provider,
+                    "env_names": env_names or [],
+                    "official_page": signup_url,
+                    "timestamp": now(),
+                    "workspace": str(self.workspace.resolve()),
+                }
+                self.harness_request.write_text(json.dumps(payload, indent=2), encoding="utf-8")
+            except OSError:
+                pass
         return {"ok": False, "status": "human_approval_required", "path": str(self.path), "halted": halt}
 
 

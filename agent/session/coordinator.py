@@ -321,9 +321,16 @@ class WakeCoordinator:
         if hasattr(self, "stop_watcher") and self.stop_watcher is not None:
             self.stop_watcher.pause()
 
+    def clear_human_request(self) -> None:
+        """Clear pending human requests in workspace and harness state (human channel)."""
+        from agent.infra.hardening import clear_pending_human_request
+
+        clear_pending_human_request(self.workspace)
+
     def resume(self) -> None:
         """Resume autonomous cycles."""
         self.paused.clear()
+        self.clear_human_request()
         if hasattr(self, "stop_watcher") and self.stop_watcher is not None:
             self.stop_watcher.resume()
 

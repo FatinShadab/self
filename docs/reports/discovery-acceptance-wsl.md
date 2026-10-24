@@ -314,6 +314,53 @@ Execute tools according to your plan, observe results, reflect, and finish with 
 }
 ```
 
+## 3.1 Environment Discovery Analysis (Harness vs Sensed Facts, Confidence, First 5 Tool Calls, and Token Usage)
+
+### 1. Harness-Sensed Facts vs. Facts SELF Recorded in Environment Map
+
+| Category | Source | Key Facts |
+| --- | --- | --- |
+| **Harness-Sensed Facts** (Stage A Runtime Telemetry) | Standard Library (`platform`, `os`) via `initial_orientation_sensed` (Event 5) | - OS Name: `posix`<br>- Platform: `Linux`<br>- Platform Release: `6.18.54.1-microsoft-standard-WSL2`<br>- Python Version: `3.14.6`<br>- CPU Count: `12` |
+| **SELF-Recorded Facts** (Autonomous Tool Verification) | Tool executions stored in `state/map.json` | - `environment`: `WSL2 (archlinux)` (Confidence: `high`, Evidence: `run_shell env (WSL_DISTRO_NAME)`)<br>- `kernel`: `6.18.54.1-microsoft-standard-WSL2` (Confidence: `high`, Evidence: `run_shell uname -a`)<br>- `os`: `Linux` (Confidence: `high`, Evidence: `run_shell uname -a`)<br>- `cpu_cores`: `4` (Confidence: `high`, Evidence: `run_shell 'nproc' returned 4`)<br>- `total_memory_kb`: `8135248` (Confidence: `high`, Evidence: `run_shell cat /proc/meminfo extracted MemTotal 8135248 kB`)<br>- `available_memory_kb`: `7051276` (Confidence: `high`, Evidence: `run_shell cat /proc/meminfo extracted MemAvailable 7051276 k`)<br>- `base_model`: `gpt-oss:120b`<br>- `helper_models`: `["nemotron-3-nano:30b", "gemma4:31b", "gpt-oss:20b", "nemotron-3-super", "nemotron-3-ultra", "beam"]` (Confidence: `high`, Evidence: `list_models output`) |
+
+### 2. Final `map.json`
+The complete, unedited `map.json` is preserved verbatim in **Section 3** above, containing 15 verified entries across tools, OS, limits, CPU, memory, filesystem, and model registry.
+
+### 3. SELF's Own Conclusion About Its Environment and Confidence
+Quoted from SELF's Cycle 3 Exploration Report:
+> *"What I discovered and did: 1. Capability gap filled – I created a reusable tool `system_stats` that reports the host's CPU core count, total memory, and available memory... 2. Environment map updated – Using the new tool's logic, I recorded cpu_cores = 4, total_memory_kb = 8 135 248 kB, available_memory_kb = 7 051 276 kB. These entries are stored with high confidence in the persistent environment map."*
+
+- **Confidence:** **High** across all verified claims.
+- **Synthesis:** SELF autonomously concluded that it is executing inside a **WSL2 (`archlinux`)** environment running under Microsoft WSL2 kernel 6.18.54, with 4 CPU cores allocated, ~8.1 GB total RAM (with ~7.0 GB available), Python 3.14.6, and local access to the `/proc` filesystem and Ollama helper models.
+
+### 4. First 5 Tool Calls of Cycle 1 (Unedited)
+1. **Call 1:**
+   ```json
+   {"tool": "list_models", "arguments": {}}
+   ```
+2. **Call 2:**
+   ```json
+   {"tool": "probe_model", "arguments": {"name": "nemotron-3-nano:30b"}}
+   ```
+3. **Call 3:**
+   ```json
+   {"tool": "research_model", "arguments": {"name": "nemotron-3-nano:30b"}}
+   ```
+4. **Call 4:**
+   ```json
+   {"tool": "record_model_assessment", "arguments": {"name": "nemotron-3-nano:30b", "assessment": "4B/3.5B, ctx 1M+, status ok, call latency ~9.4s, probe latency ~9.4s, strong reasoning; probe 4/4 passed; origin web and model_knowledge"}}
+   ```
+5. **Call 5:**
+   ```json
+   {"tool": "record_model_assessment", "arguments": {"assessment": "4B/3.5B, ctx 1M+, status ok, call latency ~9.4s, probe latency ~9.4s, strong reasoning; probe 4/4 passed; origin web and model_knowledge"}}
+   ```
+
+### 5. Total Tokens per Cycle and Dominance
+- **Total Tokens:** **903,146 tokens** across 75 LLM calls (49 primary `gpt-oss:120b` calls, 26 helper model evaluation calls).
+  - **Input Tokens:** 886,542 (98.2%)
+  - **Output Tokens:** 16,604 (1.8%)
+- **What Dominates Tokens:** **Input Tokens (98.2%)**, resulting from the accumulated conversation and tool execution history passed on each successive turn (growing from 6,142 input tokens on Call 1 to 12,826 tokens on Call 75).
+
 ## 4. Full Cycle LLM Transcripts (Unedited calls & model responses)
 
 ### Call 1

@@ -3,6 +3,8 @@ from __future__ import annotations
 
 from typing import Any
 
+from agent.prompts.safety import PERMISSION_RULE
+
 RECORD_DELEGATION_OUTCOME_REMINDER = (
     "If useful, call record_delegation_outcome once for the ask_model call_id. Reporting is optional; judge the result yourself."
 )
@@ -91,9 +93,11 @@ def assemble_loop_system_prompt(
     identity_context: str,
     plugin_embodiment: str,
     untrusted_rule: str,
+    permission_rule: str = PERMISSION_RULE,
 ) -> str:
     """Assemble the final runtime system prompt for a loop cycle."""
-    return f"{system_prompt}{model_context}{opencode_context}\n\n{identity_context}{plugin_embodiment}\n\n{untrusted_rule}"
+    perm_part = f"\n\n{permission_rule}" if permission_rule else ""
+    return f"{system_prompt}{model_context}{opencode_context}\n\n{identity_context}{plugin_embodiment}{perm_part}\n\n{untrusted_rule}"
 
 
 def build_cycle_user_message(

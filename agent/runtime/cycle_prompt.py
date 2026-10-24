@@ -6,7 +6,7 @@ from typing import Any, Callable
 
 from agent.helper_models.model_decisions import ModelDecisions
 from agent.infra.event_log import EventLogger
-from agent.infra.untrusted import UNTRUSTED_DATA_RULE, wrap_untrusted
+from agent.infra.untrusted import PERMISSION_RULE, UNTRUSTED_DATA_RULE, wrap_untrusted
 from agent.prompts.cycle import (
     assemble_loop_system_prompt,
     build_model_context_block,
@@ -93,4 +93,5 @@ def build_system_prompt_for_cycle(
         identity_context=logger.redactor.text(context),
         plugin_embodiment=plugin_embodiment,
         untrusted_rule=UNTRUSTED_DATA_RULE,
+        permission_rule=PERMISSION_RULE,
     )

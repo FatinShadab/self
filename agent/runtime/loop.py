@@ -84,7 +84,12 @@ class AgentLoop:
         self.watcher = wired.watcher
         self.stop_file = wired.stop_file
         self.human_request = wired.human_request
+        self.harness_human_request = wired.harness_human_request
         self._opencode_status: dict[str, Any] | None = None
+
+    def has_pending_human_request(self) -> bool:
+        """Check whether a human request is pending in workspace or harness-owned state."""
+        return self.human_request.exists() or self.harness_human_request.exists()
 
     def _stopped(self) -> bool:
         """Check whether any graceful stop condition is triggered."""
