@@ -157,17 +157,24 @@ class GoldenPromptCharacterizationTests(unittest.TestCase):
             fake.available_models = ["fake_base", "helper-1", "helper-2"]
             config = AgentConfig(
                 workspace=self.workspace,
-                max_iterations=1,
+                max_iterations=2,
                 token_budget=10_000,
                 retrieve_memories=False,
             )
             loop = AgentLoop(config, self.logger, fake, ToolRunner(self.logger, self.workspace))
             loop.run()
 
+            # Cycle 1: helper availability note is present, but helper-eval hint is deferred
             c1_call = fake.calls[0]
             c1_msg = c1_call["messages"][0]["content"]
+            self.assertIn("Harness first-run instruction:\n", c1_msg)
             self.assertIn("Helper models are available. Consider ask_model for sub-tasks it fits, or continue alone.\n\n", c1_msg)
-            self.assertIn("Helper models needing evaluation before other work: helper-1, helper-2.\n", c1_msg)
+            self.assertNotIn("Helper models needing evaluation before other work", c1_msg)
+
+            # Cycle 2: helper-eval hints are unlocked
+            c2_call = fake.calls[1]
+            c2_msg = c2_call["messages"][0]["content"]
+            self.assertIn("Helper models needing evaluation before other work: helper-1, helper-2.\n", c2_msg)
 
             # System prompt with helpers includes helper context
             c1_sys = c1_call["system"]

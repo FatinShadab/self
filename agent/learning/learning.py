@@ -99,6 +99,20 @@ class LearningStore:
             body=body,
         )
 
+    def count_observed_facts(self) -> int:
+        """Count environment facts verified through agent observation."""
+        entries = self._load_map().get("entries", {})
+        return sum(
+            1 for k, v in entries.items()
+            if isinstance(v, dict) and (
+                v.get("source") == "agent observation"
+                or (
+                    v.get("confidence") in {"high", "verified", "medium"}
+                    and v.get("evidence") not in {"local bootstrap", "harness configuration", "harness registry refresh"}
+                )
+            )
+        )
+
     def update_runtime(self, tool_names: list[str], limits: dict[str, Any]) -> None:
         """Refresh verified tool and limit facts in the environment map."""
         self.update_map(

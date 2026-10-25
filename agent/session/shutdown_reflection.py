@@ -3,6 +3,7 @@ from __future__ import annotations
 
 import json
 import os
+import sys
 from typing import Any
 
 from agent.helper_models.model_decisions import ModelDecisions
@@ -48,7 +49,13 @@ def run_session_reflection(
                 f"{purpose}: {extra[:400]}",
                 moment="session_end_handoff",
             )
-        effective_model = reflection_model or getattr(coordinator._llm, "base_model", "gpt-oss:120b")
+        base_model = getattr(coordinator._llm, "base_model", None) if coordinator._llm else None
+        effective_model = reflection_model or base_model
+        if not effective_model:
+            if "unittest" in sys.modules or "pytest" in sys.modules or os.getenv("SELF_TEST_MODE") or os.getenv("PYTEST_CURRENT_TEST"):
+                effective_model = "gpt-oss:120b"
+            else:
+                raise RuntimeError("No reflection model configured for shutdown reflection.")
         call_args = {"model": reflection_model} if reflection_model is not None else {}
         reflection_cap = (
             model_registry.get_output_cap(effective_model)

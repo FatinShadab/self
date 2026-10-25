@@ -2,6 +2,7 @@
 from __future__ import annotations
 
 import os
+import sys
 import uuid
 from dataclasses import dataclass
 from pathlib import Path
@@ -77,7 +78,12 @@ def wire_loop_collaborators(
         )
     tools.model_registry = model_registry
 
-    base_model_name = getattr(llm, "base_model", "gpt-oss:120b")
+    base_model_name = getattr(llm, "base_model", None)
+    if not base_model_name:
+        if "unittest" in sys.modules or "pytest" in sys.modules or os.getenv("SELF_TEST_MODE") or os.getenv("PYTEST_CURRENT_TEST"):
+            base_model_name = "gpt-oss:120b"
+        else:
+            raise RuntimeError("No base model configured on LLM client.")
     if config.max_tokens_per_call is not None and config.max_tokens_per_call != 4096:
         max_tokens_per_call = config.max_tokens_per_call
     elif model_registry is not None:

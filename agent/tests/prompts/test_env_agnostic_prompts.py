@@ -652,6 +652,80 @@ class TestEnvironmentAgnosticPrompts(unittest.TestCase):
             # File tools safeguard is verified; record whether shell deletion is possible
             self.assertIsInstance(can_delete, bool)
 
+    def test_helper_eval_hints_deferred_until_orientation_facts_or_cycle_2(self) -> None:
+        """Verify helper-model onboarding hints are deferred from cycle 1 until map has >= 5 facts or cycle >= 2."""
+        from agent.runtime.loop import AgentConfig, AgentLoop
+        from agent.prompts.system import ORIENTATION_TASK
+        from agent.tools.base_tools import ToolRunner
+        from agent.tests.prompts.test_golden_characterization import CapturingFakeLLM
+        from agent.llm.model_registry import ModelRegistry
+
+        # 1. Fresh cycle 1: 0 facts in map -> helper hints deferred, ORIENTATION_TASK present
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            logger = EventLogger(workspace / "logs" / "actions.jsonl")
+            fake_llm = CapturingFakeLLM()
+            fake_llm.base_model = "base-model"
+            fake_llm.available_models = ["base-model", "helper-1", "helper-2"]
+            fake_llm.model_registry = ModelRegistry(workspace, logger, "base-model", ["base-model", "helper-1", "helper-2"])
+            runner = ToolRunner(logger, workspace)
+
+            config = AgentConfig(
+                workspace=workspace,
+                max_iterations=2,
+                token_budget=10_000,
+                retrieve_memories=False,
+                body=None,
+                min_orientation_facts=5,
+            )
+            loop = AgentLoop(config, logger, fake_llm, runner)
+            loop.run()
+
+            self.assertGreaterEqual(len(fake_llm.calls), 2)
+            # Cycle 1 call: orientation task present, NO helper eval hint
+            c1_msg = fake_llm.calls[0]["messages"][0]["content"]
+            self.assertIn("Harness first-run instruction:\n" + ORIENTATION_TASK, c1_msg)
+            self.assertNotIn("Helper models needing evaluation before other work", c1_msg)
+
+            # Cycle 2 call: cycle >= 2 -> helper eval hint IS present
+            c2_msg = fake_llm.calls[1]["messages"][0]["content"]
+            self.assertIn("Helper models needing evaluation before other work", c2_msg)
+            self.assertIn("helper-1", c2_msg)
+
+        # 2. Cycle 1 with >= 5 facts already discovered -> helper hints unlocked in cycle 1
+        with tempfile.TemporaryDirectory() as temp:
+            workspace = Path(temp)
+            logger = EventLogger(workspace / "logs" / "actions.jsonl")
+            fake_llm = CapturingFakeLLM()
+            fake_llm.base_model = "base-model"
+            fake_llm.available_models = ["base-model", "helper-1"]
+            fake_llm.model_registry = ModelRegistry(workspace, logger, "base-model", ["base-model", "helper-1"])
+            runner = ToolRunner(logger, workspace)
+
+            # Pre-populate 5 facts in environment map
+            map_file = workspace / "state" / "map.json"
+            map_file.parent.mkdir(parents=True, exist_ok=True)
+            import json
+            map_file.write_text(json.dumps({
+                "version": 1,
+                "entries": {f"fact_{i}": {"value": f"val_{i}", "confidence": "high", "evidence": "observed in test", "source": "agent observation"} for i in range(5)}
+            }), encoding="utf-8")
+
+            config = AgentConfig(
+                workspace=workspace,
+                max_iterations=1,
+                token_budget=10_000,
+                retrieve_memories=False,
+                body=None,
+                min_orientation_facts=5,
+            )
+            loop = AgentLoop(config, logger, fake_llm, runner)
+            loop.run()
+
+            self.assertEqual(len(fake_llm.calls), 1)
+            c1_msg = fake_llm.calls[0]["messages"][0]["content"]
+            self.assertIn("Helper models needing evaluation before other work", c1_msg)
+
 
 if __name__ == "__main__":
     unittest.main()

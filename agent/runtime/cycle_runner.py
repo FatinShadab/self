@@ -13,6 +13,7 @@ from agent.prompts.cycle import (
     RECORD_DELEGATION_OUTCOME_REMINDER,
     build_cycle_helper_prompt,
     build_cycle_user_message,
+    build_helper_eval_hint,
     build_mid_cycle_human_input_message,
 )
 from agent.prompts.system import ORIENTATION_TASK, STANDING_GOAL
@@ -144,12 +145,15 @@ def run_agent_loop(loop: Any) -> RunSummary:
         human_messages = loop.config.input_provider() if loop.config.input_provider else []
         harness_instruction = ""
         if cycle == 1:
-            init_task = loop.config.initial_context.strip()
-            if not init_task:
+            facts_count = loop.learning.count_observed_facts()
+            min_facts = getattr(loop.config, "min_orientation_facts", 5)
+            if facts_count < min_facts:
                 if loop.body and hasattr(loop.body, "initial_orientation_task") and loop.body.initial_orientation_task():
                     init_task = loop.body.initial_orientation_task().strip()
                 else:
                     init_task = ORIENTATION_TASK
+            else:
+                init_task = loop.config.initial_context.strip() or ORIENTATION_TASK
             harness_instruction = init_task
         human_context = "\n".join(f"- {loop.logger.redactor.text(message)}" for message in human_messages)
         if loop.config.retrieve_memories:
@@ -173,9 +177,17 @@ def run_agent_loop(loop: Any) -> RunSummary:
         else:
             context = "This focused test has no prior memories."
         helper_prompt = ""
-        if cycle == 1 and loop.model_registry is not None:
-            needing = loop.model_registry.helpers_needing_evaluation()
-            helper_prompt = build_cycle_helper_prompt(needing)
+        if loop.model_registry is not None:
+            helpers = [name for name in loop.model_registry.names if name != loop.model_registry.base_model]
+            if helpers:
+                needing = loop.model_registry.helpers_needing_evaluation()
+                facts_count = loop.learning.count_observed_facts()
+                min_facts = getattr(loop.config, "min_orientation_facts", 5)
+                needing_eval = needing if (cycle >= 2 or facts_count >= min_facts) else []
+                if cycle == 1:
+                    helper_prompt = build_cycle_helper_prompt(needing_eval)
+                elif cycle >= 2 and needing_eval:
+                    helper_prompt = build_helper_eval_hint(needing_eval)
         failure_context = loop.registry.recent_failure_context()
         plan_summary = loop.plan_store.prompt_summary(active_plugins=active_plugins_set)
         actions_summary = loop._format_actions(last_actions)

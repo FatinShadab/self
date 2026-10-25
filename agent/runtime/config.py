@@ -51,6 +51,7 @@ class AgentConfig:
     broker: Any | None = None
     audit_trail: Any | None = None
     stop_watcher: Any | None = None
+    min_orientation_facts: int = 5
 
 
 @dataclass

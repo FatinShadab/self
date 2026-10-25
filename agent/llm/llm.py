@@ -1,6 +1,8 @@
 """SELF llm module."""
 from __future__ import annotations
 
+import os
+import sys
 from threading import Lock
 import time
 from typing import Any
@@ -67,10 +69,18 @@ class LLMClient:
             raise RuntimeError(
                 "No LLM credential found. Set OLLAMA_API_KEYS or OLLAMA_API_KEY in the host-side .env file."
             )
-        self.base_model = (
+        configured_model = (
             _first_env("OLLAMA_MODEL", "OLLAM_MODEL") if self.provider == "ollama"
             else _first_env("ANTHROPIC_MODEL")
-        ) or "gpt-oss:120b-cloud"
+        ) or os.getenv("SELF_BASE_MODEL")
+        if not configured_model:
+            if "unittest" in sys.modules or "pytest" in sys.modules or os.getenv("SELF_TEST_MODE") or os.getenv("PYTEST_CURRENT_TEST"):
+                configured_model = "gpt-oss:120b-cloud"
+            else:
+                raise RuntimeError(
+                    "No LLM model configured. Please set OLLAMA_MODEL, ANTHROPIC_MODEL, or SELF_BASE_MODEL in your environment."
+                )
+        self.base_model = configured_model
         self.available_models = list(dict.fromkeys([self.base_model, *_env_key_list("LLM_AVAILABLE_MODELS")]))
         workspace = logger.path.parent.parent if logger.path.parent.name == "logs" else logger.path.parent
         self.model_registry = ModelRegistry(workspace, logger, self.base_model, self.available_models)

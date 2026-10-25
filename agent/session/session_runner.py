@@ -1,6 +1,7 @@
 """Session execution lifecycle, loop orchestration, and post-session handoffs."""
 from __future__ import annotations
 
+import os
 import re
 from typing import Any
 
@@ -48,10 +49,13 @@ def run_session(coordinator: Any) -> Any:
         coordinator._llm = LLMClient(coordinator.logger)
     model_reg = getattr(coordinator._llm, "model_registry", None)
     needing_eval = model_reg.helpers_needing_evaluation() if model_reg is not None else []
+    min_facts = int(os.getenv("SELF_MIN_ORIENTATION_FACTS", "5"))
+    facts_count = coordinator.learning.count_observed_facts()
     if needing_eval:
         coordinator.logger.narrate(f"Startup priority: helper models needing evaluation: {', '.join(needing_eval)}")
-        eval_instructions = build_startup_eval_instructions(needing_eval)
-        startup_context = eval_instructions
+        if facts_count >= min_facts:
+            eval_instructions = build_startup_eval_instructions(needing_eval)
+            startup_context = eval_instructions
 
     package_entry = coordinator.learning._load_map().get("entries", {}).get("packages", {})
     package_value = package_entry.get("value")
@@ -104,6 +108,7 @@ def run_session(coordinator: Any) -> Any:
             broker=coordinator.broker,
             audit_trail=coordinator.audit_trail,
             stop_watcher=coordinator.stop_watcher,
+            min_orientation_facts=min_facts,
         ),
         coordinator.logger,
         coordinator._llm,

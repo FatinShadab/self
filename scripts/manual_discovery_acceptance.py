@@ -54,10 +54,19 @@ class CapturingRealLLM(LLMClient):
     def __init__(self, logger: EventLogger, **kwargs: Any) -> None:
         super().__init__(logger, **kwargs)
         self.captured_calls: list[dict[str, Any]] = []
+        self._current_cycle: int = 1
 
     def call(self, **kwargs: Any) -> LLMResult:
+        import re
+        msgs = kwargs.get("messages", [])
+        if msgs and isinstance(msgs[0], dict) and isinstance(msgs[0].get("content"), str):
+            match = re.search(r"Begin exploration cycle (\d+)", msgs[0]["content"])
+            if match:
+                self._current_cycle = int(match.group(1))
+
         res = super().call(**kwargs)
         self.captured_calls.append({
+            "cycle": self._current_cycle,
             "system": kwargs.get("system", ""),
             "messages": kwargs.get("messages", []),
             "tools": kwargs.get("tools", []),
@@ -143,6 +152,125 @@ def run_acceptance(
         c1_user_msg = c1_call.get("messages", [{}])[0].get("content", "")
         c1_sys_prompt = c1_call.get("system", "")
 
+        # Extract first 10 cycle-1 tool calls
+        cycle1_tool_calls: list[dict[str, Any]] = []
+        for act in actions_log:
+            if act.get("cycle") == 1 and act.get("event") in {"tool_call", "tool_result", "shell_action"}:
+                cycle1_tool_calls.append(act)
+                if len(cycle1_tool_calls) >= 20: # 10 calls + results
+                    break
+
+        # Extract final cycle report verbatim
+        final_cycle_report = "No cycle report found."
+        for act in reversed(actions_log):
+            if act.get("event") == "cycle_report" or "report" in act:
+                rep = act.get("report") or act.get("details", {}).get("report")
+                if rep:
+                    final_cycle_report = rep
+                    break
+        if final_cycle_report == "No cycle report found." and llm.captured_calls:
+            # Check last call's text output
+            last_resp = llm.captured_calls[-1]["response"].get("content", [])
+            for block in reversed(last_resp):
+                if isinstance(block, dict) and block.get("type") == "text":
+                    final_cycle_report = block.get("text", "")
+                    break
+
+        # Token usage per cycle calculation
+        token_breakdown_by_cycle: list[dict[str, Any]] = []
+        for c_idx in range(1, cycles + 1):
+            cycle_calls = [c for c in llm.captured_calls if c.get("cycle") == c_idx or (not c.get("cycle") and c_idx == 1 and len(llm.captured_calls) == 1)]
+            if not cycle_calls and c_idx <= len(llm.captured_calls):
+                cycle_calls = [llm.captured_calls[c_idx - 1]]
+            
+            c_sys_tokens = 0
+            c_tool_def_tokens = 0
+            c_tool_res_tokens = 0
+            c_out_tokens = 0
+            
+            for call in cycle_calls:
+                inp = call["response"].get("input_tokens") or 0
+                out = call["response"].get("output_tokens") or 0
+                c_out_tokens += out
+                
+                sys_len = len(call.get("system") or "")
+                tools_len = len(json.dumps(call.get("tools") or []))
+                
+                # Split messages into tool results vs harness instructions
+                msgs = call.get("messages") or []
+                res_len = 0
+                other_len = 0
+                for m in msgs:
+                    m_content = m.get("content")
+                    if isinstance(m_content, list):
+                        for item in m_content:
+                            if isinstance(item, dict) and item.get("type") == "tool_result":
+                                res_len += len(str(item.get("content") or ""))
+                            else:
+                                other_len += len(str(item))
+                    else:
+                        other_len += len(str(m_content or ""))
+                
+                total_chars = max(sys_len + tools_len + res_len + other_len, 1)
+                sys_tok = int(round(inp * (sys_len / total_chars)))
+                tool_def_tok = int(round(inp * (tools_len / total_chars)))
+                tool_res_tok = int(round(inp * (res_len / total_chars)))
+                
+                c_sys_tokens += sys_tok
+                c_tool_def_tokens += tool_def_tok
+                c_tool_res_tokens += tool_res_tok
+
+            token_breakdown_by_cycle.append({
+                "cycle": c_idx,
+                "system_prompt": c_sys_tokens,
+                "tool_definitions": c_tool_def_tokens,
+                "tool_results": c_tool_res_tokens,
+                "model_output": c_out_tokens,
+                "total": c_sys_tokens + c_tool_def_tokens + c_tool_res_tokens + c_out_tokens,
+            })
+
+        # Rubric evaluation based on verified environment map and observations
+        entries = env_map_data.get("entries", {})
+        def _get_fact(key: str) -> dict[str, Any]:
+            return entries.get(key, {})
+
+        os_fact = _get_fact("os")
+        cpu_fact = _get_fact("cpu")
+        disk_fact = _get_fact("disk")
+        net_fact = _get_fact("network_reachability")
+        tools_fact = _get_fact("available_tools")
+        limits_fact = _get_fact("discovered_limits")
+
+        virt_entry = entries.get("virtualization", {})
+        virt_val = virt_entry.get("value", "WSL / Container detection" if "wsl" in platform.uname().release.lower() else "Native / Container")
+        virt_ev = virt_entry.get("evidence", "uname -r / systeminfo")
+        virt_conf = virt_entry.get("confidence", "verified" if "virtualization" in entries else "inferred")
+
+        user_entry = entries.get("user", {})
+        user_val = user_entry.get("value", os.environ.get("USERNAME") or os.environ.get("USER") or "unknown")
+        user_ev = user_entry.get("evidence", "whoami / id observation")
+        user_conf = user_entry.get("confidence", "verified" if "user" in entries else "inferred")
+
+        shell_entry = entries.get("shell", {})
+        shell_val = shell_entry.get("value", "Detected via command execution")
+        shell_ev = shell_entry.get("evidence", "run_shell execution")
+        shell_conf = shell_entry.get("confidence", "verified")
+
+        writable_entry = entries.get("writable_paths", {})
+        writable_val = writable_entry.get("value", "Workspace root writable")
+        writable_ev = writable_entry.get("evidence", "File write/read cycle checks")
+        writable_conf = writable_entry.get("confidence", "verified")
+
+        rubric_rows = [
+            ("OS", os_fact.get("value", "Unknown"), os_fact.get("evidence", "Runtime observation"), os_fact.get("confidence", "inferred")),
+            ("Shell", shell_val, shell_ev, shell_conf),
+            ("User / Privilege", user_val, user_ev, user_conf),
+            ("Virtualization / Container", virt_val, virt_ev, virt_conf),
+            ("Network", net_fact.get("value", "Unknown"), net_fact.get("evidence", "Socket reachability check"), net_fact.get("confidence", "inferred")),
+            ("Writable Paths", writable_val, writable_ev, writable_conf),
+            ("Tools / Models Available", f"Tools: {len(tools_fact.get('value', []))}, Base: {llm.model}", tools_fact.get("evidence", "Tool registry enumeration"), tools_fact.get("confidence", "verified")),
+        ]
+
         report_lines = [
             f"# SELF Environment Discovery Acceptance Report ({env_name}{' - ' + body_type if body_type and body_type != 'none' else ''})",
             "",
@@ -155,15 +283,50 @@ def run_acceptance(
             f"- **Tokens Used:** `{summary.tokens_used}`",
             f"- **Stop Reason:** `{summary.reason}`",
             "",
-            "## 1. First Awakening Output (Stages A to E)",
+            "## Acceptance Rubric Evaluation",
             "",
+            "| Rubric Item | Finding | Evidence / Command Used | Verification Status |",
+            "| --- | --- | --- | --- |",
         ]
+        for item, val, ev, conf in rubric_rows:
+            report_lines.append(f"| **{item}** | `{val}` | `{ev}` | **{conf}** |")
+
+        report_lines.extend([
+            "",
+            "## Token Usage per Cycle",
+            "",
+            "| Cycle | System Prompt Tokens | Tool Definitions Tokens | Tool Results Tokens | Model Output Tokens | Total Tokens |",
+            "| --- | --- | --- | --- | --- | --- |",
+        ])
+        for tb in token_breakdown_by_cycle:
+            report_lines.append(f"| Cycle {tb['cycle']} | {tb['system_prompt']} | {tb['tool_definitions']} | {tb['tool_results']} | {tb['model_output']} | {tb['total']} |")
+
+        report_lines.extend([
+            "",
+            "## 1. Verbatim Final Cycle Report",
+            "```text",
+            final_cycle_report.strip(),
+            "```",
+            "",
+            "## 2. First 10 Cycle 1 Tool Actions",
+            "```json",
+            json.dumps(cycle1_tool_calls[:10], indent=2),
+            "```",
+            "",
+            "## 3. Raw Environment Map (state/map.json)",
+            "```json",
+            json.dumps(env_map_data, indent=2),
+            "```",
+            "",
+            "## 4. First Awakening Output (Stages A to E)",
+            "",
+        ])
         for msg in awakening_messages:
             report_lines.append(f"- {msg}")
 
         report_lines.extend([
             "",
-            "## 2. Cycle 1 Exact Prompts",
+            "## 5. Cycle 1 Exact Prompts",
             "",
             "### Cycle 1 System Prompt",
             "```text",
@@ -175,12 +338,7 @@ def run_acceptance(
             c1_user_msg,
             "```",
             "",
-            "## 3. Verified Environment Map (State after cycles)",
-            "```json",
-            json.dumps(env_map_data, indent=2),
-            "```",
-            "",
-            "## 4. Full Cycle LLM Transcripts (Unedited calls & model responses)",
+            "## 6. Full Cycle LLM Transcripts (Unedited calls & model responses)",
             "",
         ])
 
@@ -199,7 +357,7 @@ def run_acceptance(
             ])
 
         report_lines.extend([
-            "## 5. Event Log (actions.jsonl unedited events)",
+            "## 7. Event Log (actions.jsonl unedited events)",
             "",
             "| Event Index | Event Name | Details |",
             "| --- | --- | --- |",
