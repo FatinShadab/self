@@ -74,12 +74,9 @@ class LLMClient:
             else _first_env("ANTHROPIC_MODEL")
         ) or os.getenv("SELF_BASE_MODEL")
         if not configured_model:
-            if "unittest" in sys.modules or "pytest" in sys.modules or os.getenv("SELF_TEST_MODE") or os.getenv("PYTEST_CURRENT_TEST"):
-                configured_model = "gpt-oss:120b-cloud"
-            else:
-                raise RuntimeError(
-                    "No LLM model configured. Please set OLLAMA_MODEL, ANTHROPIC_MODEL, or SELF_BASE_MODEL in your environment."
-                )
+            raise RuntimeError(
+                "No LLM model configured. Please set OLLAMA_MODEL, ANTHROPIC_MODEL, or SELF_BASE_MODEL in your environment."
+            )
         self.base_model = configured_model
         self.available_models = list(dict.fromkeys([self.base_model, *_env_key_list("LLM_AVAILABLE_MODELS")]))
         workspace = logger.path.parent.parent if logger.path.parent.name == "logs" else logger.path.parent

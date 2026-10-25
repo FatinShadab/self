@@ -1,0 +1,904 @@
+{"event": "`identity_changed`", "raw_details": "`{\"change\": \"Created the initial identity record with no name and no asserted traits.\", \"session_id\": \"acceptance-session\"}`"}
+{"event": "`identity_initialized`", "raw_details": "`{\"session_id\": \"acceptance-session\"}`"}
+{"event": "`editable_self_layer_initialized`", "raw_details": "`{\"path\": \"C:\\\\Users\\\\USER\\\\AppData\\\\Local\\\\Temp\\\\self-discovery-acceptance-d9hcr75p\\\\self\"}`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Orientation: No body profile configured; sensed neutral runtime telemetry: Windows / Python 3.14.3.\"}`"}
+{"event": "`initial_orientation_sensed`", "raw_details": "`{\"mode\": \"environment_neutral\", \"telemetry\": {\"os_name\": \"nt\", \"platform\": \"Windows\", \"platform_release\": \"11\", \"python_version\": \"3.14.3\", \"cpu_count\": 12}}`"}
+{"event": "`first_awakening_stage_completed`", "raw_details": "`{\"stage\": \"A\", \"session_id\": \"acceptance-session\"}`"}
+{"event": "`first_awakening_stage_completed`", "raw_details": "`{\"stage\": \"B\", \"session_id\": \"acceptance-session\"}`"}
+{"event": "`first_awakening_stage_completed`", "raw_details": "`{\"stage\": \"C\", \"session_id\": \"acceptance-session\"}`"}
+{"event": "`first_awakening_stage_completed`", "raw_details": "`{\"stage\": \"D\", \"session_id\": \"acceptance-session\"}`"}
+{"event": "`first_awakening_stage_completed`", "raw_details": "`{\"stage\": \"E\", \"session_id\": \"acceptance-session\"}`"}
+{"event": "`assumed_output_ceiling`", "raw_details": "`{\"model\": \"gpt-oss:120b\", \"ceiling\": 32768, \"reason\": \"Maximum output length not in registry or env; using assumed ceiling.\"}`"}
+{"event": "`environment_map_initialized`", "raw_details": "`{\"entries\": [\"available_tools\", \"cpu\", \"discovered_limits\", \"disk\", \"network_reachability\", \"os\", \"packages\", \"ram\"]}`"}
+{"event": "`self_notes_rewritten`", "raw_details": "`{\"chars\": 1057}`"}
+{"event": "`provider_registry_initialized`", "raw_details": "`{\"providers\": [\"cerebras\", \"cloudflare_workers_ai\", \"gemini\", \"groq\", \"huggingface\", \"mistral\", \"ollama_local\", \"openrouter\"]}`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`run_started`", "raw_details": "`{\"goal\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a tool...`"}
+{"event": "`cycle_started`", "raw_details": "`{\"cycle\": 1, \"goal\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, ...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Cycle 1: retrieving relevant tools and memories for plan...\"}`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 1, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_key_rotated`", "raw_details": "`{\"provider\": \"ollama\", \"key_index\": 1, \"key_count\": 5, \"reason\": \"provider limit, authentication, or quota failure\"}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_key_rotated`", "raw_details": "`{\"provider\": \"ollama\", \"key_index\": 2, \"key_count\": 5, \"reason\": \"provider limit, authentication, or quota failure\"}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_key_rotated`", "raw_details": "`{\"provider\": \"ollama\", \"key_index\": 3, \"key_count\": 5, \"reason\": \"provider limit, authentication, or quota failure\"}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_key_rotated`", "raw_details": "`{\"provider\": \"ollama\", \"key_index\": 4, \"key_count\": 5, \"reason\": \"provider limit, authentication, or quota failure\"}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 6007, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 6158, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 6007, \"call_output_tokens\": 151, \"max_output_tokens\": 32768, \"tokens_used\": 6158, \"daily_token_budget\": 2000000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Running a shell action: uname -a\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"run_shell\", \"arguments\": {\"cmd\": \"uname -a\", \"timeout\": 5000}}`"}
+{"event": "`command_started`", "raw_details": "`{\"stream_id\": \"44a796d7e28b\", \"command\": \"uname -a\", \"timeout\": 5000.0}`"}
+{"event": "`command_output`", "raw_details": "`{\"stream_id\": \"44a796d7e28b\", \"output\": \"Linux toothless 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64 GNU/Lin...`"}
+{"event": "`command_finished`", "raw_details": "`{\"stream_id\": \"44a796d7e28b\", \"exit_code\": 0, \"timed_out\": false, \"output_bytes\": 119, \"truncated\": false}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"run_shell\", \"ok\": true, \"duration_ms\": 8095.62, \"result_chars\": 223, \"result_sha256\": \"d168149cddbe504b71e2a5dfdb0b420e59433df42b21f15bc9de72e4ace7...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 3, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 6268, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 12484, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 6268, \"call_output_tokens\": 58, \"max_output_tokens\": 32768, \"tokens_used\": 12484, \"daily_token_budget\": 2000000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Running a shell action: echo $SHELL\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"run_shell\", \"arguments\": {\"cmd\": \"echo $SHELL\", \"timeout\": 5000}}`"}
+{"event": "`command_started`", "raw_details": "`{\"stream_id\": \"9957e7d357ad\", \"command\": \"echo $SHELL\", \"timeout\": 5000.0}`"}
+{"event": "`command_output`", "raw_details": "`{\"stream_id\": \"9957e7d357ad\", \"output\": \"/usr/bin/bash\\n\"}`"}
+{"event": "`command_finished`", "raw_details": "`{\"stream_id\": \"9957e7d357ad\", \"exit_code\": 0, \"timed_out\": false, \"output_bytes\": 14, \"truncated\": false}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"run_shell\", \"ok\": true, \"duration_ms\": 290.96, \"result_chars\": 117, \"result_sha256\": \"dd58eb9e7e6c24640b7739635d009a0280b74df3e7805975db36501b4291a...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 5, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 6397, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 18926, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 6397, \"call_output_tokens\": 45, \"max_output_tokens\": 32768, \"tokens_used\": 18926, \"daily_token_budget\": 2000000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Listing /...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"list_dir\", \"arguments\": {\"path\": \"/\", \"max_entries\": 20}}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"list_dir\", \"ok\": true, \"duration_ms\": 0.7, \"result_chars\": 950, \"result_sha256\": \"c9db9eeba7cde70cbc4553cc71df00f07a2536cd145bf5fa464c33e02a743272\"...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 7, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 6822, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 25789, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 6822, \"call_output_tokens\": 41, \"max_output_tokens\": 32768, \"tokens_used\": 25789, \"daily_token_budget\": 2000000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Listing /home...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"list_dir\", \"arguments\": {\"max_entries\": 20, \"path\": \"/home\"}}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"list_dir\", \"ok\": true, \"duration_ms\": 0.4, \"result_chars\": 97, \"result_sha256\": \"746ed6833a7fcee75d9c9445484da71b165511d6da08ba28cce188263d8b1678\",...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 9, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 6925, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 32750, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 6925, \"call_output_tokens\": 36, \"max_output_tokens\": 32768, \"tokens_used\": 32750, \"daily_token_budget\": 2000000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Listing /home/entity...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"list_dir\", \"arguments\": {\"max_entries\": 50, \"path\": \"/home/entity\"}}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"list_dir\", \"ok\": true, \"duration_ms\": 0.36, \"result_chars\": 137, \"result_sha256\": \"1641413175b15e4e3c44b8ed001740cbb612f4a1056fe4775ffe9cca2afa941d...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 11, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 7036, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 39824, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 7036, \"call_output_tokens\": 38, \"max_output_tokens\": 32768, \"tokens_used\": 39824, \"daily_token_budget\": 2000000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Listing /home/entity/config...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"list_dir\", \"arguments\": {\"max_entries\": 50, \"path\": \"/home/entity/config\"}}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"list_dir\", \"ok\": true, \"duration_ms\": 6.66, \"result_chars\": 131, \"result_sha256\": \"ee780f7160929c84c321afb1d288e87a71beccce089c4bcd41134a31834db4b2...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 13, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 7144, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 47007, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 7144, \"call_output_tokens\": 39, \"max_output_tokens\": 32768, \"tokens_used\": 47007, \"daily_token_budget\": 2000000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Reading /home/entity/config/plugins.json...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"read_file\", \"arguments\": {\"path\": \"/home/entity/config/plugins.json\", \"max_chars\": 1000}}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"read_file\", \"ok\": true, \"duration_ms\": 24.16, \"result_chars\": 385, \"result_sha256\": \"99582fd765340fc819469c360a1f2d43d1f5f8508bd00659e2e34f773c3943...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 15, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 7370, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 54420, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 7370, \"call_output_tokens\": 43, \"max_output_tokens\": 32768, \"tokens_used\": 54420, \"daily_token_budget\": 2000000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using list_models...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"list_models\", \"arguments\": {}}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"list_models\", \"ok\": true, \"duration_ms\": 22.51, \"result_chars\": 5616, \"result_sha256\": \"b032c58ad625245443bd494f652cb8308e5efa9e5fcbfd2dcbacbb1c1f4...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 17, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 9170, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 63661, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 9170, \"call_output_tokens\": 71, \"max_output_tokens\": 32768, \"tokens_used\": 63661, \"daily_token_budget\": 2000000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Running a shell action: hostname -I\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"run_shell\", \"arguments\": {\"cmd\": \"hostname -I\", \"timeout\": 5000}}`"}
+{"event": "`command_started`", "raw_details": "`{\"stream_id\": \"5e18a3b466b0\", \"command\": \"hostname -I\", \"timeout\": 5000.0}`"}
+{"event": "`command_output`", "raw_details": "`{\"stream_id\": \"5e18a3b466b0\", \"output\": \"/bin/bash: line 1: hostname: command not found\\n\"}`"}
+{"event": "`command_finished`", "raw_details": "`{\"stream_id\": \"5e18a3b466b0\", \"exit_code\": 127, \"timed_out\": false, \"output_bytes\": 47, \"truncated\": false}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"run_shell\", \"ok\": true, \"duration_ms\": 373.86, \"result_chars\": 152, \"result_sha256\": \"c337151b8db2f799d081183979598a07a0b8dd68cec2053644250e63bbbc6...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 19, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 9321, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 73032, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 9321, \"call_output_tokens\": 50, \"max_output_tokens\": 32768, \"tokens_used\": 73032, \"daily_token_budget\": 2000000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Running a shell action: cat /etc/hosts\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"run_shell\", \"arguments\": {\"cmd\": \"cat /etc/hosts\", \"timeout\": 5000}}`"}
+{"event": "`command_started`", "raw_details": "`{\"stream_id\": \"52a152e54a51\", \"command\": \"cat /etc/hosts\", \"timeout\": 5000.0}`"}
+{"event": "`command_output`", "raw_details": "`{\"stream_id\": \"52a152e54a51\", \"output\": \"# This file was automatically generated by WSL. To stop automatic generation of this file, add the following entry t...`"}
+{"event": "`command_finished`", "raw_details": "`{\"stream_id\": \"52a152e54a51\", \"exit_code\": 0, \"timed_out\": false, \"output_bytes\": 415, \"truncated\": false}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"run_shell\", \"ok\": true, \"duration_ms\": 274.16, \"result_chars\": 533, \"result_sha256\": \"e4429f88575af9c0e023496be88ba12ee604e48503a3d1209a342f66ab0de...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 21, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 9568, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 82670, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 9568, \"call_output_tokens\": 70, \"max_output_tokens\": 32768, \"tokens_used\": 82670, \"daily_token_budget\": 2000000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Fetching example.com/...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"http_get\", \"arguments\": {\"url\": {\"host\": \"example.com\", \"path\": \"/\"}, \"max_chars\": 500, \"timeout\": 10000}}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"GET\", \"host\": \"example.com\", \"path\": \"/\"}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"http_get\", \"ok\": true, \"duration_ms\": 1616.86, \"result_chars\": 625, \"result_sha256\": \"6a292fe07f3e8a87b56cb32e538749568320f33110fa206be71c1e55b45f9...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 23, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 9841, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 92583, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 9841, \"call_output_tokens\": 72, \"max_output_tokens\": 32768, \"tokens_used\": 92583, \"daily_token_budget\": 2000000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Writing /home/entity/config/test.txt...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"write_file\", \"arguments\": {\"append\": false, \"path\": \"/home/entity/config/test.txt\", \"content_chars\": 4, \"content_sha256\": \"9f86d081884c7d659a2feaa0...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"write_file\", \"ok\": false, \"duration_ms\": 0.18, \"result_chars\": 118, \"result_sha256\": \"6b84db3631abe673a9c9d721637ff9845464061a8ddcdce9da06e350e995e...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 25, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 9970, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 102600, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 9970, \"call_output_tokens\": 47, \"max_output_tokens\": 32768, \"tokens_used\": 102600, \"daily_token_budget\": 200000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Writing /tmp/agent_test.txt...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"write_file\", \"arguments\": {\"append\": false, \"path\": \"/tmp/agent_test.txt\", \"content_chars\": 5, \"content_sha256\": \"2cf24dba5fb0a30e26e83b2ac5b9e29e1...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"write_file\", \"ok\": true, \"duration_ms\": 11.89, \"result_chars\": 102, \"result_sha256\": \"fd2ad0ebc2533b27bb0d376204ba39feb738ba8a41c40e5f55d2c3468b215...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 27, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 10081, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 112738, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 10081, \"call_output_tokens\": 57, \"max_output_tokens\": 32768, \"tokens_used\": 112738, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Reading /tmp/agent_test.txt...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"read_file\", \"arguments\": {\"max_chars\": 200, \"path\": \"/tmp/agent_test.txt\"}}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"read_file\", \"ok\": true, \"duration_ms\": 17.26, \"result_chars\": 85, \"result_sha256\": \"ca08b7b3f598e19a84d0a35a33e83cdcf3a462c69a184c5ee27acc0ea1abbea...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 29, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 10195, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 123019, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 10195, \"call_output_tokens\": 86, \"max_output_tokens\": 32768, \"tokens_used\": 123019, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Writing /workspace/test.txt...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"write_file\", \"arguments\": {\"append\": false, \"path\": \"/workspace/test.txt\", \"content_chars\": 1, \"content_sha256\": \"2d711642b726b04401627ca9fbac32f5c...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"write_file\", \"ok\": true, \"duration_ms\": 15.53, \"result_chars\": 102, \"result_sha256\": \"2e4f7a6a0550790f45c22c650fe6174779f96551a98c96a91ae38536da429...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 31, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 10344, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 133435, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 10344, \"call_output_tokens\": 72, \"max_output_tokens\": 32768, \"tokens_used\": 133435, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Reading /home/entity/identity.json...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"read_file\", \"arguments\": {\"max_chars\": 2000, \"path\": \"/home/entity/identity.json\"}}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"read_file\", \"ok\": false, \"duration_ms\": 0.27, \"result_chars\": 100, \"result_sha256\": \"5495308fb6e07eb4834d250af34186901e34425d05495fe9d762a9651b6fdb...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 33, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 10476, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 143952, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 10476, \"call_output_tokens\": 41, \"max_output_tokens\": 32768, \"tokens_used\": 143952, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Listing /home/entity...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"list_dir\", \"arguments\": {\"max_entries\": 100, \"path\": \"/home/entity\"}}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"list_dir\", \"ok\": true, \"duration_ms\": 0.27, \"result_chars\": 137, \"result_sha256\": \"1641413175b15e4e3c44b8ed001740cbb612f4a1056fe4775ffe9cca2afa941d...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 35, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 10592, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 154581, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 10592, \"call_output_tokens\": 37, \"max_output_tokens\": 32768, \"tokens_used\": 154581, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Listing /home/entity/logs...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"list_dir\", \"arguments\": {\"max_entries\": 50, \"path\": \"/home/entity/logs\"}}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"list_dir\", \"ok\": true, \"duration_ms\": 0.39, \"result_chars\": 76, \"result_sha256\": \"0ba3fe9d9485f08ec5521bb30a0195c74672f1d3fc914d9fba060384594be61b\"...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 37, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 10682, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 166064, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 10682, \"call_output_tokens\": 801, \"max_output_tokens\": 32768, \"tokens_used\": 166064, \"daily_token_budget\": 2000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Updating the verified environment map...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"update_environment_map\", \"arguments\": {\"entries\": [{\"confidence\": \"high\", \"evidence\": \"run_shell 'uname -a' output\", \"key\": \"os\", \"value\": \"Linux 6...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"os\", \"shell\", \"filesystem_root_entries\", \"writable_paths\", \"protected_paths\", \"network_http_reachable\", \"models_available\", \"helper_models_probed\"...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"update_environment_map\", \"ok\": true, \"duration_ms\": 26.47, \"result_chars\": 302, \"result_sha256\": \"9ace8647b48c1d52bb12b7828924e2055668dbd9470458d76...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 39, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 11522, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 177683, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 11522, \"call_output_tokens\": 97, \"max_output_tokens\": 32768, \"tokens_used\": 177683, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Updating plan (add): Ensure knowledge of helper model performance and reliability for future delegation...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"update_plan\", \"arguments\": {\"action\": \"add\", \"goal\": \"Probe each configured helper model to assess capabilities and availability\", \"priority\": 2, \"...`"}
+{"event": "`plan_updated`", "raw_details": "`{\"cycle\": 1, \"plan_version\": 2, \"diff\": \"Added goal-2: 'Probe each configured helper model to assess capabilities and availability' (priority=2, status=todo,...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"update_plan\", \"ok\": true, \"duration_ms\": 3.84, \"result_chars\": 1652, \"result_sha256\": \"31c49ed5fc91c6b54b3aeea72be4247ab02dc91e4c4792a7464a45812c0e...`"}
+{"event": "`cycle_progress`", "raw_details": "`{\"cycle\": 1, \"actions\": 20, \"goal\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a c...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 41, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 12034, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 190291, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 12034, \"call_output_tokens\": 574, \"max_output_tokens\": 32768, \"tokens_used\": 190291, \"daily_token_budget\": 2000000...`"}
+{"event": "`memory_recorded`", "raw_details": "`{\"tags\": [\"200\", \"31b\", \"absence\", \"accurate\", \"and\", \"any\", \"assess\", \"bin\", \"can\", \"confidence\", \"delegate\", \"detected.\", \"discovered\", \"executed\", \"explor...`"}
+{"event": "`cycle_started`", "raw_details": "`{\"cycle\": 2, \"goal\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, ...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Cycle 2: retrieving relevant tools and memories for plan...\"}`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 1, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 6719, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 197066, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 6719, \"call_output_tokens\": 56, \"max_output_tokens\": 32768, \"tokens_used\": 197066, \"daily_token_budget\": 200000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using list_models...\"}`"}
+{"event": "`repeated_tool_action_blocked`", "raw_details": "`{\"tool\": \"list_models\"}`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 3, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 6835, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 204000, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 6835, \"call_output_tokens\": 99, \"max_output_tokens\": 32768, \"tokens_used\": 204000, \"daily_token_budget\": 200000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using probe_model...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"probe_model\", \"arguments\": {\"name\": \"nemotron-3-nano:30b\"}}`"}
+{"event": "`model_probe_started`", "raw_details": "`{\"name\": \"nemotron-3-nano:30b\", \"probe_id\": \"5bfb3a9806df4e8a907f82606e76c8bb\", \"session_id\": \"f8649fc6bc154663b71afd1e325ac2db\"}`"}
+{"event": "`assumed_output_ceiling`", "raw_details": "`{\"model\": \"nemotron-3-nano:30b\", \"ceiling\": 32768, \"reason\": \"Maximum output length not in registry or env; using assumed ceiling.\"}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-nano:30b\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-nano:30b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-nano:30b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 63, \"ou...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 204276, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 63, \"call_output_tokens\": 213, \"max_output_tokens\": 32768, \"tokens_used\": 204276, \"daily_token_budget\": 2000000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"nemotron-3-nano:30b\", \"probe_id\": \"5bfb3a9806df4e8a907f82606e76c8bb\", \"case\": \"reasoning\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"chec...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-nano:30b\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-nano:30b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-nano:30b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 87, \"ou...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 204821, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 87, \"call_output_tokens\": 458, \"max_output_tokens\": 32768, \"tokens_used\": 204821, \"daily_token_budget\": 2000000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"nemotron-3-nano:30b\", \"probe_id\": \"5bfb3a9806df4e8a907f82606e76c8bb\", \"case\": \"summarization\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-nano:30b\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-nano:30b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-nano:30b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 59, \"ou...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 205246, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 59, \"call_output_tokens\": 366, \"max_output_tokens\": 32768, \"tokens_used\": 205246, \"daily_token_budget\": 2000000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"nemotron-3-nano:30b\", \"probe_id\": \"5bfb3a9806df4e8a907f82606e76c8bb\", \"case\": \"json\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\": \"...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-nano:30b\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-nano:30b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-nano:30b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 88, \"ou...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 205986, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 88, \"call_output_tokens\": 652, \"max_output_tokens\": 32768, \"tokens_used\": 205986, \"daily_token_budget\": 2000000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"nemotron-3-nano:30b\", \"probe_id\": \"5bfb3a9806df4e8a907f82606e76c8bb\", \"case\": \"code\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\": \"...`"}
+{"event": "`model_probe_completed`", "raw_details": "`{\"name\": \"nemotron-3-nano:30b\", \"probe_id\": \"5bfb3a9806df4e8a907f82606e76c8bb\", \"completed_cases\": 4, \"failed\": false, \"inconclusive\": false}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"probe_model\", \"ok\": true, \"duration_ms\": 8993.26, \"result_chars\": 3017, \"result_sha256\": \"61b22861c4ce2108a8527b0ed9e2536e1ece682c0fd0d72d35d3dfcca...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 5, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 7962, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 213992, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 7962, \"call_output_tokens\": 44, \"max_output_tokens\": 32768, \"tokens_used\": 213992, \"daily_token_budget\": 200000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using research_model...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"research_model\", \"arguments\": {\"name\": \"nemotron-3-nano:30b\"}}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"GET\", \"host\": \"ollama.com\", \"path\": \"/library/nemotron-3-nano\", \"purpose\": \"model_research\"}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"GET\", \"host\": \"ollama.com\", \"path\": \"/library/nemotron-3-nano/tags\", \"purpose\": \"model_research\"}`"}
+{"event": "`model_research_recorded`", "raw_details": "`{\"name\": \"nemotron-3-nano:30b\", \"status\": \"facts_found\", \"source_url\": \"https://ollama.com/library/nemotron-3-nano\", \"fact_count\": 3, \"urls_tried\": [\"https:/...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"research_model\", \"ok\": true, \"duration_ms\": 5302.13, \"result_chars\": 5800, \"result_sha256\": \"f2ad01707654b11faef98aa692a62dcfa06eaf5fcbf4471768a972...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 7, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 9860, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 224155, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 9860, \"call_output_tokens\": 303, \"max_output_tokens\": 32768, \"tokens_used\": 224155, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using record_model_assessment...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"record_model_assessment\", \"arguments\": {\"name\": \"nemotron-3-nano:30b\", \"assessment\": \"4B/3.5B, ctx 1M, status ok, call latency ~2.1s, probe latency...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"record_model_assessment\", \"ok\": false, \"duration_ms\": 0.17, \"result_chars\": 99, \"result_sha256\": \"b179142be892d3e2c1c90b8d547d4dae910221fea6b43eca9...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 9, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 10196, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 234529, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 10196, \"call_output_tokens\": 178, \"max_output_tokens\": 32768, \"tokens_used\": 234529, \"daily_token_budget\": 2000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using record_model_assessment...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"record_model_assessment\", \"arguments\": {\"assessment\": \"4B/3.5B, ctx 1M, status ok, call latency ~2.1s, probe latency ~2.2s, strong reasoning; probe...`"}
+{"event": "`model_facts_recorded`", "raw_details": "`{\"name\": \"nemotron-3-nano:30b\", \"origin\": \"model_knowledge\", \"count\": 3}`"}
+{"event": "`model_assessment_recorded`", "raw_details": "`{\"name\": \"nemotron-3-nano:30b\", \"evidence\": \"probe:5bfb3a9806df4e8a907f82606e76c8bb\"}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"record_model_assessment\", \"ok\": true, \"duration_ms\": 160.49, \"result_chars\": 411, \"result_sha256\": \"3f2775859b29f98e7be35792f866dca459882692fd952c5...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 11, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 10697, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 245277, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 10697, \"call_output_tokens\": 51, \"max_output_tokens\": 32768, \"tokens_used\": 245277, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using probe_model...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"probe_model\", \"arguments\": {\"name\": \"gemma4:31b\"}}`"}
+{"event": "`model_probe_started`", "raw_details": "`{\"name\": \"gemma4:31b\", \"probe_id\": \"555f86726e9a4e2d905d051300c37d0d\", \"session_id\": \"f8649fc6bc154663b71afd1e325ac2db\"}`"}
+{"event": "`assumed_output_ceiling`", "raw_details": "`{\"model\": \"gemma4:31b\", \"ceiling\": 32768, \"reason\": \"Maximum output length not in registry or env; using assumed ceiling.\"}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gemma4:31b\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gemma4:31b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gemma4:31b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 64, \"output_toke...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 245343, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 64, \"call_output_tokens\": 2, \"max_output_tokens\": 32768, \"tokens_used\": 245343, \"daily_token_budget\": 20000000000000}`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"gemma4:31b\", \"probe_id\": \"555f86726e9a4e2d905d051300c37d0d\", \"case\": \"reasoning\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\": \"exac...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gemma4:31b\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gemma4:31b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gemma4:31b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 90, \"output_toke...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 245452, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 90, \"call_output_tokens\": 19, \"max_output_tokens\": 32768, \"tokens_used\": 245452, \"daily_token_budget\": 20000000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"gemma4:31b\", \"probe_id\": \"555f86726e9a4e2d905d051300c37d0d\", \"case\": \"summarization\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\": \"...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gemma4:31b\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gemma4:31b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gemma4:31b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 62, \"output_toke...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 245538, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 62, \"call_output_tokens\": 24, \"max_output_tokens\": 32768, \"tokens_used\": 245538, \"daily_token_budget\": 20000000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"gemma4:31b\", \"probe_id\": \"555f86726e9a4e2d905d051300c37d0d\", \"case\": \"json\", \"attempt\": 1, \"outcome\": \"failed\", \"passed\": false, \"check\": \"invalid_...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gemma4:31b\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gemma4:31b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gemma4:31b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 88, \"output_toke...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 245651, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 88, \"call_output_tokens\": 25, \"max_output_tokens\": 32768, \"tokens_used\": 245651, \"daily_token_budget\": 20000000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"gemma4:31b\", \"probe_id\": \"555f86726e9a4e2d905d051300c37d0d\", \"case\": \"code\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\": \"passed\", ...`"}
+{"event": "`model_probe_completed`", "raw_details": "`{\"name\": \"gemma4:31b\", \"probe_id\": \"555f86726e9a4e2d905d051300c37d0d\", \"completed_cases\": 4, \"failed\": false, \"inconclusive\": false}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"probe_model\", \"ok\": true, \"duration_ms\": 5747.26, \"result_chars\": 3078, \"result_sha256\": \"226dfd325c3e00354eb6039fc6ecede66551aec043d4c11927807322c...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 13, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 11804, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 257493, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 11804, \"call_output_tokens\": 38, \"max_output_tokens\": 32768, \"tokens_used\": 257493, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using research_model...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"research_model\", \"arguments\": {\"name\": \"gemma4:31b\"}}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"GET\", \"host\": \"ollama.com\", \"path\": \"/library/gemma4\", \"purpose\": \"model_research\"}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"GET\", \"host\": \"ollama.com\", \"path\": \"/library/gemma4/tags\", \"purpose\": \"model_research\"}`"}
+{"event": "`model_research_recorded`", "raw_details": "`{\"name\": \"gemma4:31b\", \"status\": \"facts_found\", \"source_url\": \"https://ollama.com/library/gemma4\", \"fact_count\": 3, \"urls_tried\": [\"https://ollama.com/librar...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"research_model\", \"ok\": true, \"duration_ms\": 13843.29, \"result_chars\": 5730, \"result_sha256\": \"ba3c6646f111b2474248d5d83f08b007d9f67992f0c101d47195e...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 15, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 13744, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 271513, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 13744, \"call_output_tokens\": 276, \"max_output_tokens\": 32768, \"tokens_used\": 271513, \"daily_token_budget\": 2000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using record_model_assessment...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"record_model_assessment\", \"arguments\": {\"assessment\": \"unknown/4B, ctx 128K, status ok, call latency ~1.3s, probe latency ~1.4s, reasoning good; pr...`"}
+{"event": "`model_facts_recorded`", "raw_details": "`{\"name\": \"gemma4:31b\", \"origin\": \"model_knowledge\", \"count\": 3}`"}
+{"event": "`model_assessment_recorded`", "raw_details": "`{\"name\": \"gemma4:31b\", \"evidence\": \"probe:555f86726e9a4e2d905d051300c37d0d\"}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"record_model_assessment\", \"ok\": true, \"duration_ms\": 61.54, \"result_chars\": 405, \"result_sha256\": \"3edb0438a98b6db71f8ea761078f889e3a6d8305f12bbf3d...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 17, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 14337, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 285890, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 14337, \"call_output_tokens\": 40, \"max_output_tokens\": 32768, \"tokens_used\": 285890, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using probe_model...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"probe_model\", \"arguments\": {\"name\": \"gpt-oss:20b\"}}`"}
+{"event": "`model_probe_started`", "raw_details": "`{\"name\": \"gpt-oss:20b\", \"probe_id\": \"764fbaa571ba4c58ac1607acda822069\", \"session_id\": \"f8649fc6bc154663b71afd1e325ac2db\"}`"}
+{"event": "`assumed_output_ceiling`", "raw_details": "`{\"model\": \"gpt-oss:20b\", \"ceiling\": 32768, \"reason\": \"Maximum output length not in registry or env; using assumed ceiling.\"}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:20b\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:20b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:20b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 120, \"output_to...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 286101, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 120, \"call_output_tokens\": 91, \"max_output_tokens\": 32768, \"tokens_used\": 286101, \"daily_token_budget\": 2000000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"gpt-oss:20b\", \"probe_id\": \"764fbaa571ba4c58ac1607acda822069\", \"case\": \"reasoning\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\": \"exa...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:20b\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:20b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:20b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 143, \"output_to...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 286451, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 143, \"call_output_tokens\": 207, \"max_output_tokens\": 32768, \"tokens_used\": 286451, \"daily_token_budget\": 200000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"gpt-oss:20b\", \"probe_id\": \"764fbaa571ba4c58ac1607acda822069\", \"case\": \"summarization\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\": ...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:20b\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:20b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:20b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 118, \"output_to...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 286707, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 118, \"call_output_tokens\": 138, \"max_output_tokens\": 32768, \"tokens_used\": 286707, \"daily_token_budget\": 200000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"gpt-oss:20b\", \"probe_id\": \"764fbaa571ba4c58ac1607acda822069\", \"case\": \"json\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\": \"valid_js...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:20b\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:20b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:20b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 147, \"output_to...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 287124, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 147, \"call_output_tokens\": 270, \"max_output_tokens\": 32768, \"tokens_used\": 287124, \"daily_token_budget\": 200000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"gpt-oss:20b\", \"probe_id\": \"764fbaa571ba4c58ac1607acda822069\", \"case\": \"code\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\": \"passed\",...`"}
+{"event": "`model_probe_completed`", "raw_details": "`{\"name\": \"gpt-oss:20b\", \"probe_id\": \"764fbaa571ba4c58ac1607acda822069\", \"completed_cases\": 4, \"failed\": false, \"inconclusive\": false}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"probe_model\", \"ok\": true, \"duration_ms\": 8329.49, \"result_chars\": 3003, \"result_sha256\": \"d9e50ca5d9ef09733c5f7f72a661ca76cd8d81258a9b63d5c97e2d919...`"}
+{"event": "`cycle_progress`", "raw_details": "`{\"cycle\": 2, \"actions\": 9, \"goal\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a ca...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 19, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 15389, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 302556, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 15389, \"call_output_tokens\": 43, \"max_output_tokens\": 32768, \"tokens_used\": 302556, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using research_model...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"research_model\", \"arguments\": {\"name\": \"gpt-oss:20b\"}}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"GET\", \"host\": \"ollama.com\", \"path\": \"/library/gpt-oss\", \"purpose\": \"model_research\"}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"GET\", \"host\": \"ollama.com\", \"path\": \"/library/gpt-oss/tags\", \"purpose\": \"model_research\"}`"}
+{"event": "`model_research_recorded`", "raw_details": "`{\"name\": \"gpt-oss:20b\", \"status\": \"facts_found\", \"source_url\": \"https://ollama.com/library/gpt-oss\", \"fact_count\": 4, \"urls_tried\": [\"https://ollama.com/libr...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"research_model\", \"ok\": true, \"duration_ms\": 2521.3, \"result_chars\": 6089, \"result_sha256\": \"826893811d379af89c0ecfa7165ff2f2d8e4ddfee7ddc74a92a5c2b...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 21, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 17274, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 320003, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 17274, \"call_output_tokens\": 173, \"max_output_tokens\": 32768, \"tokens_used\": 320003, \"daily_token_budget\": 2000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using record_model_assessment...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"record_model_assessment\", \"arguments\": {\"assessment\": \"20B/unknown, ctx 128K, status ok, call latency ~1.9s, probe latency ~2.0s, powerful reasonin...`"}
+{"event": "`model_facts_recorded`", "raw_details": "`{\"name\": \"gpt-oss:20b\", \"origin\": \"model_knowledge\", \"count\": 3}`"}
+{"event": "`model_assessment_recorded`", "raw_details": "`{\"name\": \"gpt-oss:20b\", \"evidence\": \"probe:764fbaa571ba4c58ac1607acda822069\"}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"record_model_assessment\", \"ok\": true, \"duration_ms\": 60.64, \"result_chars\": 411, \"result_sha256\": \"08a6d89fb2d1b38804e6ceb72695968458bfd9b9f1ca806f...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 23, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 17760, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 337817, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 17760, \"call_output_tokens\": 54, \"max_output_tokens\": 32768, \"tokens_used\": 337817, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using probe_model...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"probe_model\", \"arguments\": {\"name\": \"nemotron-3-super\"}}`"}
+{"event": "`model_probe_started`", "raw_details": "`{\"name\": \"nemotron-3-super\", \"probe_id\": \"d21c10321f4046eb8faf4d45168ab56c\", \"session_id\": \"f8649fc6bc154663b71afd1e325ac2db\"}`"}
+{"event": "`assumed_output_ceiling`", "raw_details": "`{\"model\": \"nemotron-3-super\", \"ceiling\": 32768, \"reason\": \"Maximum output length not in registry or env; using assumed ceiling.\"}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-super\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-super\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-super\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 63, \"outpu...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 337933, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 63, \"call_output_tokens\": 53, \"max_output_tokens\": 32768, \"tokens_used\": 337933, \"daily_token_budget\": 20000000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"nemotron-3-super\", \"probe_id\": \"d21c10321f4046eb8faf4d45168ab56c\", \"case\": \"reasoning\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\":...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-super\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-super\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-super\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 87, \"outpu...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 338104, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 87, \"call_output_tokens\": 84, \"max_output_tokens\": 32768, \"tokens_used\": 338104, \"daily_token_budget\": 20000000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"nemotron-3-super\", \"probe_id\": \"d21c10321f4046eb8faf4d45168ab56c\", \"case\": \"summarization\", \"attempt\": 1, \"outcome\": \"failed\", \"passed\": false, \"ch...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-super\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-super\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-super\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 59, \"outpu...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 338200, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 59, \"call_output_tokens\": 37, \"max_output_tokens\": 32768, \"tokens_used\": 338200, \"daily_token_budget\": 20000000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"nemotron-3-super\", \"probe_id\": \"d21c10321f4046eb8faf4d45168ab56c\", \"case\": \"json\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\": \"val...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-super\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-super\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-super\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 88, \"outpu...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 338557, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 88, \"call_output_tokens\": 269, \"max_output_tokens\": 32768, \"tokens_used\": 338557, \"daily_token_budget\": 2000000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"nemotron-3-super\", \"probe_id\": \"d21c10321f4046eb8faf4d45168ab56c\", \"case\": \"code\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\": \"pas...`"}
+{"event": "`model_probe_completed`", "raw_details": "`{\"name\": \"nemotron-3-super\", \"probe_id\": \"d21c10321f4046eb8faf4d45168ab56c\", \"completed_cases\": 4, \"failed\": false, \"inconclusive\": false}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"probe_model\", \"ok\": true, \"duration_ms\": 8285.27, \"result_chars\": 3270, \"result_sha256\": \"2a9f6f7bc78068a92d2be5854a223cfec376a9ebf719e834925e0e23c...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 25, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 18921, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 357515, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 18921, \"call_output_tokens\": 37, \"max_output_tokens\": 32768, \"tokens_used\": 357515, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using research_model...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"research_model\", \"arguments\": {\"name\": \"nemotron-3-super\"}}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"GET\", \"host\": \"ollama.com\", \"path\": \"/library/nemotron-3-super\", \"purpose\": \"model_research\"}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"GET\", \"host\": \"ollama.com\", \"path\": \"/library/nemotron-3-super/tags\", \"purpose\": \"model_research\"}`"}
+{"event": "`model_research_recorded`", "raw_details": "`{\"name\": \"nemotron-3-super\", \"status\": \"facts_found\", \"source_url\": \"https://ollama.com/library/nemotron-3-super\", \"fact_count\": 3, \"urls_tried\": [\"https://o...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"research_model\", \"ok\": true, \"duration_ms\": 3087.77, \"result_chars\": 5813, \"result_sha256\": \"f6c63c1cc1a8d43c727388d4f38fc5f80ec35f369be7bd7ee36b94...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 27, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 20894, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 378615, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 20894, \"call_output_tokens\": 206, \"max_output_tokens\": 32768, \"tokens_used\": 378615, \"daily_token_budget\": 2000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using record_model_assessment...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"record_model_assessment\", \"arguments\": {\"assessment\": \"12B/12B, ctx 256K, status ok, call latency ~1.9s, probe latency ~2.0s, strong reasoning; pro...`"}
+{"event": "`model_facts_recorded`", "raw_details": "`{\"name\": \"nemotron-3-super\", \"origin\": \"model_knowledge\", \"count\": 3}`"}
+{"event": "`model_assessment_recorded`", "raw_details": "`{\"name\": \"nemotron-3-super\", \"evidence\": \"probe:d21c10321f4046eb8faf4d45168ab56c\"}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"record_model_assessment\", \"ok\": true, \"duration_ms\": 70.58, \"result_chars\": 410, \"result_sha256\": \"1cd3bd6a1f700ad253f8b4a3f972cfa7580091226b9d056b...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 29, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 21409, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 400066, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 21409, \"call_output_tokens\": 42, \"max_output_tokens\": 32768, \"tokens_used\": 400066, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using probe_model...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"probe_model\", \"arguments\": {\"name\": \"nemotron-3-ultra\"}}`"}
+{"event": "`model_probe_started`", "raw_details": "`{\"name\": \"nemotron-3-ultra\", \"probe_id\": \"56a2d469362741beb8e17cf5e5b82ec3\", \"session_id\": \"f8649fc6bc154663b71afd1e325ac2db\"}`"}
+{"event": "`assumed_output_ceiling`", "raw_details": "`{\"model\": \"nemotron-3-ultra\", \"ceiling\": 32768, \"reason\": \"Maximum output length not in registry or env; using assumed ceiling.\"}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-ultra\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-ultra\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-ultra\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 63, \"outpu...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 400233, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 63, \"call_output_tokens\": 104, \"max_output_tokens\": 32768, \"tokens_used\": 400233, \"daily_token_budget\": 2000000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"nemotron-3-ultra\", \"probe_id\": \"56a2d469362741beb8e17cf5e5b82ec3\", \"case\": \"reasoning\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\":...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-ultra\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-ultra\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-ultra\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 87, \"outpu...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 400453, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 87, \"call_output_tokens\": 133, \"max_output_tokens\": 32768, \"tokens_used\": 400453, \"daily_token_budget\": 2000000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"nemotron-3-ultra\", \"probe_id\": \"56a2d469362741beb8e17cf5e5b82ec3\", \"case\": \"summarization\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"che...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-ultra\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-ultra\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-ultra\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 59, \"outpu...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 400572, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 59, \"call_output_tokens\": 60, \"max_output_tokens\": 32768, \"tokens_used\": 400572, \"daily_token_budget\": 20000000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"nemotron-3-ultra\", \"probe_id\": \"56a2d469362741beb8e17cf5e5b82ec3\", \"case\": \"json\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\": \"val...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-ultra\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-ultra\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"nemotron-3-ultra\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 88, \"outpu...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 400908, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 88, \"call_output_tokens\": 248, \"max_output_tokens\": 32768, \"tokens_used\": 400908, \"daily_token_budget\": 2000000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"nemotron-3-ultra\", \"probe_id\": \"56a2d469362741beb8e17cf5e5b82ec3\", \"case\": \"code\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\": \"pas...`"}
+{"event": "`model_probe_completed`", "raw_details": "`{\"name\": \"nemotron-3-ultra\", \"probe_id\": \"56a2d469362741beb8e17cf5e5b82ec3\", \"completed_cases\": 4, \"failed\": false, \"inconclusive\": false}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"probe_model\", \"ok\": true, \"duration_ms\": 50303.41, \"result_chars\": 3025, \"result_sha256\": \"8ca93ff8a84d5ee5f24daf13b4b59a4babc1a5a3893b42d8e5b99a15...`"}
+{"event": "`cycle_progress`", "raw_details": "`{\"cycle\": 2, \"actions\": 15, \"goal\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a c...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 31, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 22492, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 423435, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 22492, \"call_output_tokens\": 35, \"max_output_tokens\": 32768, \"tokens_used\": 423435, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using research_model...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"research_model\", \"arguments\": {\"name\": \"nemotron-3-ultra\"}}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"GET\", \"host\": \"ollama.com\", \"path\": \"/library/nemotron-3-ultra\", \"purpose\": \"model_research\"}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"GET\", \"host\": \"ollama.com\", \"path\": \"/library/nemotron-3-ultra/tags\", \"purpose\": \"model_research\"}`"}
+{"event": "`model_research_recorded`", "raw_details": "`{\"name\": \"nemotron-3-ultra\", \"status\": \"facts_found\", \"source_url\": \"https://ollama.com/library/nemotron-3-ultra\", \"fact_count\": 4, \"urls_tried\": [\"https://o...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"research_model\", \"ok\": true, \"duration_ms\": 3525.22, \"result_chars\": 6253, \"result_sha256\": \"e11223c6170e555c5e1af8d26fcf475a5e1e9742b65a0468c82239...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 33, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 24349, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 447975, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 24349, \"call_output_tokens\": 191, \"max_output_tokens\": 32768, \"tokens_used\": 447975, \"daily_token_budget\": 2000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using record_model_assessment...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"record_model_assessment\", \"arguments\": {\"assessment\": \"550B/55B, ctx 256K, status ok, call latency ~12.4s, probe latency ~12.5s, strong reasoning; ...`"}
+{"event": "`model_facts_recorded`", "raw_details": "`{\"name\": \"nemotron-3-ultra\", \"origin\": \"model_knowledge\", \"count\": 3}`"}
+{"event": "`model_assessment_recorded`", "raw_details": "`{\"name\": \"nemotron-3-ultra\", \"evidence\": \"probe:56a2d469362741beb8e17cf5e5b82ec3\"}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"record_model_assessment\", \"ok\": true, \"duration_ms\": 74.33, \"result_chars\": 413, \"result_sha256\": \"2c43b686966d7c368c90cd2f33b18638f9c8c372fcb4dd2c...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 35, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 24852, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 472864, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 24852, \"call_output_tokens\": 37, \"max_output_tokens\": 32768, \"tokens_used\": 472864, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using probe_model...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"probe_model\", \"arguments\": {\"name\": \"beam\"}}`"}
+{"event": "`model_probe_started`", "raw_details": "`{\"name\": \"beam\", \"probe_id\": \"9f88e316934949768277e025003a5734\", \"session_id\": \"f8649fc6bc154663b71afd1e325ac2db\"}`"}
+{"event": "`assumed_output_ceiling`", "raw_details": "`{\"model\": \"beam\", \"ceiling\": 32768, \"reason\": \"Maximum output length not in registry or env; using assumed ceiling.\"}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"beam\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"beam\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"beam\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 98, \"output_tokens\": 5...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 473017, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 98, \"call_output_tokens\": 55, \"max_output_tokens\": 32768, \"tokens_used\": 473017, \"daily_token_budget\": 20000000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"beam\", \"probe_id\": \"9f88e316934949768277e025003a5734\", \"case\": \"reasoning\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\": \"exact_answ...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"beam\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"beam\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"beam\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 123, \"output_tokens\": ...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 473279, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 123, \"call_output_tokens\": 139, \"max_output_tokens\": 32768, \"tokens_used\": 473279, \"daily_token_budget\": 200000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"beam\", \"probe_id\": \"9f88e316934949768277e025003a5734\", \"case\": \"summarization\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\": \"format...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"beam\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"beam\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"beam\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 96, \"output_tokens\": 5...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 473432, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 96, \"call_output_tokens\": 57, \"max_output_tokens\": 32768, \"tokens_used\": 473432, \"daily_token_budget\": 20000000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"beam\", \"probe_id\": \"9f88e316934949768277e025003a5734\", \"case\": \"json\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\": \"valid_json\", \"f...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"beam\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"beam\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"beam\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 125, \"output_tokens\": ...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 473787, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 125, \"call_output_tokens\": 230, \"max_output_tokens\": 32768, \"tokens_used\": 473787, \"daily_token_budget\": 200000000...`"}
+{"event": "`model_probe_case`", "raw_details": "`{\"name\": \"beam\", \"probe_id\": \"9f88e316934949768277e025003a5734\", \"case\": \"code\", \"attempt\": 1, \"outcome\": \"passed\", \"passed\": true, \"check\": \"passed\", \"fence...`"}
+{"event": "`model_probe_completed`", "raw_details": "`{\"name\": \"beam\", \"probe_id\": \"9f88e316934949768277e025003a5734\", \"completed_cases\": 4, \"failed\": false, \"inconclusive\": false}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"probe_model\", \"ok\": true, \"duration_ms\": 5570.31, \"result_chars\": 3018, \"result_sha256\": \"9b6290e38f77e8ec666efdb3505fa2ee5fb2dac6b4ac3a14312d3037d...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 37, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 25903, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 499718, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 25903, \"call_output_tokens\": 28, \"max_output_tokens\": 32768, \"tokens_used\": 499718, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using research_model...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"research_model\", \"arguments\": {\"name\": \"beam\"}}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"GET\", \"host\": \"ollama.com\", \"path\": \"/library/beam\", \"purpose\": \"model_research\"}`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"GET\", \"host\": \"ollama.com\", \"path\": \"/library/beam/tags\", \"purpose\": \"model_research\"}`"}
+{"event": "`model_research_recorded`", "raw_details": "`{\"name\": \"beam\", \"status\": \"facts_found\", \"source_url\": \"https://ollama.com/library/beam\", \"fact_count\": 3, \"urls_tried\": [\"https://ollama.com/library/beam\",...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"research_model\", \"ok\": true, \"duration_ms\": 5862.72, \"result_chars\": 5690, \"result_sha256\": \"85bc0b94e4c8b54ceaf567eafb6ad6f94f24166f3d801c09bff76b...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 39, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 27607, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 527491, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 27607, \"call_output_tokens\": 166, \"max_output_tokens\": 32768, \"tokens_used\": 527491, \"daily_token_budget\": 2000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using record_model_assessment...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"record_model_assessment\", \"arguments\": {\"assessment\": \"501B/23B, ctx 1M, status ok, call latency ~1.3s, probe latency ~1.3s, strong reasoning; prob...`"}
+{"event": "`model_facts_recorded`", "raw_details": "`{\"name\": \"beam\", \"origin\": \"model_knowledge\", \"count\": 3}`"}
+{"event": "`model_assessment_recorded`", "raw_details": "`{\"name\": \"beam\", \"evidence\": \"probe:9f88e316934949768277e025003a5734\"}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"record_model_assessment\", \"ok\": true, \"duration_ms\": 69.6, \"result_chars\": 397, \"result_sha256\": \"54e24a0cd94458df81206e9fb9d09da7c0185630974fd375c...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 41, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 28076, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 555725, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 28076, \"call_output_tokens\": 158, \"max_output_tokens\": 32768, \"tokens_used\": 555725, \"daily_token_budget\": 2000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Updating plan (mark_done): All configured helper models have been probed, researched, and assessments recorded, fulfilling the ...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"update_plan\", \"arguments\": {\"action\": \"mark_done\", \"id\": \"goal-2\", \"reason\": \"All configured helper models have been probed, researched, and assess...`"}
+{"event": "`plan_updated`", "raw_details": "`{\"cycle\": 2, \"plan_version\": 3, \"diff\": \"Marked done goal-2: 'Probe each configured helper model to assess capabilities and availability'\", \"reason\": \"All co...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"update_plan\", \"ok\": true, \"duration_ms\": 4.33, \"result_chars\": 1642, \"result_sha256\": \"6ab5e406f3494e459bbcb6eb957dfb077df0c313a74cc1f9f13a0c38e127...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 43, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 28630, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 585320, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 28630, \"call_output_tokens\": 965, \"max_output_tokens\": 32768, \"tokens_used\": 585320, \"daily_token_budget\": 2000000...`"}
+{"event": "`agent_step`", "raw_details": "`{\"message\": \"**Cycle 2 – Helper‑model assessment report**\\n\\n**What I discovered**\\n\\n"}
+{"event": "`cycle_completed`", "raw_details": "`{\"cycle\": 2, \"tokens_used\": 585320, \"report\": \"**Cycle 2 – Helper‑model assessment report**\\n\\n**What I discovered**\\n\\n"}
+{"event": "`plan_hygiene_applied`", "raw_details": "`{\"cycle\": 2, \"plan_version\": 4, \"diff\": \"Archived and purged 1 completed/dropped goal(s) to plan_archive.jsonl\"}`"}
+{"event": "`cycle_started`", "raw_details": "`{\"cycle\": 3, \"goal\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, ...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Cycle 3: retrieving relevant tools and memories for plan...\"}`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 1, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 8049, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 593437, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 8049, \"call_output_tokens\": 68, \"max_output_tokens\": 32768, \"tokens_used\": 593437, \"daily_token_budget\": 200000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using list_models...\"}`"}
+{"event": "`repeated_tool_action_blocked`", "raw_details": "`{\"tool\": \"list_models\"}`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 3, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 8177, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 602444, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 8177, \"call_output_tokens\": 830, \"max_output_tokens\": 32768, \"tokens_used\": 602444, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Updating the verified environment map...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"update_environment_map\", \"arguments\": {\"entries\": [{\"confidence\": \"high\", \"evidence\": \"probe_model latency ~2.2s; research_model facts from web (ve...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"update_environment_map\", \"ok\": false, \"duration_ms\": 22.24, \"result_chars\": 99, \"result_sha256\": \"89f6083b6296c1defe9e2c8884e7167d57125921e600427d1...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 5, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 8830, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 611846, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 8830, \"call_output_tokens\": 572, \"max_output_tokens\": 32768, \"tokens_used\": 611846, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Updating the verified environment map...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"update_environment_map\", \"arguments\": {\"entries\": [{\"confidence\": \"high\", \"evidence\": \"probe_model latency ~2.2s; research_model facts from web (ve...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"model_nemotron_3_nano_30b\", \"model_gemma4_31b\", \"model_gpt_oss_20b\", \"model_nemotron_3_super\", \"model_nemotron_3_ultra\", \"model_beam\"], \"source\": ...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"update_environment_map\", \"ok\": true, \"duration_ms\": 35.98, \"result_chars\": 267, \"result_sha256\": \"f5785024d81f5b9c98480daeb633223a4fa4b1cefef632fa4...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 7, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 9532, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 621623, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 9532, \"call_output_tokens\": 245, \"max_output_tokens\": 32768, \"tokens_used\": 621623, \"daily_token_budget\": 20000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Reading C:\\\\Users\\\\USER\\\\AppData\\\\Local\\\\Temp\\\\self-discovery-acceptance-d9hcr75p\\\\state\\\\map.json...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"read_file\", \"arguments\": {\"max_chars\": 200000, \"path\": \"C:\\\\Users\\\\USER\\\\AppData\\\\Local\\\\Temp\\\\self-discovery-acceptance-d9hcr75p\\\\state\\\\map.json\"}}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"read_file\", \"ok\": true, \"duration_ms\": 25.83, \"result_chars\": 10495, \"result_sha256\": \"53a2e0eee8704c884e3452f4bdee1329e01aaa7b9aa359230da61957249b...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 9, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 12936, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 635364, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 12936, \"call_output_tokens\": 805, \"max_output_tokens\": 32768, \"tokens_used\": 635364, \"daily_token_budget\": 2000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using create_tool...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"create_tool\", \"arguments\": {\"name\": \"get_model_info\", \"description\": \"Retrieve stored information about a helper model from the persistent environm...`"}
+{"event": "`tool_creation_failed`", "raw_details": "`{\"name\": \"get_model_info\", \"attempt\": 1, \"traceback\": \"Traceback (most recent call last):\\n  File \\\"D:\\\\GITHUB\\\\ME\\\\self\\\\agent\\\\tools\\\\custom\\\\creation.py\\\"...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"create_tool\", \"ok\": false, \"duration_ms\": 9.98, \"result_chars\": 524, \"result_sha256\": \"11aae7981d237a5280e7b905b0171968533e18036edcd894b47ac350ca62...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 11, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 13904, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 650015, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 13904, \"call_output_tokens\": 747, \"max_output_tokens\": 32768, \"tokens_used\": 650015, \"daily_token_budget\": 2000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using create_tool...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"create_tool\", \"arguments\": {\"description\": \"Retrieve stored information about a helper model from the persistent environment map. Input: {\\\"model_n...`"}
+{"event": "`tool_creation_failed`", "raw_details": "`{\"name\": \"get_model_info\", \"attempt\": 2, \"traceback\": \"Traceback (most recent call last):\\n  File \\\"D:\\\\GITHUB\\\\ME\\\\self\\\\agent\\\\tools\\\\custom\\\\creation.py\\\"...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"create_tool\", \"ok\": false, \"duration_ms\": 7.24, \"result_chars\": 490, \"result_sha256\": \"3f1c99de04198b4eb371be090c97a15fd76bbf97d7168a2150f6e99bc1d8...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 13, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 14820, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 665554, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 14820, \"call_output_tokens\": 719, \"max_output_tokens\": 32768, \"tokens_used\": 665554, \"daily_token_budget\": 2000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using create_tool...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"create_tool\", \"arguments\": {\"description\": \"Retrieve stored information about a helper model from the persistent environment map. Input: {\\\"model_n...`"}
+{"event": "`tool_creation_failed`", "raw_details": "`{\"name\": \"get_model_info\", \"attempt\": 3, \"traceback\": \"Traceback (most recent call last):\\n  File \\\"D:\\\\GITHUB\\\\ME\\\\self\\\\agent\\\\tools\\\\custom\\\\creation.py\\\"...`"}
+{"event": "`tool_failure_lesson`", "raw_details": "`{\"at\": \"2026-10-25T10:13:48.679193+00:00\", \"tool\": \"get_model_info\", \"lesson\": \"Three creation attempts failed; reconsider design before retrying in a later ...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"create_tool\", \"ok\": false, \"duration_ms\": 9.07, \"result_chars\": 490, \"result_sha256\": \"67cd5db177aa1dd722dd2e613ea84bcdb95f5a9a5655a7ea6877b81a8e91...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 15, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 15704, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 682099, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 15704, \"call_output_tokens\": 841, \"max_output_tokens\": 32768, \"tokens_used\": 682099, \"daily_token_budget\": 2000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using create_tool...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"create_tool\", \"arguments\": {\"description\": \"Retrieve stored information about a helper model from the persistent environment map. Input follows JSO...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"create_tool\", \"ok\": false, \"duration_ms\": 1.17, \"result_chars\": 324, \"result_sha256\": \"f770e3ee19922db5b3c1923fee718f912958a33f9e302268895199ae438d...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 17, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 16652, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 699366, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 16652, \"call_output_tokens\": 615, \"max_output_tokens\": 32768, \"tokens_used\": 699366, \"daily_token_budget\": 2000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using create_tool...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"create_tool\", \"arguments\": {\"description\": \"Retrieve stored information about a helper model from the persistent environment map. Input follows JSO...`"}
+{"event": "`tool_creation_failed`", "raw_details": "`{\"name\": \"model_info_query\", \"attempt\": 1, \"traceback\": \"Traceback (most recent call last):\\n  File \\\"D:\\\\GITHUB\\\\ME\\\\self\\\\agent\\\\tools\\\\custom\\\\creation.py...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"create_tool\", \"ok\": false, \"duration_ms\": 148.69, \"result_chars\": 506, \"result_sha256\": \"974b1eda21e78bc42e5595e0a65d3b7835399b4832321a43b47fde67ad...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 19, \"tool_count\": 29, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 17432, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 717410, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 17432, \"call_output_tokens\": 612, \"max_output_tokens\": 32768, \"tokens_used\": 717410, \"daily_token_budget\": 2000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Using create_tool...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"create_tool\", \"arguments\": {\"description\": \"Retrieve stored information about a helper model from the persistent environment map. Input: string mod...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 2885, \"output_...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 720739, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 2885, \"call_output_tokens\": 444, \"max_output_tokens\": 32768, \"tokens_used\": 720739, \"daily_token_budget\": 20000000...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"beam\", \"message_count\": 1, \"tool_count\": 0, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"beam\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"beam\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 767, \"output_tokens\": ...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 724036, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 767, \"call_output_tokens\": 2530, \"max_output_tokens\": 32768, \"tokens_used\": 724036, \"daily_token_budget\": 20000000...`"}
+{"event": "`tool_critic`", "raw_details": "`{\"name\": \"model_info_query\", \"attempt\": 2, \"verdict\": {\"approved\": true, \"issues\": []}}`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Testing proposed tool model_info_query...\"}`"}
+{"event": "`tool_test`", "raw_details": "`{\"name\": \"model_info_query\", \"attempt\": 2, \"result\": {\"exit_code\": 0, \"output\": \"test_existing (test_tool.TestModelInfoQuery.test_existing) ... ok\\r\\ntest_in...`"}
+{"event": "`tool_registered`", "raw_details": "`{\"name\": \"model_info_query\", \"version\": 1, \"input_schema\": {\"type\": \"object\", \"properties\": {\"model_name\": {\"type\": \"string\"}}, \"required\": [\"model_name\"]}, ...`"}
+{"event": "`tool_loaded`", "raw_details": "`{\"name\": \"model_info_query\", \"version\": 1}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"create_tool\", \"ok\": true, \"duration_ms\": 16842.24, \"result_chars\": 367, \"result_sha256\": \"067a2dcddc04d64c7068e7a0f8f78bb57317365d71a6b99075f6324ef...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 21, \"tool_count\": 30, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 18228, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 742418, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 18228, \"call_output_tokens\": 154, \"max_output_tokens\": 32768, \"tokens_used\": 742418, \"daily_token_budget\": 2000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Reviewing the current persistent plan...\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"read_plan\", \"arguments\": {\"include_history\": false}}`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"read_plan\", \"ok\": true, \"duration_ms\": 0.73, \"result_chars\": 1686, \"result_sha256\": \"851ff987e7b321ce432f74c144243b7d7d89574352020a1e5fa216356fda29...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 23, \"tool_count\": 30, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"tool_use\", \"input_tokens\": 18821, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 761417, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 18821, \"call_output_tokens\": 178, \"max_output_tokens\": 32768, \"tokens_used\": 761417, \"daily_token_budget\": 2000000...`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Updating plan (add): Tool was created; need to ensure it functions and map completeness is verified....\"}`"}
+{"event": "`tool_call`", "raw_details": "`{\"tool\": \"update_plan\", \"arguments\": {\"action\": \"add\", \"goal\": \"Verify the newly created model_info_query tool works by retrieving data for each helper model...`"}
+{"event": "`plan_updated`", "raw_details": "`{\"cycle\": 3, \"plan_version\": 5, \"diff\": \"Added goal-3: 'Verify the newly created model_info_query tool works by retrieving data for each helper model and log...`"}
+{"event": "`tool_result`", "raw_details": "`{\"tool\": \"update_plan\", \"ok\": true, \"duration_ms\": 4.82, \"result_chars\": 1866, \"result_sha256\": \"1fea958f6ab53f296583eabc12f9565ae88519bc6012b7c3c59947904a26...`"}
+{"event": "`environment_map_updated`", "raw_details": "`{\"keys\": [\"available_tools\", \"discovered_limits\"], \"source\": \"harness\"}`"}
+{"event": "`tool_retrieval`", "raw_details": "`{\"query\": \"Explore your environment. Build and keep an accurate map of what it contains and what you can do in it. When you hit a capability gap, write a too...`"}
+{"event": "`network_request`", "raw_details": "`{\"method\": \"POST\", \"host\": \"ollama.com\", \"path\": \"/v1/messages\"}`"}
+{"event": "`llm_call_started`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"message_count\": 25, \"tool_count\": 30, \"max_output_tokens\": 32768, \"effective_cap\": 32768}`"}
+{"event": "`llm_call_attempt`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"provider_call_number\": null}`"}
+{"event": "`llm_call_completed`", "raw_details": "`{\"provider\": \"ollama\", \"model\": \"gpt-oss:120b\", \"max_output_tokens\": 32768, \"effective_cap\": 32768, \"stop_reason\": \"end_turn\", \"input_tokens\": 19464, \"output...`"}
+{"event": "`daily_token_budget_updated`", "raw_details": "`{\"used\": 781478, \"reserved\": 0, \"cap\": 20000000000000}`"}
+{"event": "`token_spend`", "raw_details": "`{\"usage_known\": true, \"call_input_tokens\": 19464, \"call_output_tokens\": 597, \"max_output_tokens\": 32768, \"tokens_used\": 781478, \"daily_token_budget\": 2000000...`"}
+{"event": "`agent_step`", "raw_details": "`{\"message\": \"**Cycle 3 – Exploration Report**\\n\\n**What I did**\\n\\n1. **Consolidated helper‑model data**  \\n   – Added each probed helper model (nemotron‑3‑n...`"}
+{"event": "`cycle_completed`", "raw_details": "`{\"cycle\": 3, \"tokens_used\": 781478, \"report\": \"**Cycle 3 – Exploration Report**\\n\\n**What I did**\\n\\n1. **Consolidated helper‑model data**  \\n   – Added each...`"}
+{"event": "`memory_recorded`", "raw_details": "`{\"tags\": [\"1.\", \"3.\", \"able\", \"accurate\", \"already\", \"and\", \"any\", \"as\", \"can\", \"capabilities.\", \"confirm\", \"consolidated\", \"cpu\", \"exploration\", \"finds\", \"i...`"}
+{"event": "`self_notes_rewritten`", "raw_details": "`{\"chars\": 5420}`"}
+{"event": "`run_completed`", "raw_details": "`{\"iterations\": 3, \"tokens_used\": 781478, \"reason\": \"max_iterations\"}`"}
+{"event": "`narration`", "raw_details": "`{\"message\": \"Run finished after 3 cycle(s), using 781478 tokens; reason: max_iterations.\"}`"}

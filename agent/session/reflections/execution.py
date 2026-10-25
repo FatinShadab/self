@@ -60,13 +60,10 @@ def execute_reflection_llm(
             moment="background_reflection",
         )
 
-    base_model = getattr(active_client, "base_model", None)
+    base_model = getattr(active_client, "base_model", None) or os.getenv("SELF_BASE_MODEL")
     effective_model = reflection_model or base_model
     if not effective_model:
-        if "unittest" in sys.modules or "pytest" in sys.modules or os.getenv("SELF_TEST_MODE") or os.getenv("PYTEST_CURRENT_TEST"):
-            effective_model = "gpt-oss:120b"
-        else:
-            raise RuntimeError("No reflection model configured.")
+        raise RuntimeError("No reflection model configured.")
     reflection_cap = (
         model_registry.get_output_cap(effective_model)
         if model_registry is not None

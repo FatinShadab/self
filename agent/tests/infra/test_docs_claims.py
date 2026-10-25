@@ -28,9 +28,16 @@ if SCRIPTS_AVAILABLE:
 @unittest.skipUnless(SCRIPTS_AVAILABLE, "Host-side scripts/check_docs_claims is not included in container image")
 class DocsClaimsTests(unittest.TestCase):
     def test_ground_truth_facts_integrity(self) -> None:
+        import re
+        from scripts.check_docs_claims import REPO_ROOT
         facts = get_ground_truth_facts()
         self.assertEqual(facts["tool_count"], 29)
-        self.assertEqual(facts["event_count"], 141)
+        # Verify docs claim and AST event count agree instead of hardcoding an integer
+        readme_text = (REPO_ROOT / "README.md").read_text(encoding="utf-8")
+        event_claims = [int(m) for m in re.findall(r"\b(\d+)\s+(?:structured\s+)?events\b", readme_text, re.IGNORECASE)]
+        self.assertTrue(len(event_claims) > 0, "Expected event count claim in README.md")
+        for claim in event_claims:
+            self.assertEqual(facts["event_count"], claim)
         self.assertEqual(facts["core_api_version"], "1.1.0")
         self.assertEqual(facts["version_file"], "1.1.0")
         # 334 baseline at rc3 + 3 tests in DocsClaimsTests = 337

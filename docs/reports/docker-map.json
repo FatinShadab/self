@@ -1,0 +1,165 @@
+{
+  "entries": {
+    "available_tools": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "harness registry refresh",
+      "last_verified": "2026-10-25T11:08:32.887425+00:00",
+      "plugin": "core",
+      "value": [
+        "ask_brain",
+        "ask_model",
+        "benchmark_providers",
+        "create_tool",
+        "http_get",
+        "list_dir",
+        "list_models",
+        "probe_local_ollama",
+        "probe_model",
+        "propose_core_patch",
+        "propose_plugin",
+        "read_cost_ledger",
+        "read_file",
+        "read_plan",
+        "record_delegation_outcome",
+        "record_model_assessment",
+        "record_provider_verification",
+        "request_capability",
+        "request_plugin_review",
+        "request_provider_key",
+        "research_model",
+        "research_provider",
+        "run_shell",
+        "scaffold_plugin",
+        "test_plugin",
+        "update_environment_map",
+        "update_plan",
+        "validate_plugin",
+        "write_file"
+      ]
+    },
+    "cpu": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "local bootstrap",
+      "last_verified": "2026-10-25T11:05:25.035198+00:00",
+      "plugin": "core",
+      "value": {
+        "logical_cpus": 4
+      }
+    },
+    "discovered_limits": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "harness configuration",
+      "last_verified": "2026-10-25T11:08:32.887425+00:00",
+      "plugin": "core",
+      "value": {
+        "max_iterations_per_run": 3,
+        "token_budget_per_run": 200000,
+        "tool_output_char_cap": 20000
+      }
+    },
+    "disk": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "local bootstrap",
+      "last_verified": "2026-10-25T11:05:25.035198+00:00",
+      "plugin": "core",
+      "value": {
+        "free_bytes": 1016374648832,
+        "total_bytes": 1081101176832,
+        "used_bytes": 9734172672
+      }
+    },
+    "filesystem_root_listing": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "<UNTRUSTED_DATA source='tool:run_shell'>{\"exit_code\":0,\"output\":\"total 56\\ndrwxr-xr-x   1 root   root   4096 Oct 25 11:05 .\\n...\"}</UNTRUSTED_DATA>",
+      "last_verified": "2026-10-25T11:05:55.188813+00:00",
+      "plugin": "core",
+      "value": "Contains typical Linux dirs, .dockerenv, /repo with rwx permissions, etc."
+    },
+    "helper_models_configured": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "<UNTRUSTED_DATA source='tool:list_models'>...</UNTRUSTED_DATA>",
+      "last_verified": "2026-10-25T11:05:55.188813+00:00",
+      "plugin": "core",
+      "value": [
+        "nemotron-3-nano:30b",
+        "gemma4:31b",
+        "gpt-oss:20b",
+        "nemotron-3-super",
+        "nemotron-3-ultra",
+        "beam"
+      ]
+    },
+    "internet_access": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "<UNTRUSTED_DATA source='tool:http_get'>{\"status\":200,\"host\":\"example.com\",...}</UNTRUSTED_DATA>",
+      "last_verified": "2026-10-25T11:05:55.188813+00:00",
+      "plugin": "core",
+      "value": true
+    },
+    "network_reachability": {
+      "body": "container",
+      "confidence": "unknown",
+      "evidence": "awaiting HTTP or network observation",
+      "last_verified": "2026-10-25T11:05:25.035198+00:00",
+      "plugin": "core",
+      "value": "not yet checked"
+    },
+    "os": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "<UNTRUSTED_DATA source='tool:run_shell'>{\"exit_code\": 0, \"output\": \"Linux c089d1f2a453 6.18.54.1-microsoft-standard-WSL2 #1 SMP PREEMPT_DYNAMIC Tue Oct  6 19:13:07 UTC 2026 x86_64 GNU/Linux\\n\", ...}</UNTRUSTED_DATA>",
+      "last_verified": "2026-10-25T11:05:55.188813+00:00",
+      "plugin": "core",
+      "value": "Linux (WSL2)"
+    },
+    "packages": {
+      "body": "container",
+      "confidence": "unknown",
+      "evidence": "awaiting package inspection",
+      "last_verified": "2026-10-25T11:05:25.035198+00:00",
+      "plugin": "core",
+      "value": "not yet inventoried"
+    },
+    "plugins_enabled": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "<UNTRUSTED_DATA source='tool:read_file'>{\"content\":\"{\\n  \\\"plugins\\\": {}\\n}\\n\"}</UNTRUSTED_DATA>",
+      "last_verified": "2026-10-25T11:05:55.188813+00:00",
+      "plugin": "core",
+      "value": []
+    },
+    "ram": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "local bootstrap",
+      "last_verified": "2026-10-25T11:05:25.035198+00:00",
+      "plugin": "core",
+      "value": 8330498048
+    },
+    "repo_writable": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "<UNTRUSTED_DATA source='tool:write_file'>{\"ok\": true, \"path\": \"/repo/state/test_write.txt\", ...}</UNTRUSTED_DATA>",
+      "last_verified": "2026-10-25T11:05:55.188813+00:00",
+      "plugin": "core",
+      "value": true
+    },
+    "shell": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "<UNTRUSTED_DATA source='tool:run_shell'>{\"exit_code\": 0, \"output\": \"/bin/bash\\n\", ...}</UNTRUSTED_DATA>",
+      "last_verified": "2026-10-25T11:05:55.188813+00:00",
+      "plugin": "core",
+      "value": "/bin/bash"
+    }
+  },
+  "schema_version": 2,
+  "updated_at": "2026-10-25T11:08:32.887425+00:00"
+}

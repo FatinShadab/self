@@ -22,7 +22,7 @@ SELF maintains two distinct, decoupled version tracks:
 ### What Has Been Verified
 - **Automated Offline Test Suites:** The repository includes harness and evaluation tests. The permission and plugin regression selection passed locally (37 tests). A full container test run has not been repeated for these changes.
 - **Deterministic Soak Suite:** Scenarios B1 through B10 run continuously for 60 to 200 cycles against a scripted provider and historical replay fixtures (`scripts/soak.ps1`), validating per-cycle invariants: daily token ledger accounting, bounded handoffs (≤ 6,000 characters), plan hygiene, header deduplication, and absence of tight spins.
-- **Static Documentation & Architecture Guards:** `scripts/check_architecture_docs.py` and `scripts/check_docs_claims.py` verify that all tool definitions (29 tools), events (140 events), state files (42 files), environment variables (44 vars), relative links, code symbols, and numerical claims match code ground truth.
+- **Static Documentation & Architecture Guards:** `scripts/check_architecture_docs.py` and `scripts/check_docs_claims.py` verify that all tool definitions (29 tools), events (142 events), state files (42 files), environment variables (44 vars), relative links, code symbols, and numerical claims match code ground truth.
 
 ### What Has NOT Been Verified
 - **No Live Multi-Cycle Run on Release Candidate 3:** No extended multi-cycle autonomous run has been executed or validated against live commercial LLM endpoints using the `core-v0.1.0-rc3` release candidate.

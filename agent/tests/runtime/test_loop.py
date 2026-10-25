@@ -319,6 +319,8 @@ class AgentLoopTests(unittest.TestCase):
 
             def _fake_sleep(duration: float) -> None:
                 nonlocal sleep_calls
+                if duration != 1.0:
+                    return
                 sleep_calls += 1
                 # Operator resets used tokens or increases budget
                 d = ledger._read()

@@ -517,10 +517,10 @@ agent/tests/runtime/test_loop.py::AgentLoopTests::test_pause_until_daily_reset_r
 
 ## 7. Manual Acceptance Script & Generated Reports
 
-Added script: [scripts/manual_discovery_acceptance.py](file:///d:/GITHUB/ME/self/scripts/manual_discovery_acceptance.py).
+Added script: [scripts/manual_discovery_acceptance.py](../../scripts/manual_discovery_acceptance.py).
 The script initializes SELF with `body=None`, runs 3 autonomous cycles with no prior body profile, and writes full transcripts and verified environment maps.
 
 Generated Reports:
-1. Windows: [docs/reports/discovery-acceptance-windows.md](file:///d:/GITHUB/ME/self/docs/reports/discovery-acceptance-windows.md)
-2. Linux: [docs/reports/discovery-acceptance-linux.md](file:///d:/GITHUB/ME/self/docs/reports/discovery-acceptance-linux.md)
+1. Windows: [docs/reports/discovery-acceptance-windows.md](discovery-acceptance-windows.md)
+2. Linux: [docs/reports/discovery-acceptance-linux.md](discovery-acceptance-linux.md)
 

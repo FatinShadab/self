@@ -1,0 +1,214 @@
+{
+  "entries": {
+    "apt_sources_info": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "cat /etc/apt/sources.list output",
+      "last_verified": "2026-10-25T10:23:16.269766+00:00",
+      "plugin": "core",
+      "value": "sources list uses /etc/apt/sources.list.d/ubuntu.sources (deb822 format)"
+    },
+    "available_tools": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "harness registry refresh",
+      "last_verified": "2026-10-25T10:23:24.089104+00:00",
+      "plugin": "core",
+      "value": [
+        "ask_brain",
+        "ask_model",
+        "benchmark_providers",
+        "create_tool",
+        "http_get",
+        "list_dir",
+        "list_models",
+        "probe_local_ollama",
+        "probe_model",
+        "propose_core_patch",
+        "propose_plugin",
+        "read_cost_ledger",
+        "read_file",
+        "read_plan",
+        "record_delegation_outcome",
+        "record_model_assessment",
+        "record_provider_verification",
+        "request_capability",
+        "request_plugin_review",
+        "request_provider_key",
+        "research_model",
+        "research_provider",
+        "run_shell",
+        "scaffold_plugin",
+        "test_plugin",
+        "update_environment_map",
+        "update_plan",
+        "validate_plugin",
+        "write_file"
+      ]
+    },
+    "cpu": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "local bootstrap",
+      "last_verified": "2026-10-25T10:20:30.260545+00:00",
+      "plugin": "core",
+      "value": {
+        "logical_cpus": 4
+      }
+    },
+    "discovered_limits": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "harness configuration",
+      "last_verified": "2026-10-25T10:23:24.089104+00:00",
+      "plugin": "core",
+      "value": {
+        "max_iterations_per_run": 3,
+        "token_budget_per_run": 200000,
+        "tool_output_char_cap": 20000
+      }
+    },
+    "disk": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "local bootstrap",
+      "last_verified": "2026-10-25T10:20:30.260545+00:00",
+      "plugin": "core",
+      "value": {
+        "free_bytes": 1018176323584,
+        "total_bytes": 1081101176832,
+        "used_bytes": 7932497920
+      }
+    },
+    "etc_contains": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "run_shell ls /etc shows apt and systemd directories",
+      "last_verified": "2026-10-25T10:23:10.336998+00:00",
+      "plugin": "core",
+      "value": [
+        "apt",
+        "systemd",
+        "NetworkManager"
+      ]
+    },
+    "helper_models_configured": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "<UNTRUSTED_DATA source='tool:list_models'>...\"models\":[{\"name\":\"nemotron-3-nano:30b\",\"role\":\"helper\"},...]</UNTRUSTED_DATA>",
+      "last_verified": "2026-10-25T10:21:06.081671+00:00",
+      "plugin": "core",
+      "value": [
+        "nemotron-3-nano:30b",
+        "gemma4:31b",
+        "gpt-oss:20b",
+        "nemotron-3-super",
+        "nemotron-3-ultra",
+        "beam"
+      ]
+    },
+    "network_http_example_com": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "<UNTRUSTED_DATA source='tool:http_get'>{\"status\":200,\"host\":\"example.com\"}</UNTRUSTED_DATA>",
+      "last_verified": "2026-10-25T10:21:04.637534+00:00",
+      "plugin": "core",
+      "value": "reachable"
+    },
+    "network_reachability": {
+      "body": "container",
+      "confidence": "unknown",
+      "evidence": "awaiting HTTP or network observation",
+      "last_verified": "2026-10-25T10:20:30.260545+00:00",
+      "plugin": "core",
+      "value": "not yet checked"
+    },
+    "os": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "<UNTRUSTED_DATA source='tool:run_shell'>{\"output\":\"Linux toothless 6.18.54.1-microsoft-standard-WSL2 ...\"}</UNTRUSTED_DATA>",
+      "last_verified": "2026-10-25T10:21:01.090571+00:00",
+      "plugin": "core",
+      "value": "Linux 6.18.54.1-microsoft-standard-WSL2 (Ubuntu 24.04 LTS)"
+    },
+    "os_distribution": {
+      "body": "container",
+      "confidence": "medium",
+      "evidence": "systemctl --version output shows Ubuntu style version string",
+      "last_verified": "2026-10-25T10:23:08.450072+00:00",
+      "plugin": "core",
+      "value": "Ubuntu (likely Ubuntu based on apt, systemd version string)"
+    },
+    "package_manager": {
+      "body": "container",
+      "confidence": "medium",
+      "evidence": "apt command available (implied by apt directory in /etc)",
+      "last_verified": "2026-10-25T10:23:10.336998+00:00",
+      "plugin": "core",
+      "value": "apt"
+    },
+    "packages": {
+      "body": "container",
+      "confidence": "unknown",
+      "evidence": "awaiting package inspection",
+      "last_verified": "2026-10-25T10:20:30.260545+00:00",
+      "plugin": "core",
+      "value": "not yet inventoried"
+    },
+    "ram": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "local bootstrap",
+      "last_verified": "2026-10-25T10:20:30.260545+00:00",
+      "plugin": "core",
+      "value": 8330498048
+    },
+    "shell": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "<UNTRUSTED_DATA source='tool:run_shell'>{\"output\":\"/bin/bash\\n\"}</UNTRUSTED_DATA>",
+      "last_verified": "2026-10-25T10:21:04.637534+00:00",
+      "plugin": "core",
+      "value": "/bin/bash"
+    },
+    "systemd_timers": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "systemctl list-timers output captured",
+      "last_verified": "2026-10-25T10:23:19.432913+00:00",
+      "plugin": "core",
+      "value": [
+        "systemd-tmpfiles-clean.timer",
+        "apt-daily.timer",
+        "motd-news.timer",
+        "man-db.timer",
+        "dpkg-db-backup.timer",
+        "logrotate.timer",
+        "apt-daily-upgrade.timer",
+        "e2scrub_all.timer",
+        "apport-autoreport.timer",
+        "fstrim.timer",
+        "snapd.snap-repair.timer",
+        "ua-timer.timer"
+      ]
+    },
+    "working_directory": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "<UNTRUSTED_DATA source='tool:run_shell'>{\"output\":\"/tmp/self-discovery-acceptance-aa_wrt1w\\n\"}</UNTRUSTED_DATA>",
+      "last_verified": "2026-10-25T10:21:04.637534+00:00",
+      "plugin": "core",
+      "value": "/tmp/self-discovery-acceptance-aa_wrt1w"
+    },
+    "write_protection_etc": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "<UNTRUSTED_DATA source='tool:run_shell'>{\"output\":\"touch /etc/testperm 2\\u003e... fail\\n\"}</UNTRUSTED_DATA>",
+      "last_verified": "2026-10-25T10:21:04.637534+00:00",
+      "plugin": "core",
+      "value": "not_writable"
+    }
+  },
+  "schema_version": 2,
+  "updated_at": "2026-10-25T10:23:24.089104+00:00"
+}

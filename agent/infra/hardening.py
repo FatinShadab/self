@@ -141,14 +141,21 @@ class CapabilityRequests:
         return {"ok": False, "status": "human_approval_required", "path": str(self.path), "halted": halt}
 
 
+def _ledger_sleep(duration: float) -> None:
+    """Dedicated backoff pause for Windows file lock retries."""
+    import time
+    time.sleep(duration)
+
+
 class DailyTokenLedger:
     """Reserve and settle the daily token allowance."""
 
-    def __init__(self, workspace: str | Path, logger: EventLogger, cap: int | None = None) -> None:
+    def __init__(self, workspace: str | Path, logger: EventLogger, cap: int | None = None, sleeper: Callable[[float], None] = _ledger_sleep) -> None:
         self.path = Path(workspace) / "state" / "daily_token_budget.json"
         self.logger = logger
         self.cap = max(1, cap or int(os.getenv("SELF_MAX_TOKENS_PER_DAY", "200000")))
         self.lock_path = self.path.with_suffix(".lock")
+        self.sleeper = sleeper
 
     def _read(self) -> dict[str, Any]:
         today = datetime.now(timezone.utc).date().isoformat()
@@ -177,7 +184,7 @@ class DailyTokenLedger:
                 except PermissionError:
                     if attempt == 4:
                         raise
-                    time.sleep(0.02 * (attempt + 1))
+                    self.sleeper(0.02 * (attempt + 1))
         finally:
             temporary.unlink(missing_ok=True)
 

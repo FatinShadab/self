@@ -1,0 +1,311 @@
+{
+  "entries": {
+    "available_tools": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "harness registry refresh",
+      "last_verified": "2026-10-25T10:14:20.218363+00:00",
+      "plugin": "core",
+      "value": [
+        "ask_brain",
+        "ask_model",
+        "benchmark_providers",
+        "create_tool",
+        "http_get",
+        "list_dir",
+        "list_models",
+        "model_info_query",
+        "probe_local_ollama",
+        "probe_model",
+        "propose_core_patch",
+        "propose_plugin",
+        "read_cost_ledger",
+        "read_file",
+        "read_plan",
+        "record_delegation_outcome",
+        "record_model_assessment",
+        "record_provider_verification",
+        "request_capability",
+        "request_plugin_review",
+        "request_provider_key",
+        "research_model",
+        "research_provider",
+        "run_shell",
+        "scaffold_plugin",
+        "test_plugin",
+        "update_environment_map",
+        "update_plan",
+        "validate_plugin",
+        "write_file"
+      ]
+    },
+    "cpu": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "local bootstrap",
+      "last_verified": "2026-10-25T10:09:34.291521+00:00",
+      "plugin": "core",
+      "value": {
+        "logical_cpus": 12
+      }
+    },
+    "discovered_limits": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "harness configuration",
+      "last_verified": "2026-10-25T10:14:20.218363+00:00",
+      "plugin": "core",
+      "value": {
+        "max_iterations_per_run": 3,
+        "token_budget_per_run": 200000,
+        "tool_output_char_cap": 20000
+      }
+    },
+    "disk": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "local bootstrap",
+      "last_verified": "2026-10-25T10:09:34.291521+00:00",
+      "plugin": "core",
+      "value": {
+        "free_bytes": 10236358656,
+        "total_bytes": 214493556736,
+        "used_bytes": 204257198080
+      }
+    },
+    "filesystem_root_entries": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "list_dir '/'",
+      "last_verified": "2026-10-25T10:10:33.659989+00:00",
+      "plugin": "core",
+      "value": [
+        "$RECYCLE.BIN",
+        "2025.8.21.1028",
+        "AIP-BD",
+        "assignment",
+        "c-trash",
+        "Docker",
+        "eWasteBin-main",
+        "Game",
+        "GITHUB",
+        "Hackday",
+        "home",
+        "mahmudul",
+        "mathstudio",
+        "mm",
+        "New folder",
+        "data.csv",
+        "DumpStack.log.tmp",
+        "Layer2.png",
+        "Layer3.png",
+        "Made In India A Titan Story (2026) S01 WEB-DL [Hindi] 720p ESub.mp4"
+      ]
+    },
+    "helper_models_probed": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "no probe calls made yet",
+      "last_verified": "2026-10-25T10:10:33.659989+00:00",
+      "plugin": "core",
+      "value": false
+    },
+    "model_beam": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "probe_model latency ~1.3s; research_model facts from web (verified).",
+      "last_verified": "2026-10-25T10:13:35.442115+00:00",
+      "plugin": "core",
+      "value": {
+        "active_params": "23B",
+        "avg_latency_ms": 1250,
+        "context_window": "1M",
+        "name": "beam",
+        "role": "helper",
+        "status": "reachable",
+        "strengths": null,
+        "total_params": "501B"
+      }
+    },
+    "model_gemma4_31b": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "probe_model latency ~1.4s; research_model facts from web (verified).",
+      "last_verified": "2026-10-25T10:13:35.442115+00:00",
+      "plugin": "core",
+      "value": {
+        "active_params": "4B",
+        "avg_latency_ms": 1296,
+        "context_window": "128K",
+        "name": "gemma4:31b",
+        "role": "helper",
+        "status": "reachable",
+        "strengths": "reasoning",
+        "total_params": "unknown"
+      }
+    },
+    "model_gpt_oss_20b": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "probe_model latency ~2.0s; research_model facts from web (verified).",
+      "last_verified": "2026-10-25T10:13:35.442115+00:00",
+      "plugin": "core",
+      "value": {
+        "active_params": "unknown",
+        "avg_latency_ms": 1928,
+        "context_window": "128K",
+        "name": "gpt-oss:20b",
+        "role": "helper",
+        "status": "reachable",
+        "strengths": "powerful reasoning",
+        "total_params": "20B"
+      }
+    },
+    "model_nemotron_3_nano_30b": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "probe_model latency ~2.2s; research_model facts from web (verified).",
+      "last_verified": "2026-10-25T10:13:35.442115+00:00",
+      "plugin": "core",
+      "value": {
+        "active_params": "3.5B",
+        "avg_latency_ms": 2117,
+        "context_window": "1M",
+        "name": "nemotron-3-nano:30b",
+        "role": "helper",
+        "status": "reachable",
+        "strengths": null,
+        "total_params": "4B"
+      }
+    },
+    "model_nemotron_3_super": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "probe_model latency ~2.0s; research_model facts from web (verified).",
+      "last_verified": "2026-10-25T10:13:35.442115+00:00",
+      "plugin": "core",
+      "value": {
+        "active_params": "12B",
+        "avg_latency_ms": 1922,
+        "context_window": "256K",
+        "name": "nemotron-3-super",
+        "role": "helper",
+        "status": "reachable",
+        "strengths": null,
+        "total_params": "12B"
+      }
+    },
+    "model_nemotron_3_ultra": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "probe_model latency ~12.5s; research_model facts from web (verified).",
+      "last_verified": "2026-10-25T10:13:35.442115+00:00",
+      "plugin": "core",
+      "value": {
+        "active_params": "55B",
+        "avg_latency_ms": 12420,
+        "context_window": "256K",
+        "name": "nemotron-3-ultra",
+        "role": "helper",
+        "status": "reachable",
+        "strengths": null,
+        "total_params": "550B"
+      }
+    },
+    "models_available": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "list_models output",
+      "last_verified": "2026-10-25T10:10:33.659989+00:00",
+      "plugin": "core",
+      "value": [
+        "gpt-oss:120b (base, reachable)",
+        "nemotron-3-nano:30b (helper, configured)",
+        "gemma4:31b (helper, configured)",
+        "gpt-oss:20b (helper, configured)",
+        "nemotron-3-super (helper, configured)",
+        "nemotron-3-ultra (helper, configured)",
+        "beam (helper, configured)"
+      ]
+    },
+    "network_http_reachable": {
+      "body": "container",
+      "confidence": "medium",
+      "evidence": "http_get example.com returned 200",
+      "last_verified": "2026-10-25T10:10:33.659989+00:00",
+      "plugin": "core",
+      "value": true
+    },
+    "network_reachability": {
+      "body": "container",
+      "confidence": "unknown",
+      "evidence": "awaiting HTTP or network observation",
+      "last_verified": "2026-10-25T10:09:34.291521+00:00",
+      "plugin": "core",
+      "value": "not yet checked"
+    },
+    "os": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "run_shell 'uname -a' output",
+      "last_verified": "2026-10-25T10:10:33.659989+00:00",
+      "plugin": "core",
+      "value": "Linux 6.18.54.1-microsoft-standard-WSL2 (WSL2)"
+    },
+    "packages": {
+      "body": "container",
+      "confidence": "unknown",
+      "evidence": "awaiting package inspection",
+      "last_verified": "2026-10-25T10:09:34.291521+00:00",
+      "plugin": "core",
+      "value": "not yet inventoried"
+    },
+    "protected_paths": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "write_file to /home/entity/config failed with protected error",
+      "last_verified": "2026-10-25T10:10:33.659989+00:00",
+      "plugin": "core",
+      "value": [
+        "/home/entity/config"
+      ]
+    },
+    "ram": {
+      "body": "container",
+      "confidence": "unknown",
+      "evidence": "local bootstrap",
+      "last_verified": "2026-10-25T10:09:34.291521+00:00",
+      "plugin": "core",
+      "value": "not yet measured"
+    },
+    "sensing_capability": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "no tool provides non-text sensing",
+      "last_verified": "2026-10-25T10:10:33.659989+00:00",
+      "plugin": "core",
+      "value": "text-only via tools; no physical sensors"
+    },
+    "shell": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "run_shell 'echo $SHELL' output",
+      "last_verified": "2026-10-25T10:10:33.659989+00:00",
+      "plugin": "core",
+      "value": "/usr/bin/bash"
+    },
+    "writable_paths": {
+      "body": "container",
+      "confidence": "high",
+      "evidence": "write_file succeeded to /tmp and /workspace",
+      "last_verified": "2026-10-25T10:10:33.659989+00:00",
+      "plugin": "core",
+      "value": [
+        "/tmp",
+        "/workspace"
+      ]
+    }
+  },
+  "schema_version": 2,
+  "updated_at": "2026-10-25T10:14:20.218363+00:00"
+}
