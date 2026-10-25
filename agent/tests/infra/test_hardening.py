@@ -55,6 +55,46 @@ class HardeningTests(unittest.TestCase):
             checkpoint.save(status="running", task="resume me", cycle=4)
             self.assertEqual(checkpoint.load()["cycle"], 4)
 
+    def test_daily_token_ledger_write_handles_permission_error_with_retry(self) -> None:
+        """Verify _write retries os.replace upon transient PermissionError (e.g. Windows file lock)."""
+        from unittest.mock import patch
+
+        with tempfile.TemporaryDirectory() as temp:
+            root = Path(temp)
+            logger = EventLogger(root / "logs" / "actions.jsonl")
+            ledger = DailyTokenLedger(root, logger, cap=100)
+
+            # 1. Transient failure recovers on retry
+            call_count = 0
+            real_replace = os.replace
+
+            def mock_replace(src, dst):
+                nonlocal call_count
+                call_count += 1
+                if call_count < 3:
+                    raise PermissionError("[WinError 5] Access is denied")
+                return real_replace(src, dst)
+
+            with patch("os.replace", side_effect=mock_replace):
+                ledger._write({"date": "2026-10-25", "used_tokens": 10, "cap": 100})
+
+            self.assertEqual(call_count, 3)
+            written = json.loads((root / "state" / "daily_token_budget.json").read_text(encoding="utf-8"))
+            self.assertEqual(written["used_tokens"], 10)
+
+            # 2. Permanent failure raises after exhausting 5 retries
+            call_count_fail = 0
+
+            def mock_replace_always_fail(src, dst):
+                nonlocal call_count_fail
+                call_count_fail += 1
+                raise PermissionError("[WinError 5] Access is denied")
+
+            with patch("os.replace", side_effect=mock_replace_always_fail):
+                with self.assertRaises(PermissionError):
+                    ledger._write({"date": "2026-10-25", "used_tokens": 20, "cap": 100})
+            self.assertEqual(call_count_fail, 5)
+
 
 if __name__ == "__main__":
     unittest.main()

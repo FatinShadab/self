@@ -163,10 +163,21 @@ class DailyTokenLedger:
     def _write(self, data: dict[str, Any]) -> None:
         self.path.parent.mkdir(parents=True, exist_ok=True)
         import uuid
+        import time
+
         temporary = self.path.with_name(f".daily-token-budget-{uuid.uuid4().hex}.tmp")
         try:
             temporary.write_text(json.dumps(data, indent=2, sort_keys=True) + "\n", encoding="utf-8")
-            os.replace(temporary, self.path)
+            # Under Windows, concurrent readers (e.g. TUI or file watchers) holding the file
+            # handle cause os.replace to raise PermissionError (WinError 5). Retry with brief backoff.
+            for attempt in range(5):
+                try:
+                    os.replace(temporary, self.path)
+                    break
+                except PermissionError:
+                    if attempt == 4:
+                        raise
+                    time.sleep(0.02 * (attempt + 1))
         finally:
             temporary.unlink(missing_ok=True)
 

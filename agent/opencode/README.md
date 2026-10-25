@@ -79,13 +79,14 @@ When Self runs as `root` in a POSIX container (e.g. Docker), the subprocess exec
 > When running as non-root (e.g. during local tests) or on Windows, privilege drop is not supported and isolation is recorded as `"none"`. This isolation is designed to prevent accidental damage and secret leakage, not serve as a hypervisor-grade hostile boundary.
 
 ### Self Self-Protection
-Self's own file-writing tools (`ContainerBody.write_file` and `ToolRunner.write_file`) enforce `is_protected_path()`. Self will refuse to write or overwrite:
+Self's own file-writing tools (`ContainerBody.write_file` and `ToolRunner.write_file`) enforce `is_protected_path()`. Note that `is_protected_path()` covers file tools only; `run_shell` executes arbitrary commands under the process OS user privileges and is not filtered by `is_protected_path()`. Self will refuse to write or overwrite via file tools:
 - `.env*`
 - `scripts/opencode*`
 - `agent/opencode*`
 - `config*`
 - `*.lock` and `*.lock.json`
 - `opencode_status.json` and `opencode_delegations.json`
+- `HUMAN_REQUEST.md` (case-insensitive) and `.self_harness*/pending_human_request.json`
 
 ---
 

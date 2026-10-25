@@ -11,6 +11,8 @@ SEED_STANDING_GOAL = STANDING_GOAL
 
 ORIENTATION_TASK = (
     "You have not been told where you run or what you are made of. Find out with tools. "
+    "Identify the OS and shell with a check that works on any system before OS-specific probes, "
+    "and treat 'path not found' as evidence about the environment, not as a missing permission. "
     "Establish what hosts you, what you can read, change and reach, which tools and models you have, "
     "which of your own files you cannot modify, and whether you can sense or act on anything beyond text. "
     "Record each finding in the environment map with evidence and confidence, and mark anything inferred as inferred. "

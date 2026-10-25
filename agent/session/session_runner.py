@@ -56,13 +56,13 @@ def run_session(coordinator: Any) -> Any:
     package_entry = coordinator.learning._load_map().get("entries", {}).get("packages", {})
     package_value = package_entry.get("value")
     if package_value is None or package_value == "not yet inventoried":
-        coordinator.logger.narrate("Startup priority: I will immediately inventory installed Python packages before broader exploration.")
         package_instructions = (
             coordinator.body.initial_orientation_task()
             if coordinator.body and hasattr(coordinator.body, "initial_orientation_task")
             else ""
         )
         if package_instructions:
+            coordinator.logger.narrate("Startup priority: I will immediately inventory installed Python packages before broader exploration.")
             if startup_context:
                 startup_context = f"{startup_context}\n\n{package_instructions}"
             else:

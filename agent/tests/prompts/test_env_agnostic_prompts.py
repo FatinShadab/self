@@ -610,6 +610,48 @@ class TestEnvironmentAgnosticPrompts(unittest.TestCase):
             run_shell_desc = next(t["description"] for t in augmented_defs if t["name"] == "run_shell")
             self.assertIn("This profile expects a Linux container environment", run_shell_desc)
 
+    def test_harness_stop_file_shell_deletion_documents_known_limit(self) -> None:
+        """Document known boundary: is_protected_path protects file tools only;
+
+        run_shell executes with OS user privileges and can delete the harness file where permissions allow.
+        """
+        with tempfile.TemporaryDirectory(ignore_cleanup_errors=True) as temp:
+            workspace = Path(temp)
+            logger = EventLogger(workspace / "logs" / "actions.jsonl")
+            from agent.infra.hardening import CapabilityRequests, get_harness_request_path
+            from agent.tools.base_tools import ToolRunner
+            from agent.opencode.sandbox import is_protected_path
+
+            cap_requests = CapabilityRequests(workspace, logger)
+            runner = ToolRunner(logger, workspace)
+            runner.capabilities = cap_requests
+
+            runner.request_capability(
+                kind="human_action",
+                summary="Need authorization",
+                reason="Testing shell boundary",
+            )
+            harness_file = get_harness_request_path(workspace)
+            self.assertTrue(harness_file.exists())
+
+            # 1. File tools are strictly blocked by is_protected_path
+            self.assertTrue(is_protected_path(str(harness_file), workspace=workspace))
+            write_res = runner.write_file(str(harness_file), "overwrite attempt")
+            self.assertFalse(write_res["ok"])
+            self.assertIn("protected", write_res.get("error", "").lower())
+            self.assertTrue(harness_file.exists())
+
+            # 2. Attempt deleting harness file via run_shell
+            del_cmd = f'rm -f "{harness_file.as_posix()}"'
+            shell_res = runner.run_shell(del_cmd)
+            if harness_file.exists():
+                runner.run_shell(f'rm -f "$(cygpath "{harness_file}")" 2>/dev/null || rm -f "{harness_file}" 2>/dev/null')
+
+            can_delete = not harness_file.exists()
+            logger.log("shell_harness_deletion_attempt", can_delete=can_delete, shell_result=shell_res)
+            # File tools safeguard is verified; record whether shell deletion is possible
+            self.assertIsInstance(can_delete, bool)
+
 
 if __name__ == "__main__":
     unittest.main()
