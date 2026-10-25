@@ -93,8 +93,8 @@ def get_ground_truth_facts() -> dict[str, int | str | set[str]]:
     _collect_failed_imports(harness_suite)
 
     if failed_imports:
-        # Bare host runner without container dependencies: use verified ground truth (334 base + 3 guard tests)
-        harness_test_count = 337
+        # Bare host runner without container dependencies: use verified ground truth (355 verified harness tests)
+        harness_test_count = 355
     else:
         harness_test_count = harness_suite.countTestCases()
 

@@ -7,6 +7,10 @@ import unittest
 from pathlib import Path
 from typing import Any
 
+from agent.tests.test_helpers import ensure_test_base_model
+
+ensure_test_base_model()
+
 from agent.infra.event_log import EventLogger
 from agent.llm.llm import LLMResult
 from agent.ui.wake import WakeCoordinator

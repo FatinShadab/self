@@ -9,6 +9,10 @@ from types import SimpleNamespace
 from typing import Any
 from unittest.mock import patch
 
+from agent.tests.test_helpers import ensure_test_base_model
+
+ensure_test_base_model()
+
 from agent.infra.hardening import DailyTokenLedger
 from agent.infra.permission_broker import PermissionBroker
 from agent.tools.base_tools import ToolRunner
@@ -267,7 +271,7 @@ class AgentLoopTests(unittest.TestCase):
             workspace = Path(temp)
             logger = EventLogger(workspace / "logs" / "actions.jsonl")
             fake = FakeLLM()
-            ledger = DailyTokenLedger(workspace, logger, cap=100)
+            ledger = DailyTokenLedger(workspace, logger, cap=100, sleeper=lambda _: None)
             data = ledger._read()
             data["used_tokens"] = 90  # 10 dust tokens available
             ledger._write(data)
@@ -283,8 +287,6 @@ class AgentLoopTests(unittest.TestCase):
 
             def _fake_sleep(duration: float) -> None:
                 nonlocal pause_sleep_calls
-                if duration != 1.0:
-                    return
                 pause_sleep_calls += 1
                 if pause_sleep_calls == 3:
                     # Trigger stop to exit the pause loop safely
@@ -303,7 +305,7 @@ class AgentLoopTests(unittest.TestCase):
             workspace = Path(temp)
             logger = EventLogger(workspace / "logs" / "actions.jsonl")
             fake = FakeLLM()
-            ledger = DailyTokenLedger(workspace, logger, cap=100)
+            ledger = DailyTokenLedger(workspace, logger, cap=100, sleeper=lambda _: None)
             data = ledger._read()
             data["used_tokens"] = 100  # 0 available
             ledger._write(data)
@@ -319,8 +321,6 @@ class AgentLoopTests(unittest.TestCase):
 
             def _fake_sleep(duration: float) -> None:
                 nonlocal sleep_calls
-                if duration != 1.0:
-                    return
                 sleep_calls += 1
                 # Operator resets used tokens or increases budget
                 d = ledger._read()

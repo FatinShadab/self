@@ -3,6 +3,7 @@ param(
 )
 
 $ErrorActionPreference = 'Stop'
+$env:SELF_BASE_MODEL = 'gpt-oss:120b'
 $repo = (Resolve-Path (Join-Path $PSScriptRoot '..')).Path
 Push-Location $repo
 try {
@@ -17,6 +18,7 @@ try {
 
     # Dockerfile supplies PYTHONPATH=/opt:/opt/agent for both suites.
     docker run --rm --entrypoint python `
+        -e SELF_BASE_MODEL=gpt-oss:120b `
         --mount "type=bind,source=$repo/config,target=/opt/config,readonly" `
         --mount "type=bind,source=$repo/docker-compose.yml,target=/opt/eval-compose.yml,readonly" `
         $Image -m unittest discover -s /opt/agent/tests -v
@@ -24,6 +26,7 @@ try {
 
     # Hidden eval definitions stay on the host and never enter the self image.
     docker run --rm --entrypoint python `
+        -e SELF_BASE_MODEL=gpt-oss:120b `
         --mount "type=bind,source=$repo/eval,target=/opt/eval,readonly" `
         --mount "type=bind,source=$repo/docker-compose.yml,target=/opt/eval-compose.yml,readonly" `
         $Image -m unittest discover -s /opt/eval/tests -v

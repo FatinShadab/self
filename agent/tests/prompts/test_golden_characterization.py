@@ -10,6 +10,10 @@ from pathlib import Path
 from typing import Any
 from unittest.mock import MagicMock, patch
 
+from agent.tests.test_helpers import ensure_test_base_model
+
+ensure_test_base_model()
+
 from agent.body.base import Body, BodyDescription, Capability
 from agent.body.container import ContainerBody
 from agent.helper_models.model_decisions import ModelDecisions

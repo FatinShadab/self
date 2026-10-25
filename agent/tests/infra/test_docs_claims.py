@@ -40,10 +40,10 @@ class DocsClaimsTests(unittest.TestCase):
             self.assertEqual(facts["event_count"], claim)
         self.assertEqual(facts["core_api_version"], "1.1.0")
         self.assertEqual(facts["version_file"], "1.1.0")
-        # 334 baseline at rc3 + 3 tests in DocsClaimsTests = 337
-        self.assertEqual(facts["harness_test_count"], 337)
+        # 355 harness tests verified across baseline + hardening/wake/prompts suites
+        self.assertEqual(facts["harness_test_count"], 355)
         self.assertEqual(facts["eval_test_count"], 20)
-        self.assertEqual(facts["total_test_count"], 357)
+        self.assertEqual(facts["total_test_count"], 375)
         self.assertEqual(facts["packages_count"], 12)
         self.assertEqual(facts["state_files_count"], 42)
         self.assertEqual(facts["env_vars_count"], 44)

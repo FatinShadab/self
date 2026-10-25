@@ -7,6 +7,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from agent.tests.test_helpers import ensure_test_base_model
+
+ensure_test_base_model()
+
 from agent.body.container import ContainerBody
 from agent.body.simulation.description import build_sim_description
 from agent.identity.identity import IdentityStore

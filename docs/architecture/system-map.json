@@ -481,7 +481,7 @@
     {
       "name": "capability_requested",
       "emitters": [
-        "agent/infra/hardening.py:45"
+        "agent/infra/hardening.py:106"
       ],
       "fields": [
         "env_names",
@@ -548,7 +548,7 @@
     {
       "name": "conversation_thread_completed",
       "emitters": [
-        "agent/session/conversation.py:113"
+        "agent/session/conversation.py:110"
       ],
       "fields": [
         "chars",
@@ -558,7 +558,7 @@
     {
       "name": "conversation_thread_failed",
       "emitters": [
-        "agent/session/conversation.py:82"
+        "agent/session/conversation.py:79"
       ],
       "fields": [
         "error_type",
@@ -568,7 +568,7 @@
     {
       "name": "conversation_thread_started",
       "emitters": [
-        "agent/session/conversation.py:73"
+        "agent/session/conversation.py:70"
       ],
       "fields": [
         "chars",
@@ -611,7 +611,7 @@
     {
       "name": "cycle_completed",
       "emitters": [
-        "agent/runtime/cycle_runner.py:354",
+        "agent/runtime/cycle_runner.py:379",
         "agent/tests/reporting/test_analyze_run.py:218",
         "agent/tests/reporting/test_analyze_run.py:219"
       ],
@@ -625,7 +625,7 @@
     {
       "name": "cycle_progress",
       "emitters": [
-        "agent/runtime/cycle_runner.py:307"
+        "agent/runtime/cycle_runner.py:332"
       ],
       "fields": [
         "actions",
@@ -636,7 +636,7 @@
     {
       "name": "cycle_started",
       "emitters": [
-        "agent/runtime/cycle_runner.py:139"
+        "agent/runtime/cycle_runner.py:140"
       ],
       "fields": [
         "cycle",
@@ -646,7 +646,7 @@
     {
       "name": "daily_budget_human_request_created",
       "emitters": [
-        "agent/runtime/stop_control.py:76"
+        "agent/runtime/stop_control.py:78"
       ],
       "fields": [
         "path"
@@ -655,7 +655,7 @@
     {
       "name": "daily_token_budget_blocked",
       "emitters": [
-        "agent/infra/hardening.py:86"
+        "agent/infra/hardening.py:199"
       ],
       "fields": [
         "cap",
@@ -667,7 +667,7 @@
     {
       "name": "daily_token_budget_updated",
       "emitters": [
-        "agent/infra/hardening.py:108"
+        "agent/infra/hardening.py:221"
       ],
       "fields": [
         "cap",
@@ -678,7 +678,7 @@
     {
       "name": "daily_token_limit_paused",
       "emitters": [
-        "agent/runtime/stop_control.py:93"
+        "agent/runtime/stop_control.py:108"
       ],
       "fields": [
         "session_id"
@@ -687,7 +687,7 @@
     {
       "name": "daily_token_limit_resumed",
       "emitters": [
-        "agent/runtime/stop_control.py:104"
+        "agent/runtime/stop_control.py:119"
       ],
       "fields": [
         "session_id"
@@ -841,9 +841,19 @@
       ]
     },
     {
+      "name": "initial_orientation_sensed",
+      "emitters": [
+        "agent/identity/identity.py:197"
+      ],
+      "fields": [
+        "mode",
+        "telemetry"
+      ]
+    },
+    {
       "name": "llm_call_attempt",
       "emitters": [
-        "agent/llm/llm.py:149"
+        "agent/llm/llm.py:156"
       ],
       "fields": [
         "model",
@@ -854,7 +864,7 @@
     {
       "name": "llm_call_completed",
       "emitters": [
-        "agent/llm/llm.py:211"
+        "agent/llm/llm.py:218"
       ],
       "fields": [
         "effective_cap",
@@ -872,8 +882,8 @@
     {
       "name": "llm_call_failed",
       "emitters": [
-        "agent/llm/llm.py:167",
-        "agent/tests/soak/harness.py:345"
+        "agent/llm/llm.py:174",
+        "agent/tests/soak/harness.py:346"
       ],
       "fields": [
         "cycle",
@@ -889,7 +899,7 @@
     {
       "name": "llm_call_started",
       "emitters": [
-        "agent/llm/llm.py:134"
+        "agent/llm/llm.py:141"
       ],
       "fields": [
         "effective_cap",
@@ -903,7 +913,7 @@
     {
       "name": "llm_key_rotated",
       "emitters": [
-        "agent/llm/llm.py:96"
+        "agent/llm/llm.py:103"
       ],
       "fields": [
         "key_count",
@@ -1017,7 +1027,7 @@
     {
       "name": "name_context_resolved",
       "emitters": [
-        "agent/identity/identity.py:344"
+        "agent/identity/identity.py:368"
       ],
       "fields": [
         "name",
@@ -1043,7 +1053,7 @@
         "agent/helper_models/probes/official_docs.py:63",
         "agent/llm/brain_router.py:175",
         "agent/llm/brain_router.py:122",
-        "agent/llm/llm.py:133",
+        "agent/llm/llm.py:140",
         "agent/llm/providers/registry.py:118",
         "agent/tests/infra/test_hardening.py:42",
         "agent/tests/infra/test_hardening.py:43"
@@ -1058,7 +1068,7 @@
     {
       "name": "opencode_status_failed",
       "emitters": [
-        "agent/runtime/cycle_runner.py:132"
+        "agent/runtime/cycle_runner.py:133"
       ],
       "fields": [
         "error_type"
@@ -1067,7 +1077,7 @@
     {
       "name": "plan_goals_resumed",
       "emitters": [
-        "agent/learning/plan.py:423"
+        "agent/learning/plan.py:431"
       ],
       "fields": [
         "goal_ids",
@@ -1077,7 +1087,7 @@
     {
       "name": "plan_goals_suspended",
       "emitters": [
-        "agent/learning/plan.py:414"
+        "agent/learning/plan.py:422"
       ],
       "fields": [
         "goal_ids",
@@ -1087,7 +1097,7 @@
     {
       "name": "plan_hygiene_applied",
       "emitters": [
-        "agent/learning/plan.py:400"
+        "agent/learning/plan.py:408"
       ],
       "fields": [
         "cycle",
@@ -1113,7 +1123,8 @@
     {
       "name": "plan_updated",
       "emitters": [
-        "agent/learning/plan.py:296"
+        "agent/learning/plan.py:296",
+        "agent/learning/plan.py:364"
       ],
       "fields": [
         "cycle",
@@ -1384,7 +1395,7 @@
     {
       "name": "provider_key_requested",
       "emitters": [
-        "agent/llm/providers/registry.py:188"
+        "agent/llm/providers/registry.py:189"
       ],
       "fields": [
         "env_names",
@@ -1465,9 +1476,9 @@
     {
       "name": "reflection_skipped",
       "emitters": [
-        "agent/session/reflections/execution.py:33",
-        "agent/session/reflections/execution.py:45",
-        "agent/session/reflections/execution.py:112",
+        "agent/session/reflections/execution.py:34",
+        "agent/session/reflections/execution.py:46",
+        "agent/session/reflections/execution.py:116",
         "agent/session/reflections/manager.py:110",
         "agent/session/reflections/manager.py:113",
         "agent/session/reflections/manager.py:117",
@@ -1509,7 +1520,7 @@
     {
       "name": "run_completed",
       "emitters": [
-        "agent/runtime/cycle_runner.py:404"
+        "agent/runtime/cycle_runner.py:429"
       ],
       "fields": [
         "iterations",
@@ -1520,8 +1531,8 @@
     {
       "name": "run_failed",
       "emitters": [
-        "agent/runtime/cycle_runner.py:278",
-        "agent/runtime/loop.py:251"
+        "agent/runtime/cycle_runner.py:303",
+        "agent/runtime/loop.py:257"
       ],
       "fields": [
         "error",
@@ -1532,7 +1543,7 @@
     {
       "name": "run_no_progress",
       "emitters": [
-        "agent/runtime/cycle_runner.py:394"
+        "agent/runtime/cycle_runner.py:419"
       ],
       "fields": [
         "cycle",
@@ -1542,7 +1553,7 @@
     {
       "name": "run_started",
       "emitters": [
-        "agent/runtime/cycle_runner.py:59"
+        "agent/runtime/cycle_runner.py:60"
       ],
       "fields": [
         "curriculum",
@@ -1558,11 +1569,11 @@
     {
       "name": "run_stopped",
       "emitters": [
-        "agent/runtime/cycle_runner.py:98",
-        "agent/runtime/loop.py:247",
-        "agent/runtime/stop_control.py:21",
-        "agent/runtime/stop_control.py:25",
-        "agent/runtime/stop_control.py:29"
+        "agent/runtime/cycle_runner.py:99",
+        "agent/runtime/loop.py:253",
+        "agent/runtime/stop_control.py:22",
+        "agent/runtime/stop_control.py:26",
+        "agent/runtime/stop_control.py:30"
       ],
       "fields": [
         "reason"
@@ -1610,7 +1621,7 @@
     {
       "name": "session_reflection_completed",
       "emitters": [
-        "agent/session/shutdown_reflection.py:138"
+        "agent/session/shutdown_reflection.py:142"
       ],
       "fields": [
         "purpose",
@@ -1620,7 +1631,7 @@
     {
       "name": "session_reflection_fallback",
       "emitters": [
-        "agent/session/shutdown_reflection.py:141"
+        "agent/session/shutdown_reflection.py:145"
       ],
       "fields": [
         "error_type",
@@ -1641,7 +1652,7 @@
     {
       "name": "session_summary",
       "emitters": [
-        "agent/session/session_runner.py:162"
+        "agent/session/session_runner.py:178"
       ],
       "fields": [
         "message"
@@ -1650,9 +1661,19 @@
     {
       "name": "session_unexpected_exception",
       "emitters": [
-        "agent/session/session_runner.py:181"
+        "agent/session/session_runner.py:197"
       ],
       "fields": []
+    },
+    {
+      "name": "shell_harness_deletion_attempt",
+      "emitters": [
+        "agent/tests/prompts/test_env_agnostic_prompts.py:655"
+      ],
+      "fields": [
+        "can_delete",
+        "shell_result"
+      ]
     },
     {
       "name": "sim_body_action",
@@ -1775,7 +1796,7 @@
     {
       "name": "tool_call",
       "emitters": [
-        "agent/tests/identity/test_identity.py:66",
+        "agent/tests/identity/test_identity.py:70",
         "agent/tools/execution/call_logging.py:32"
       ],
       "fields": [
@@ -1786,7 +1807,7 @@
     {
       "name": "tool_creation_failed",
       "emitters": [
-        "agent/tools/custom/creation.py:318"
+        "agent/tools/custom/creation.py:330"
       ],
       "fields": [
         "attempt",
@@ -1801,7 +1822,7 @@
     {
       "name": "tool_critic",
       "emitters": [
-        "agent/tools/custom/creation.py:212"
+        "agent/tools/custom/creation.py:216"
       ],
       "fields": [
         "attempt",
@@ -1812,7 +1833,7 @@
     {
       "name": "tool_failure_lesson",
       "emitters": [
-        "agent/tools/custom/creation.py:339"
+        "agent/tools/custom/creation.py:351"
       ],
       "fields": []
     },
@@ -1843,7 +1864,7 @@
         "agent/tests/plugins/test_self_plugins.py:623",
         "agent/tests/plugins/test_self_plugins.py:646",
         "agent/tests/reporting/test_report.py:22",
-        "agent/tools/custom/creation.py:288"
+        "agent/tools/custom/creation.py:300"
       ],
       "fields": [
         "attempts",
@@ -1859,7 +1880,7 @@
     {
       "name": "tool_result",
       "emitters": [
-        "agent/tests/identity/test_identity.py:67",
+        "agent/tests/identity/test_identity.py:71",
         "agent/tools/execution/call_logging.py:38"
       ],
       "fields": [
@@ -1885,7 +1906,7 @@
     {
       "name": "tool_test",
       "emitters": [
-        "agent/tools/custom/creation.py:239"
+        "agent/tools/custom/creation.py:243"
       ],
       "fields": [
         "attempt",
@@ -1896,7 +1917,7 @@
     {
       "name": "tool_test_compat_alias",
       "emitters": [
-        "agent/tools/custom/creation.py:226"
+        "agent/tools/custom/creation.py:230"
       ],
       "fields": [
         "name",
@@ -1906,7 +1927,7 @@
     {
       "name": "zero_cycle_session_preserved",
       "emitters": [
-        "agent/session/session_runner.py:114"
+        "agent/session/session_runner.py:130"
       ],
       "fields": [
         "end_reason",

@@ -6,6 +6,10 @@ import tempfile
 import unittest
 from pathlib import Path
 
+from agent.tests.test_helpers import ensure_test_base_model
+
+ensure_test_base_model()
+
 from agent.tools.base_tools import ToolRunner
 from agent.infra.event_log import EventLogger
 from agent.identity.identity import IdentityStore

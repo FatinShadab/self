@@ -33,6 +33,7 @@ SELF maintains two distinct, decoupled version tracks:
 1. **Advisory Plugin Draft Validation:** `python -m agent.plugins validate` performs static AST and schema linting. It is not an OS sandbox; dynamic Python patterns (`__import__`, `getattr`) can bypass static checks. Security relies strictly on human promotion, SHA-256 hash pinning, and container isolation.
 2. **Run Analysis Accounting Gaps:** `scripts/analyze-run.ps1` and `agent.reporting.run_analysis` inspect canonical `daily_token_budget.json` and `handoff_overflow.json`. However, due to event field naming mismatches between `token_spend` and `cycle_completed`, the analyzer reports 0 tokens per cycle, displays an unscaled default cap `20000000000000`, reports plan action as `omitted`, and analyzes only the first 30 cycles rather than the latest 30 (see Starter Issue 1).
 3. **Default Root Container Privilege:** In the default profile, commands run as root inside the container namespace. Hard security depends on the container boundary (no host bind mounts beyond `./workspace` and read-only `./config`). For strict least-privilege operation, use the `hardened` profile.
+4. **Windows-Native Host Unsupported for Discovery:** `run_shell` is bash-only and filesystem tools run directly on the host filesystem. On Windows hosts, `run_shell` invokes the WSL bash bridge while file tools operate on the Windows host filesystem, causing split-environment discovery. Windows-native host execution is unsupported for autonomous discovery; Docker and WSL are the supported targets.
 
 ---
 

@@ -11,6 +11,10 @@ from pathlib import Path
 from types import SimpleNamespace
 from unittest.mock import patch
 
+from agent.tests.test_helpers import ensure_test_base_model
+
+ensure_test_base_model()
+
 from agent.infra.event_log import EventLogger
 from agent.tools.base_tools import ToolRunner
 from agent.llm.llm import BudgetedLLM, LLMClient, _env_key_list

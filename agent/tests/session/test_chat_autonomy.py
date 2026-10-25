@@ -13,6 +13,10 @@ import json
 import os
 import tempfile
 import unittest
+
+from agent.tests.test_helpers import ensure_test_base_model
+
+ensure_test_base_model()
 from pathlib import Path
 from typing import Any
 

@@ -524,3 +524,115 @@ Generated Reports:
 1. Windows: [docs/reports/discovery-acceptance-windows.md](discovery-acceptance-windows.md)
 2. Linux: [docs/reports/discovery-acceptance-linux.md](discovery-acceptance-linux.md)
 
+---
+
+## 8. Specification: `environment_identity` Schema (`layers` Hierarchy)
+
+*(Design specification; no harness prompts or safety rules modified)*
+
+### Conceptual Model
+An autonomous agent's execution environment is rarely a single monolithic substrate; rather, it consists of nested execution layers from the immediate process execution sandbox out to the physical hardware.
+
+The `environment_identity` entry in `state/map.json` models this reality as an ordered `layers` list sequenced from **innermost** (immediate execution context) to **outermost** (underlying physical host or bare metal).
+
+### Schema Definition
+
+```json
+{
+  "environment_identity": {
+    "layers": [
+      {
+        "layer_index": 1,
+        "name": "process_sandbox",
+        "kind": "unknown",
+        "confidence": "unknown",
+        "evidence": "Initial harness bootstrap; awaiting empirical orientation probe"
+      }
+    ],
+    "last_verified": "2026-10-25T12:00:00.000000+00:00",
+    "source": "harness bootstrap",
+    "plugin": "core"
+  }
+}
+```
+
+### Layer Classification (`kind`)
+Each layer's `kind` property takes one of the following standardized values:
+- `"unknown"`: Bootstrap default before observation.
+- `"process_sandbox"`: Restricted user or language runtime sandbox (e.g. unprivileged user `entity`, `chroot`).
+- `"container"`: Isolated namespace/cgroup container runtime (e.g. `docker`, `podman`, `lxc`).
+- `"virtual_machine"`: Hardware virtualization hypervisor (e.g. `wsl2`, `kvm`, `qemu`, `vmware`, `hyper-v`).
+- `"host_os"`: Host operating system environment (e.g. `windows_11`, `ubuntu_linux`, `macos`).
+- `"bare_metal"`: Direct physical hardware execution with no intermediate hypervisors.
+- `"simulated"`: Deterministic synthetic harness test fixture (e.g. `SimulationBody`).
+
+### Examples of Verified Layer Stacks
+
+#### 1. Docker Container under WSL2 on Windows
+```json
+{
+  "environment_identity": {
+    "layers": [
+      {
+        "layer_index": 1,
+        "name": "container",
+        "kind": "container",
+        "confidence": "verified",
+        "evidence": "/.dockerenv exists, cgroup v2 docker slice detected"
+      },
+      {
+        "layer_index": 2,
+        "name": "hypervisor",
+        "kind": "virtual_machine",
+        "confidence": "verified",
+        "evidence": "Kernel 6.18.54.1-microsoft-standard-WSL2, DMI sys_vendor 'Microsoft Corporation'"
+      },
+      {
+        "layer_index": 3,
+        "name": "host_os",
+        "kind": "host_os",
+        "confidence": "inferred",
+        "evidence": "WSL2 virtualization hosted by Windows host"
+      }
+    ],
+    "last_verified": "2026-10-25T14:00:00.000000+00:00",
+    "source": "agent observation",
+    "plugin": "core"
+  }
+}
+```
+
+#### 2. Native Linux VM (e.g. Cloud Compute Instance)
+```json
+{
+  "environment_identity": {
+    "layers": [
+      {
+        "layer_index": 1,
+        "name": "virtual_machine",
+        "kind": "virtual_machine",
+        "confidence": "verified",
+        "evidence": "systemd-detect-virt returned 'kvm'"
+      },
+      {
+        "layer_index": 2,
+        "name": "bare_metal",
+        "kind": "bare_metal",
+        "confidence": "inferred",
+        "evidence": "Underlying cloud hardware platform"
+      }
+    ],
+    "last_verified": "2026-10-25T14:00:00.000000+00:00",
+    "source": "agent observation",
+    "plugin": "core"
+  }
+}
+```
+
+### Detection Commands Reference (Docs Only — Never Injected into Prompts)
+To prevent prompt bias, detection commands are documented here for human reference and evaluation verification only:
+- Container checks: `test -f /.dockerenv`, `cat /proc/1/cgroup`, `cat /proc/self/mountinfo`
+- Hypervisor / VM checks: `systemd-detect-virt`, `uname -r` (look for `microsoft-standard-WSL2`), `cat /sys/class/dmi/id/sys_vendor`, `cat /sys/class/dmi/id/product_name`
+- User privilege checks: `id -u`, `whoami`, attempt writing to `/tmp` vs `/etc`
+- Host OS checks: `cat /etc/os-release`, `systemctl --version`
+
