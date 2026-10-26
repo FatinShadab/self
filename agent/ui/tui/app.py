@@ -273,26 +273,39 @@ class SelfApp(App[None]):
         self._queue_activity(f"[{kind}] {message}")
 
     def _conversation_result(self, thread_id: str, message: str, kind: str) -> None:
-        if self.coordinator.stop_requested or (self.coordinator.workspace / "STOP").exists():
-            return
         self.call_from_thread(self._queue_chat, "agent", message, "conversation" if kind == "assistant" else "error")
 
     def _ordinary_human_message(self, text: str) -> None:
-        """Route the next ordinary response to an open reflection first."""
+        """Route the next ordinary response to an open reflection first and start conversation."""
         self._queue_chat("human", text, "human")
         reply = self.coordinator.accept_reflection_reply(text)
         if reply is not None:
-            self._command_response("Reflection reply saved; I will use it at the next safe work step.", "request")
-            return
-        self.coordinator.receive_human_input(f"Human said: {text}", kind="chat")
-        self._command_response("Conversation thread started; autonomous work continues separately.")
+            self._command_response("Reflection reply recorded; I will also consider it at the next work step.", "request")
+        else:
+            self.coordinator.receive_human_input(f"Human said: {text}", kind="chat")
+
+        if (self.coordinator.workspace / "STOP").exists() or self.coordinator.stop_requested:
+            status_msg = "Conversation thread started. Autonomous cycles are stopped (use /restart to resume)."
+        elif self.coordinator.has_pending_human_request():
+            status_msg = "Conversation thread started. Autonomous cycles are waiting for HUMAN_REQUEST.md."
+        elif self.coordinator.paused.is_set():
+            status_msg = "Conversation thread started. Autonomous cycles are paused (use /resume to continue)."
+        elif self._agent_running:
+            status_msg = "Conversation thread started; autonomous work continues in background."
+        else:
+            status_msg = "Conversation thread started."
+        self._command_response(status_msg)
         self.coordinator.start_conversation(text, self._conversation_result)
 
     def _watch_human_request(self) -> None:
         if (self.coordinator.workspace / "STOP").exists():
             return
-        if (self.coordinator.workspace / "HUMAN_REQUEST.md").exists():
-            self.set_timer(2.0, self._watch_human_request)
+        if self.coordinator.has_pending_human_request():
+            if not (self.coordinator.workspace / "HUMAN_REQUEST.md").exists():
+                self.coordinator.clear_human_request()
+                self._start_agent()
+            else:
+                self.set_timer(2.0, self._watch_human_request)
         else:
             self._start_agent()
 
@@ -306,7 +319,7 @@ class SelfApp(App[None]):
             return
         if restart_delay is not None and restart_delay < 0:
             return
-        if (self.coordinator.workspace / "HUMAN_REQUEST.md").exists():
+        if self.coordinator.has_pending_human_request():
             self.set_timer(2.0, self._watch_human_request)
         else:
             self.set_timer(restart_delay if restart_delay is not None else 0.8, self._start_agent)
@@ -324,8 +337,8 @@ class SelfApp(App[None]):
                     restart_delay = -1.0
                 elif (self.coordinator.workspace / "STOP").exists():
                     final_message = "I am paused because STOP was requested. Remove workspace/STOP or use /restart when you want me to continue."
-                elif (self.coordinator.workspace / "HUMAN_REQUEST.md").exists():
-                    final_message = "I am waiting for your decision in HUMAN_REQUEST.md. Resolve it and remove the file; I will wake automatically."
+                elif self.coordinator.has_pending_human_request():
+                    final_message = "I am waiting for your decision in HUMAN_REQUEST.md. Use /resume or /decline (or remove the file); I will wake automatically."
                 else:
                     final_message = "This session ended; I will start the next session automatically."
                     restart_delay = 0.8 if result is None or getattr(result, "reason", "") != "provider_error" else 3.0

@@ -21,15 +21,18 @@ def run_headless(coordinator: Any) -> int:
                 or (hasattr(coordinator, "broker") and getattr(coordinator.broker, "in_panic", False))
             ):
                 break
-            if (coordinator.workspace / "HUMAN_REQUEST.md").exists():
+            if coordinator.has_pending_human_request():
                 coordinator.logger.narrate(
                     "Waiting for the human request to be resolved; the next session will start automatically afterward."
                 )
                 while (
-                    (coordinator.workspace / "HUMAN_REQUEST.md").exists()
+                    coordinator.has_pending_human_request()
                     and not (coordinator.workspace / "STOP").exists()
                     and not coordinator.stop_requested
                 ):
+                    if not (coordinator.workspace / "HUMAN_REQUEST.md").exists():
+                        coordinator.clear_human_request()
+                        break
                     time.sleep(2.0)
                 continue
             delay = 3.0 if result is not None and getattr(result, "reason", "") == "provider_error" else 0.8

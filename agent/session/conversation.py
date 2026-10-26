@@ -75,7 +75,10 @@ class ConversationManager:
                 response = done.result()
                 on_result(thread_id, response, "assistant")
             except Exception as exc:
-                message = f"I could not answer this conversation thread because of {type(exc).__name__}. Autonomous work is continuing."
+                if type(exc).__name__ == "BudgetExceeded":
+                    message = "I cannot answer right now because the daily token budget limit has been reached."
+                else:
+                    message = f"I could not answer this conversation thread because of {type(exc).__name__}."
                 self.logger.log("conversation_thread_failed", thread_id=thread_id, error_type=type(exc).__name__)
                 on_result(thread_id, message, "error")
 
@@ -104,7 +107,7 @@ class ConversationManager:
         response = "\n".join(str(block.get("text", "")).strip() for block in result.content
                               if block.get("type") == "text" and str(block.get("text", "")).strip()).strip()
         if not response:
-            response = "I do not have a textual answer yet, but the autonomous work is continuing."
+            response = "I do not have a textual answer right now."
         response = self.logger.redactor.text(response[:12_000])
         self._append({"timestamp": _now(), "thread_id": thread_id, "role": "assistant", "text": response})
         self.logger.log("conversation_thread_completed", thread_id=thread_id, chars=len(response))

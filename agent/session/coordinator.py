@@ -321,11 +321,25 @@ class WakeCoordinator:
         if hasattr(self, "stop_watcher") and self.stop_watcher is not None:
             self.stop_watcher.pause()
 
+    def has_pending_human_request(self) -> bool:
+        """Check whether a human request is pending in workspace or harness state."""
+        from agent.infra.hardening import get_harness_request_path
+
+        hr = self.workspace / "HUMAN_REQUEST.md"
+        harness_hr = get_harness_request_path(self.workspace)
+        return hr.exists() or harness_hr.exists()
+
     def clear_human_request(self) -> None:
         """Clear pending human requests in workspace and harness state (human channel)."""
         from agent.infra.hardening import clear_pending_human_request
 
         clear_pending_human_request(self.workspace)
+
+    def decline_human_request(self, reason: str = "") -> dict[str, Any] | None:
+        """Decline pending capability request, record the decision, and clear locks."""
+        from agent.infra.hardening import decline_pending_capability_request
+
+        return decline_pending_capability_request(self.workspace, reason=reason, logger=self.logger)
 
     def resume(self) -> None:
         """Resume autonomous cycles."""
@@ -349,6 +363,18 @@ class WakeCoordinator:
 
     def conversation_context(self) -> str:
         """Build a bounded read-only snapshot for an independent conversation."""
+        if (self.workspace / "STOP").exists() or self.stop_requested:
+            status = "Stopped (STOP requested or workspace/STOP exists; autonomous cycles halted)"
+        elif self.has_pending_human_request():
+            status = "Paused (waiting for human action / capability decision in HUMAN_REQUEST.md)"
+        elif self.paused.is_set():
+            status = "Paused (autonomous cycles paused via /pause)"
+        elif hasattr(self, "broker") and getattr(self.broker, "in_panic", False):
+            status = "Paused (permission broker panic due to repeated action denials)"
+        else:
+            status = "Active / running"
+
+        reqs = _requests_text(self.workspace)
         return build_conversation_context(
             self.identity,
             self.handoff,
@@ -356,6 +382,8 @@ class WakeCoordinator:
             self.plan,
             self._activity,
             self._cycle_summaries,
+            status_summary=status,
+            requests_summary=reqs,
         )
 
     def reflection_context(self) -> str:
@@ -364,6 +392,8 @@ class WakeCoordinator:
 
     def start_conversation(self, text: str, on_result: Callable[[str, str, str], None]) -> str:
         """Start an independent read-only conversation thread."""
+        if self.conversations.client is None and self._llm is not None:
+            self.conversations.client = self._llm
         return self.conversations.submit(text, self.conversation_context, on_result)
 
     @staticmethod

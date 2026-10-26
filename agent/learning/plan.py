@@ -310,6 +310,25 @@ class PlanStore:
             "plan": list(self.items),
         }
 
+    def demote_stalled_goal(
+        self,
+        goal_or_id: str,
+        reason: str,
+        status: str = "blocked",
+        priority: int = 3,
+        cycle: int = 0,
+    ) -> dict[str, Any]:
+        """Demote or block a stalled plan item to allow autonomous progress on other goals."""
+        return self.update_plan(
+            action="edit",
+            id=goal_or_id,
+            status=status,
+            priority=priority,
+            reason=reason,
+            evidence=f"Demoted due to failure: {reason}",
+            cycle=cycle,
+        )
+
     def record_unchanged(self, cycle: int, reason: str, evidence: str = "", source: str = "harness_auto") -> None:
         """Log a plan_unchanged review event when no edits occurred in a cycle."""
         clean_reason = str(reason).strip() or "Plan remains valid; continuing execution of active goals."

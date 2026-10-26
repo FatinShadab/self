@@ -110,6 +110,19 @@ class TestStopWatcher(unittest.TestCase):
         self.assertFalse(coordinator.stop_requested)
         app._start_agent.assert_called_once()
 
+        # Verify /decline handling in LifecycleCommandHandler
+        handler = LifecycleCommandHandler()
+        self.assertTrue(handler.matches("/decline"))
+        self.assertTrue(handler.matches("/decline security policy"))
+        coord_decline = Mock(
+            workspace=self.workspace,
+            decline_human_request=Mock(return_value={"summary": "Docker mount"}),
+        )
+        app_decline = Mock(_agent_running=False)
+        self.assertTrue(handler.handle(app_decline, coord_decline, "/decline docker prohibited"))
+        coord_decline.decline_human_request.assert_called_once_with(reason="docker prohibited")
+        app_decline._start_agent.assert_called_once()
+
     def test_pause_and_resume(self) -> None:
         watcher = StopWatcher(
             workspace=self.workspace,

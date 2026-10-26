@@ -118,12 +118,24 @@ class TypingCommandHandler:
 
 
 class LifecycleCommandHandler:
-    """Handles wake session lifecycle controls (/restart, /pause, /resume, /stop)."""
+    """Handles wake session lifecycle controls (/restart, /pause, /resume, /stop, /decline)."""
 
     def matches(self, text: str) -> bool:
-        return text in {"/restart", "/pause", "/resume", "/stop"}
+        return text in {"/restart", "/pause", "/resume", "/stop"} or text == "/decline" or text.startswith("/decline ")
 
     def handle(self, app: Any, coordinator: Any, text: str) -> bool:
+        if text == "/decline" or text.startswith("/decline "):
+            app._write_command(text)
+            reason = text[9:].strip() if text.startswith("/decline ") else ""
+            if hasattr(coordinator, "decline_human_request"):
+                rec = coordinator.decline_human_request(reason=reason)
+                summary = rec.get("summary", "capability") if rec else "pending request"
+                app._command_response(f"Declined request ({summary}). Resuming without it.", "request")
+            else:
+                coordinator.resume()
+                app._command_response("Resuming.", "request")
+            app._start_agent()
+            return True
         if text == "/restart":
             app._write_command(text)
             if app._agent_running:
@@ -302,13 +314,26 @@ class StateInfoCommandHandler:
 
     def matches(self, text: str) -> bool:
         return (
-            text in {"/journal", "/tools", "/requests", "/inputs", "/budget", "/decisions", "/decisions "}
+            text in {"/help", "/journal", "/tools", "/requests", "/inputs", "/reports", "/report", "/budget", "/decisions", "/decisions "}
             or text.startswith("/plugins")
             or text.startswith("/proposals")
             or text.startswith("/memory ")
         )
 
     def handle(self, app: Any, coordinator: Any, text: str) -> bool:
+        if text == "/help":
+            app._write_command(text)
+            help_text = (
+                "Available commands:\n"
+                "  Lifecycle:  /restart, /pause, /resume, /stop, /decline [reason]\n"
+                "  Goals/Plan: /targets, /plan, /goals, /goal <text>\n"
+                "  State/Info: /reports, /requests, /tools, /journal, /budget, /decisions, /models, /self, /identity, /name [new_name]\n"
+                "  Views:      /coverage, /archive, /conversation, /previous, /next, /back\n"
+                "  Settings:   /voice [on|off], /listen, /typing [on|off]\n"
+                "  To chat with SELF: type naturally without a leading '/'"
+            )
+            app._command_response(help_text, "info")
+            return True
         if text == "/journal":
             app._write_command(text)
             try:
@@ -332,6 +357,18 @@ class StateInfoCommandHandler:
             app._write_command(text)
             app._command_response(_requests_text(coordinator.workspace), "input")
             return True
+        if text in {"/reports", "/report"}:
+            app._write_command(text)
+            report_path = coordinator.workspace / "report_human.md"
+            if report_path.exists():
+                try:
+                    content = report_path.read_text(encoding="utf-8")[-3_000:]
+                    app._command_response(content, "request")
+                except OSError:
+                    app._command_response("Could not read report_human.md.", "error")
+            else:
+                app._command_response("No stalled task reports recorded in report_human.md.", "info")
+            return True
         if text.startswith("/memory "):
             app._write_command(text)
             app._command_response(coordinator.learning.retrieve_memories(text[8:]))
@@ -348,7 +385,7 @@ class StateInfoCommandHandler:
 
 
 class PluginSlashCommandHandler:
-    """Dispatches any unhandled slash command to active plugins."""
+    """Dispatches any unhandled slash command to active plugins or displays command help."""
 
     def matches(self, text: str) -> bool:
         return text.startswith("/")
@@ -359,7 +396,12 @@ class PluginSlashCommandHandler:
             app._write_command(text)
             app._command_response(plugin_resp, "input")
             return True
-        return False
+        app._write_command(text)
+        app._command_response(
+            f"Unknown command '{text}'. Type /help for available commands, or type naturally without '/' to chat.",
+            "error",
+        )
+        return True
 
 
 __all__ = [

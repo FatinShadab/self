@@ -99,7 +99,11 @@ def load_conversation_history(workspace: Path) -> list[dict[str, Any]]:
 
 def queue_chat(app: Any, coordinator: Any, role: str, message: str, kind: str) -> None:
     """Queue a chat message, dropping late autonomous messages if stopped."""
-    if role == "agent" and (coordinator.stop_requested or (coordinator.workspace / "STOP").exists()):
+    if (
+        role == "agent"
+        and kind not in {"conversation", "error", "targets"}
+        and (coordinator.stop_requested or (coordinator.workspace / "STOP").exists())
+    ):
         return
     app._pending_chat.append((role, message, kind))
     if not app._draining_chat:
@@ -119,7 +123,11 @@ async def drain_chat(app: Any, coordinator: Any) -> None:
     try:
         while app._pending_chat:
             role, message, kind = app._pending_chat.pop(0)
-            if role == "agent" and (coordinator.stop_requested or (coordinator.workspace / "STOP").exists()):
+            if (
+                role == "agent"
+                and kind not in {"conversation", "error", "targets"}
+                and (coordinator.stop_requested or (coordinator.workspace / "STOP").exists())
+            ):
                 continue
             record_chat_message(coordinator, app._all_chat_messages, role, message, kind)
             follow = conversation.scroll_y >= conversation.max_scroll_y - 1
@@ -146,7 +154,10 @@ async def drain_chat(app: Any, coordinator: Any) -> None:
                 # whole visible message. Keep the optional effect bounded.
                 step = max(1, (len(message) + 23) // 24)
                 for index in range(step, len(message) + step, step):
-                    if coordinator.stop_requested or (coordinator.workspace / "STOP").exists():
+                    if (
+                        kind not in {"conversation", "error", "targets"}
+                        and (coordinator.stop_requested or (coordinator.workspace / "STOP").exists())
+                    ):
                         break
                     visible = message[:index]
                     if len(visible) >= len(message):

@@ -14,6 +14,7 @@ def execute_tool_round(
     definitions: list[dict[str, Any]],
     seen_tool_actions: set[str],
     cycle_actions: list[dict[str, Any]],
+    primary_goal: str = "",
 ) -> tuple[list[dict[str, Any]], str | None, bool, int, bool]:
     """Execute a batch of tool_use blocks from a model turn.
 
@@ -110,6 +111,29 @@ def execute_tool_round(
         )
         cycle_actions.append({"name": name, "ok": bool(observation.get("ok", False))})
         tool_error_count += int(is_err)
+
+        if name == "create_tool" and observation.get("attempts_remaining") == 0:
+            try:
+                from agent.runtime.task_reporter import write_human_report
+                tool_target = str(arguments.get("name", "custom_tool"))
+                write_human_report(
+                    workspace=loop.config.workspace,
+                    goal=primary_goal or f"Create tool {tool_target}",
+                    tool_name="create_tool",
+                    error_details=str(observation.get("error", "Three attempts exhausted for tool")),
+                    why_explanation=(
+                        f"Generation of tool '{tool_target}' exhausted the 3-attempt limit for this session. "
+                        "The tool's tests or critic review failed on all attempts."
+                    ),
+                    suggestions=[
+                        f"Review the generated tool files under workspace/tools/{tool_target}/.",
+                        "Inspect tool.py and tests to fix any logic or syntax errors.",
+                        "When ready, you can unblock or re-add the tool creation task via /goal.",
+                    ],
+                    logger=loop.logger,
+                )
+            except Exception:
+                pass
 
         if loop._stopped():
             stop_reason = (

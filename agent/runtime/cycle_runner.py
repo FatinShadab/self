@@ -323,6 +323,7 @@ def run_agent_loop(loop: Any) -> RunSummary:
                 definitions=definitions,
                 seen_tool_actions=seen_tool_actions,
                 cycle_actions=cycle_actions,
+                primary_goal=primary_goal,
             )
             tool_error_count += round_errors
             if asked:
@@ -336,6 +337,59 @@ def run_agent_loop(loop: Any) -> RunSummary:
                     goal=primary_goal,
                 )
                 last_progress_at = time.monotonic()
+
+            if stop_reason == "broker_panic":
+                last_err = ""
+                last_tool = "workspace_action"
+                for tr in reversed(tool_results):
+                    if tr.get("is_error"):
+                        try:
+                            parsed = json.loads(tr.get("content", "{}"))
+                            last_err = parsed.get("error", "")
+                        except Exception:
+                            last_err = str(tr.get("content", ""))[:200]
+                        break
+                for ca in reversed(cycle_actions):
+                    if not ca.get("ok"):
+                        last_tool = ca.get("name", "tool")
+                        break
+
+                loop.plan_store.demote_stalled_goal(
+                    goal_or_id=primary_goal,
+                    reason=f"Stalled: permission broker panic after failures in {last_tool}",
+                    cycle=cycle,
+                )
+                next_items = loop.plan_store.top_items(limit=3, active_plugins=active_plugins_set)
+                next_goal = next_items[0]["goal"] if next_items else STANDING_GOAL
+
+                from agent.runtime.task_reporter import write_human_report
+                write_human_report(
+                    workspace=loop.config.workspace,
+                    goal=primary_goal,
+                    tool_name=last_tool,
+                    error_details=last_err or "Repeated tool errors triggered permission broker panic",
+                    why_explanation=(
+                        f"Action '{last_tool}' failed repeatedly during execution of '{primary_goal}'. "
+                        "The permission broker triggered panic to protect the environment."
+                    ),
+                    next_goal=next_goal,
+                    logger=loop.logger,
+                )
+
+                if loop.broker is not None:
+                    loop.broker.reset_panic()
+                stop_reason = None
+                messages.append(
+                    {
+                        "role": "user",
+                        "content": (
+                            f"[System Notice]: Goal '{primary_goal}' stalled after repeated errors in '{last_tool}'. "
+                            f"It has been demoted to blocked in your plan and reported to report_human.md. "
+                            f"Proceed immediately with your next available goal: '{next_goal}'."
+                        ),
+                    }
+                )
+                continue
 
             if stop_reason is not None:
                 reason = stop_reason
@@ -416,6 +470,35 @@ def run_agent_loop(loop: Any) -> RunSummary:
             break
 
         if repeated_report_count >= 2:
+            other_goals = [
+                it.get("goal")
+                for it in loop.plan_store.items
+                if it.get("goal") != primary_goal
+                and str(it.get("status", "")).strip().lower() not in {"done", "complete", "blocked", "dropped"}
+            ]
+            if other_goals:
+                loop.logger.narrate(
+                    f"Repeating reports on '{primary_goal}'. Demoting goal to blocked and switching to '{other_goals[0]}'."
+                )
+                loop.plan_store.demote_stalled_goal(
+                    goal_or_id=primary_goal,
+                    reason="Stalled: repeating results without progress",
+                    cycle=cycle,
+                )
+                from agent.runtime.task_reporter import write_human_report
+                write_human_report(
+                    workspace=loop.config.workspace,
+                    goal=primary_goal,
+                    tool_name="cycle_execution",
+                    error_details="Repeated same cycle report with no state progress",
+                    why_explanation=f"Goal '{primary_goal}' made no progress across repeated cycles.",
+                    next_goal=other_goals[0],
+                    logger=loop.logger,
+                )
+                repeated_report_count = 0
+                cycle += 1
+                continue
+
             loop.logger.log("run_no_progress", cycle=cycle, goal=primary_goal)
             loop.logger.narrate(
                 "I am repeating the same result while plan and environment-map updates are blocked. "

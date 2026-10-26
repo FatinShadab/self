@@ -16,12 +16,13 @@ def _read_json(path: Path) -> dict[str, Any]:
 
 
 def requests_text(root: Path) -> str:
-    """Read pending human requests from capability/key requests and HUMAN_REQUEST.md."""
+    """Read pending human requests from capability/key requests, HUMAN_REQUEST.md, and report_human.md."""
     chunks = []
     for path in (
         root / "state" / "capability_requests.md",
         root / "state" / "key_requests.md",
         root / "HUMAN_REQUEST.md",
+        root / "report_human.md",
     ):
         try:
             chunks.append(path.read_text(encoding="utf-8", errors="replace")[-4_000:])
@@ -33,8 +34,8 @@ def requests_text(root: Path) -> str:
 def pending_human_inputs(workspace: Path) -> list[str]:
     """Scan state files and workspace root for pending human requests."""
     pending: list[str] = []
-    for name in ("capability_requests.md", "key_requests.md", "HUMAN_REQUEST.md", "HUMAN_INPUT.md"):
-        path = workspace / "state" / name if name not in {"HUMAN_REQUEST.md", "HUMAN_INPUT.md"} else workspace / name
+    for name in ("capability_requests.md", "key_requests.md", "HUMAN_REQUEST.md", "HUMAN_INPUT.md", "report_human.md"):
+        path = workspace / "state" / name if name not in {"HUMAN_REQUEST.md", "HUMAN_INPUT.md", "report_human.md"} else workspace / name
         try:
             text = path.read_text(encoding="utf-8", errors="replace").strip()
         except OSError:

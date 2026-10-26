@@ -77,6 +77,9 @@ def build_conversation_context(
     plan: list[dict[str, Any]],
     activity: deque[str] | list[str],
     cycle_summaries: deque[str] | list[str],
+    *,
+    status_summary: str = "",
+    requests_summary: str = "",
 ) -> str:
     """Build a bounded read-only snapshot for independent conversation and reflection threads."""
     identity_ctx = identity.prompt_context()
@@ -91,13 +94,19 @@ def build_conversation_context(
     decisions_summary = json.dumps(decisions, ensure_ascii=False)[:2_000] if decisions else "No decisions recorded yet."
     activity_str = "\n".join(list(activity)[-40:])[:6_000]
     summaries_str = "\n\n".join(list(cycle_summaries)[-6:])[:8_000]
-    return (
-        f"{identity_ctx}\n\nCurrent handoff:\n{handoff_str}\n\n"
-        f"Active plan items:\n{plan_str}\n\n"
-        f"Recent human input decisions:\n{decisions_summary}\n\n"
-        f"Recent cycle summaries:\n{summaries_str}\n\n"
-        f"Recent activity:\n{activity_str}"
-    )
+    parts = [identity_ctx]
+    if status_summary:
+        parts.append(f"Current loop status:\n{status_summary}")
+    if requests_summary and requests_summary != "No pending human requests.":
+        parts.append(f"Pending requests / reports:\n{requests_summary}")
+    parts.extend([
+        f"Current handoff:\n{handoff_str}",
+        f"Active plan items:\n{plan_str}",
+        f"Recent human input decisions:\n{decisions_summary}",
+        f"Recent cycle summaries:\n{summaries_str}",
+        f"Recent activity:\n{activity_str}",
+    ])
+    return "\n\n".join(parts)
 
 
 def build_models_snapshot(
