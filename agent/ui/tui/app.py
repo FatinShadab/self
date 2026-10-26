@@ -53,7 +53,11 @@ try:
     from textual.css.query import NoMatches
     from textual.widgets import Footer, Header, Input, Static
 except ImportError:
-    App = object  # type: ignore[assignment, misc]
+    class _AppFallback:
+        def __class_getitem__(cls, item: Any) -> type:
+            return cls
+
+    App = _AppFallback  # type: ignore[assignment, misc]
     ComposeResult = Any  # type: ignore[assignment, misc]
     NoMatches = Exception  # type: ignore[assignment, misc]
 
