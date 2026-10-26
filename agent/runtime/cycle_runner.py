@@ -420,6 +420,48 @@ def run_agent_loop(loop: Any) -> RunSummary:
                 )
                 continue
 
+            if stop_reason == "human_request_pending":
+                primary_goal_id = next(
+                    (it["id"] for it in loop.plan_store.items if it.get("goal") == primary_goal),
+                    "task-1",
+                )
+                loop.plan_store.demote_stalled_goal(
+                    goal_or_id=primary_goal,
+                    reason="Paused: pending human capability request or action in HUMAN_REQUEST.md",
+                    status="paused",
+                    priority=3,
+                    cycle=cycle,
+                )
+                runnable = [
+                    it for it in loop.plan_store.items
+                    if str(it.get("status", "todo")).strip().lower() not in {"blocked", "paused"}
+                    and str(it.get("status", "todo")).strip().lower() in ACTIVE_PLAN_STATUSES
+                    and it.get("goal") != primary_goal
+                ]
+                if runnable:
+                    next_items = loop.plan_store.top_items(limit=3, active_plugins=active_plugins_set)
+                    next_goal = next_items[0]["goal"] if next_items else STANDING_GOAL
+                    loop.logger.narrate(
+                        f"Task [{primary_goal_id}] '{primary_goal}' paused awaiting human approval in HUMAN_REQUEST.md. "
+                        f"Continuing autonomously with next goal: '{next_goal}'."
+                    )
+                    stop_reason = None
+                    primary_goal = next_goal
+                    messages.append(
+                        {
+                            "role": "user",
+                            "content": (
+                                f"[System Notice]: Goal '{primary_goal}' paused awaiting human approval (recorded in HUMAN_REQUEST.md). "
+                                f"It has been marked paused in your plan. Proceed immediately with your next available goal: '{next_goal}'."
+                            ),
+                        }
+                    )
+                    continue
+                else:
+                    loop.logger.narrate("A human request was created and no other runnable goals remain; pausing cleanly.")
+                    reason = "human_request_pending"
+                    break
+
             if stop_reason is not None:
                 reason = stop_reason
                 break

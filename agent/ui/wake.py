@@ -23,6 +23,7 @@ from agent.ui.cardiac_monitor import (
     MONITOR_THINKING,
     MONITOR_WORKING,
     CardiacMonitorIntensity,
+    brain_art,
     cardiac_monitor_frame,
     cardiac_monitor_intensity,
 )
@@ -73,6 +74,7 @@ __all__ = [
     "run_headless",
     "run_tui",
     "main",
+    "brain_art",
     "cardiac_monitor_intensity",
     "cardiac_monitor_frame",
     "CardiacMonitorIntensity",

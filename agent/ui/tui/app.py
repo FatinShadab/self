@@ -6,7 +6,7 @@ from typing import Any, Callable
 
 from agent.body.container import ContainerMetrics
 from agent.session.coordinator import run_headless
-from agent.ui.cardiac_monitor import cardiac_monitor_frame, cardiac_monitor_intensity
+from agent.ui.cardiac_monitor import brain_art, cardiac_monitor_frame, cardiac_monitor_intensity
 from agent.ui.formatting.goals_panel import clamped_plan_height
 from agent.ui.tui.activity_log import drain_activity, queue_activity
 from agent.ui.tui.chat_pipeline import (
@@ -72,6 +72,9 @@ class SelfApp(App[None]):
     #entity-monitor { width: 1fr; height: 6; color: $text-muted; content-align: left middle; text-style: dim; }
     #entity-monitor.monitor-thinking { color: $accent; }
     #entity-monitor.monitor-working { color: $accent; text-style: bold; }
+    #entity-brain { width: 13; height: 6; color: $accent; content-align: center middle; text-style: dim; }
+    #entity-brain.monitor-thinking { color: $accent; }
+    #entity-brain.monitor-working { color: $accent; text-style: bold; }
     #conversation { height: 1fr; padding: 0 1; scrollbar-gutter: stable; }
     #plan-scroll { height: 10; min-height: 5; padding: 1; scrollbar-gutter: stable; }
     #plan { width: 100%; }
@@ -126,6 +129,7 @@ class SelfApp(App[None]):
                 with Horizontal(id="conversation-top"):
                     yield Static(" .-.\n(o o)\n /|\\", id="entity-art", markup=False)
                     yield Static(cardiac_monitor_frame(0), id="entity-monitor", markup=False)
+                    yield Static(brain_art(), id="entity-brain", markup=False)
                 yield VerticalScroll(id="conversation")
             with Vertical(id="work-pane"):
                 with VerticalScroll(id="plan-scroll"):
@@ -182,21 +186,36 @@ class SelfApp(App[None]):
             monitor = self.query_one("#entity-monitor", Static)
         except NoMatches:
             return
+        try:
+            brain = self.query_one("#entity-brain", Static)
+        except NoMatches:
+            brain = None
         stopped = (
             self.coordinator.stop_requested
             or self.coordinator.paused.is_set()
             or (self.coordinator.workspace / "STOP").exists()
         )
-        state = str(self.coordinator.runtime_snapshot()["state"])
-        intensity = cardiac_monitor_intensity(state, stopped=stopped)
+        snapshot = self.coordinator.runtime_snapshot()
+        state = str(snapshot.get("state", "IDLE"))
+        effort_level = snapshot.get("effort_level")
+        intensity = cardiac_monitor_intensity(state, stopped=stopped, effort_level=effort_level)
         for mode in ("stopped", "thinking", "working", "idle"):
             monitor.set_class(mode == intensity.name, f"monitor-{mode}")
+            if brain is not None:
+                brain.set_class(mode == intensity.name, f"monitor-{mode}")
+        if brain is not None:
+            new_brain = brain_art(intensity.name)
+            if getattr(self, "_last_brain_art", None) != new_brain:
+                brain.update(new_brain)
+                self._last_brain_art = new_brain
         frame = (self._monitor_tick // intensity.tick_divisor) * intensity.tick_stride
         monitor_frame = cardiac_monitor_frame(
             frame,
             monitor.size.width,
             beat_interval=intensity.beat_interval,
             pulse_height=intensity.pulse_height,
+            effort_level=intensity.effort_level,
+            state=intensity.name,
         )
         if monitor_frame != getattr(self, "_last_monitor_frame", None):
             monitor.update(monitor_frame)
@@ -304,6 +323,8 @@ class SelfApp(App[None]):
             if not (self.coordinator.workspace / "HUMAN_REQUEST.md").exists():
                 self.coordinator.clear_human_request()
                 self._start_agent()
+            elif hasattr(self.coordinator, "has_runnable_goals") and self.coordinator.has_runnable_goals():
+                self._start_agent()
             else:
                 self.set_timer(2.0, self._watch_human_request)
         else:
@@ -319,7 +340,11 @@ class SelfApp(App[None]):
             return
         if restart_delay is not None and restart_delay < 0:
             return
-        if self.coordinator.has_pending_human_request():
+        if (
+            self.coordinator.has_pending_human_request()
+            and hasattr(self.coordinator, "has_runnable_goals")
+            and not self.coordinator.has_runnable_goals()
+        ):
             self.set_timer(2.0, self._watch_human_request)
         else:
             self.set_timer(restart_delay if restart_delay is not None else 0.8, self._start_agent)
@@ -338,7 +363,11 @@ class SelfApp(App[None]):
                 elif (self.coordinator.workspace / "STOP").exists():
                     final_message = "I am paused because STOP was requested. Remove workspace/STOP or use /restart when you want me to continue."
                 elif self.coordinator.has_pending_human_request():
-                    final_message = "I am waiting for your decision in HUMAN_REQUEST.md. Use /resume or /decline (or remove the file); I will wake automatically."
+                    if hasattr(self.coordinator, "has_runnable_goals") and self.coordinator.has_runnable_goals():
+                        final_message = "A human request is pending for a paused task; continuing autonomous work on other goals."
+                        restart_delay = 0.8
+                    else:
+                        final_message = "I am waiting for your decision in HUMAN_REQUEST.md. Use /approve, /decline, or /resume; I will wake automatically."
                 else:
                     final_message = "This session ended; I will start the next session automatically."
                     restart_delay = 0.8 if result is None or getattr(result, "reason", "") != "provider_error" else 3.0

@@ -148,6 +148,9 @@ class ConversationTests(unittest.TestCase):
             promoted = [it for it in coord.plan_store.items if it["goal"] == "Blocked Task"][0]
             self.assertEqual(promoted["status"], "todo")
             self.assertEqual(promoted["priority"], 1)
+            self.assertTrue(coord.has_runnable_goals())
+            coord.plan_store.update_plan(action="edit", id=promoted["id"], status="blocked", reason="Testing empty runnable")
+            self.assertFalse(coord.has_runnable_goals())
 
 
 if __name__ == "__main__":

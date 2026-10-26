@@ -12,7 +12,7 @@ from agent.infra.event_log import EventLogger
 from agent.identity.identity import IdentityStore
 from agent.llm.llm import LLMResult
 from agent.session.session import HumanInbox, SessionStore
-from agent.ui.wake import build_archive_views, cardiac_monitor_frame, cardiac_monitor_intensity, escape_rich_markup, format_conversation_history_view, WakeCoordinator, clamped_plan_height, format_goals_panel, format_starting_plan, normalized_plan, visible_plan_items
+from agent.ui.wake import brain_art, build_archive_views, cardiac_monitor_frame, cardiac_monitor_intensity, escape_rich_markup, format_conversation_history_view, WakeCoordinator, clamped_plan_height, format_goals_panel, format_starting_plan, normalized_plan, visible_plan_items
 from agent.ui.tui.status_panels import build_activity_panel, build_identity_panel, build_session_panel
 from agent.ui.tui.app import SelfApp
 
@@ -66,7 +66,7 @@ class SessionTests(unittest.TestCase):
         self.assertEqual(Static(escaped, markup=True).render_str(escaped).plain, message)
 
     def test_cardiac_monitor_frame_keeps_a_fixed_ascii_canvas(self) -> None:
-        blank = cardiac_monitor_frame(0)
+        blank = cardiac_monitor_frame(0, pulse_height=0)
         pulse = cardiac_monitor_frame(6)
         wide_pulse = cardiac_monitor_frame(6, 48)
 
@@ -74,8 +74,10 @@ class SessionTests(unittest.TestCase):
         self.assertEqual([len(row) for row in pulse.splitlines()], [6, 6, 6])
         self.assertEqual([len(row) for row in wide_pulse.splitlines()], [48, 48, 48])
         self.assertIn("|", pulse)
-        self.assertIn("/", pulse)
-        self.assertIn("\\", pulse)
+        self.assertIn("~", pulse)
+        self.assertIn("_", wide_pulse)
+        self.assertIn("|", wide_pulse)
+        self.assertIn("~", wide_pulse)
 
     def test_cardiac_monitor_intensity_tracks_agent_state(self) -> None:
         stopped = cardiac_monitor_intensity("WORKING", stopped=True)
@@ -86,6 +88,37 @@ class SessionTests(unittest.TestCase):
         self.assertLess(thinking.pulse_height, working.pulse_height)
         self.assertLess(thinking.tick_stride / thinking.tick_divisor, working.tick_stride / working.tick_divisor)
         self.assertNotIn("|", cardiac_monitor_frame(0, 48, pulse_height=stopped.pulse_height))
+
+    def test_cardiac_monitor_supports_effort_levels(self) -> None:
+        high_effort = cardiac_monitor_intensity("WORKING", effort_level="high")
+        med_effort = cardiac_monitor_intensity("WORKING", effort_level="medium")
+        low_effort = cardiac_monitor_intensity("WORKING", effort_level="low")
+
+        self.assertEqual(high_effort.pulse_height, 3)
+        self.assertEqual(med_effort.pulse_height, 2)
+        self.assertEqual(low_effort.pulse_height, 1)
+
+        high_frame = cardiac_monitor_frame(0, 48, effort_level="high")
+        med_frame = cardiac_monitor_frame(0, 48, effort_level="medium")
+        low_frame = cardiac_monitor_frame(0, 48, effort_level="low")
+
+        self.assertIn("|", high_frame)
+        self.assertIn("~", high_frame)
+        self.assertIn("_", high_frame)
+        self.assertIn("~", med_frame)
+        self.assertIn("~", low_frame)
+
+    def test_brain_art_shapes(self) -> None:
+        idle_brain = brain_art("idle")
+        thinking_brain = brain_art("thinking")
+        working_brain = brain_art("working")
+
+        self.assertEqual(len(idle_brain.splitlines()), 3)
+        self.assertEqual(len(thinking_brain.splitlines()), 3)
+        self.assertEqual(len(working_brain.splitlines()), 3)
+        self.assertIn("(_)", idle_brain)
+        self.assertIn("(~)", thinking_brain)
+        self.assertIn("(*)", working_brain)
 
     def test_runtime_snapshot_tracks_current_activity(self) -> None:
         with tempfile.TemporaryDirectory() as temp:

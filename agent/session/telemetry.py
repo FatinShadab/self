@@ -128,8 +128,17 @@ def build_runtime_snapshot(
 ) -> dict[str, Any]:
     """Return a dictionary snapshot of current runtime telemetry."""
     def _snapshot() -> dict[str, Any]:
+        effort_level = "low"
+        if telemetry.state in {"WORKING", "USING TOOL"}:
+            effort_level = "high"
+        elif "THINK" in telemetry.state:
+            effort_level = "medium"
+        elif telemetry.active_calls > 1:
+            effort_level = "high"
+
         return {
             "state": telemetry.state,
+            "effort_level": effort_level,
             "active_calls": telemetry.active_calls,
             "total_calls": telemetry.total_calls,
             "completed_calls": telemetry.completed_calls,

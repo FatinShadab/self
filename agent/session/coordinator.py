@@ -329,6 +329,19 @@ class WakeCoordinator:
         harness_hr = get_harness_request_path(self.workspace)
         return hr.exists() or harness_hr.exists()
 
+    def has_runnable_goals(self) -> bool:
+        """Check whether there are active, unblocked plan goals to pursue."""
+        if not hasattr(self, "plan_store") or not self.plan_store:
+            return False
+        self.plan_store.load()
+        from agent.learning.plan_statuses import ACTIVE_PLAN_STATUSES
+
+        return any(
+            str(it.get("status", "todo")).strip().lower() in ACTIVE_PLAN_STATUSES
+            and str(it.get("status", "todo")).strip().lower() not in {"blocked", "paused"}
+            for it in self.plan_store.items
+        )
+
     def clear_human_request(self) -> None:
         """Clear pending human requests in workspace and harness state (human channel)."""
         from agent.infra.hardening import clear_pending_human_request

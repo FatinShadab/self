@@ -42,6 +42,11 @@ class HardeningTests(unittest.TestCase):
             self.assertFalse(repeat_res["halted"])
             self.assertEqual(repeat_res["status"], "previously_declined")
 
+            # Verify cross-kind and keyword declined matching
+            repeat_other = cap.request("other", "Access with EXAMPLE_API_KEY", "Retry with different kind", "example", ["EXAMPLE_API_KEY"])
+            self.assertFalse(repeat_other["ok"])
+            self.assertEqual(repeat_other["status"], "previously_declined")
+
             # Verify stalled task report generation and plan demotion
             from agent.runtime.task_reporter import write_human_report
             from agent.learning.plan import PlanStore

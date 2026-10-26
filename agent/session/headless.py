@@ -21,12 +21,17 @@ def run_headless(coordinator: Any) -> int:
                 or (hasattr(coordinator, "broker") and getattr(coordinator.broker, "in_panic", False))
             ):
                 break
-            if coordinator.has_pending_human_request():
+            if (
+                coordinator.has_pending_human_request()
+                and hasattr(coordinator, "has_runnable_goals")
+                and not coordinator.has_runnable_goals()
+            ):
                 coordinator.logger.narrate(
-                    "Waiting for the human request to be resolved; the next session will start automatically afterward."
+                    "Waiting for the human request to be resolved because no runnable goals remain; the next session will start automatically afterward."
                 )
                 while (
                     coordinator.has_pending_human_request()
+                    and not coordinator.has_runnable_goals()
                     and not (coordinator.workspace / "STOP").exists()
                     and not coordinator.stop_requested
                 ):

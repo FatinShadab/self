@@ -267,13 +267,30 @@ class CapabilityRequests:
             if not isinstance(records, list):
                 return False
             norm_summary = summary.strip().lower()
+            norm_env_names = set(env_names or [])
             for rec in records:
-                if rec.get("kind") == kind:
-                    if env_names and rec.get("env_names"):
-                        if any(e in rec.get("env_names", []) for e in env_names):
-                            return True
-                    s2 = str(rec.get("summary", "")).strip().lower()
-                    if norm_summary and s2 and (norm_summary == s2 or norm_summary in s2 or s2 in norm_summary):
+                # 1. Matching env var name across any kind
+                rec_envs = set(rec.get("env_names", []) or [])
+                if norm_env_names and rec_envs and (norm_env_names & rec_envs):
+                    return True
+
+                s2 = str(rec.get("summary", "")).strip().lower()
+                # 2. Direct summary containment
+                if norm_summary and s2 and (norm_summary == s2 or norm_summary in s2 or s2 in norm_summary):
+                    return True
+
+                # 3. Known capability/resource keyword overlap
+                keywords = ["docker", "docker.sock", "/var/run/docker.sock", "ollama", "gpu", "sudo", "root"]
+                for kw in keywords:
+                    if kw in norm_summary and kw in s2:
+                        return True
+
+                # 4. Same kind with word overlap
+                if rec.get("kind") == kind and norm_summary and s2:
+                    words1 = set(norm_summary.split())
+                    words2 = set(s2.split())
+                    overlap = words1 & words2 - {"the", "a", "an", "for", "to", "in", "of", "and", "or", "on", "with"}
+                    if len(overlap) >= 2:
                         return True
         except (OSError, json.JSONDecodeError):
             pass
