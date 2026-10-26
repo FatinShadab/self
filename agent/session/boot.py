@@ -149,6 +149,11 @@ def run_boot_sequence(coordinator: Any) -> str:
         message = "I am paused because STOP was requested earlier. Remove workspace/STOP or use /restart, then I can wake again."
         coordinator.logger.narrate(message)
         return message
+    if not coordinator.stop_requested:
+        if hasattr(coordinator, "broker") and coordinator.broker is not None:
+            coordinator.broker.reset_panic()
+        if hasattr(coordinator, "stop_watcher") and coordinator.stop_watcher is not None:
+            coordinator.stop_watcher.reset_stop()
     if hasattr(coordinator, "stop_watcher") and coordinator.stop_watcher is not None:
         coordinator.stop_watcher.start()
     coordinator._session_info = coordinator.sessions.start()

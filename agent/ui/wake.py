@@ -23,9 +23,12 @@ from agent.ui.cardiac_monitor import (
     MONITOR_THINKING,
     MONITOR_WORKING,
     CardiacMonitorIntensity,
+    ENTITY_FACE,
     brain_art,
     cardiac_monitor_frame,
     cardiac_monitor_intensity,
+    entity_art,
+    robot_art,
 )
 from agent.ui.cli import main
 from agent.ui.formatting.archive_view import build_archive_views
@@ -75,6 +78,9 @@ __all__ = [
     "run_tui",
     "main",
     "brain_art",
+    "robot_art",
+    "entity_art",
+    "ENTITY_FACE",
     "cardiac_monitor_intensity",
     "cardiac_monitor_frame",
     "CardiacMonitorIntensity",

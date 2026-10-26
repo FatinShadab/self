@@ -49,6 +49,12 @@ def run_agent_loop(loop: Any) -> RunSummary:
         active_task = loop.learning.propose_curriculum()
         loop.logger.narrate(f"Idle curriculum selected: {active_task}")
     loop.plan_store.initialize(seed_task=active_task or STANDING_GOAL)
+    if not (loop.config.workspace / "STOP").exists():
+        if getattr(loop, "broker", None) is not None:
+            loop.broker.reset_panic()
+        watcher = getattr(loop, "watcher", None) or getattr(loop, "stop_watcher", None)
+        if watcher is not None and hasattr(watcher, "reset_stop"):
+            watcher.reset_stop()
     completed_iterations = 0
     seen_tool_actions: set[str] = set()
     last_report = (
@@ -377,8 +383,16 @@ def run_agent_loop(loop: Any) -> RunSummary:
                     priority=3,
                     cycle=cycle,
                 )
-                next_items = loop.plan_store.top_items(limit=3, active_plugins=active_plugins_set)
-                next_goal = next_items[0]["goal"] if next_items else STANDING_GOAL
+                runnable_items = [
+                    it for it in loop.plan_store.items
+                    if str(it.get("status", "todo")).strip().lower() not in {"blocked", "paused"}
+                    and str(it.get("status", "todo")).strip().lower() in ACTIVE_PLAN_STATUSES
+                    and it.get("goal") != primary_goal
+                ]
+                if runnable_items:
+                    next_goal = runnable_items[0]["goal"]
+                else:
+                    next_goal = STANDING_GOAL if primary_goal != STANDING_GOAL else "Explore container environment and record discoveries."
 
                 from agent.runtime.task_reporter import write_human_report
                 write_human_report(
@@ -403,8 +417,9 @@ def run_agent_loop(loop: Any) -> RunSummary:
                         stop_file.unlink()
                     except OSError:
                         pass
-                if loop.stop_watcher is not None:
-                    loop.stop_watcher.reset_stop()
+                watcher = getattr(loop, "watcher", None) or getattr(loop, "stop_watcher", None)
+                if watcher is not None and hasattr(watcher, "reset_stop"):
+                    watcher.reset_stop()
                 if hasattr(loop, "coordinator") and loop.coordinator and getattr(loop.coordinator, "stop_watcher", None):
                     loop.coordinator.stop_watcher.reset_stop()
                 stop_reason = None
@@ -439,8 +454,7 @@ def run_agent_loop(loop: Any) -> RunSummary:
                     and it.get("goal") != primary_goal
                 ]
                 if runnable:
-                    next_items = loop.plan_store.top_items(limit=3, active_plugins=active_plugins_set)
-                    next_goal = next_items[0]["goal"] if next_items else STANDING_GOAL
+                    next_goal = runnable[0]["goal"]
                     loop.logger.narrate(
                         f"Task [{primary_goal_id}] '{primary_goal}' paused awaiting human approval in HUMAN_REQUEST.md. "
                         f"Continuing autonomously with next goal: '{next_goal}'."

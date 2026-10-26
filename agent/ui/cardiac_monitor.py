@@ -13,19 +13,36 @@ BASE_PATTERN = [
     2, 0, 2, 1, 0, 3, 2, 0, 0, 2, 1, 0, 1, 2, 3, 1, 1, 0, 0, 0,
 ]
 
-BRAIN_ART_IDLE = " .--. .--.\n( (_)|(_) )\n '--' '--'"
-BRAIN_ART_THINKING = " .--. .--.\n( (~)|(~) )\n '--' '--'"
-BRAIN_ART_WORKING = " .--. .--.\n( (*)|(*) )\n '--' '--'"
+ENTITY_FACE = "     \n(o o)\n     "
+
+ROBOT_ART_IDLE = "  _|_\n [o_o]\n /[_]\\"
+ROBOT_ART_THINKING = "  _|_\n [o.o]\n /[_]\\"
+ROBOT_ART_WORKING = "  _|_\n [*_*]\n /[_]\\"
+ROBOT_ART_STOPPED = "  _|_\n [-.-]\n /[_]\\"
 
 
-def brain_art(state: str = "idle") -> str:
-    """Return the brain-like ASCII figure corresponding to the current state."""
+def entity_art(state: str = "idle") -> str:
+    """Return the entity face ASCII art."""
+    return ENTITY_FACE
+
+
+def robot_art(state: str = "idle") -> str:
+    """Return the robot ASCII figure corresponding to the current state."""
     st = state.strip().lower()
+    if "stop" in st or "pause" in st:
+        return ROBOT_ART_STOPPED
     if "think" in st:
-        return BRAIN_ART_THINKING
+        return ROBOT_ART_THINKING
     if "work" in st or "tool" in st:
-        return BRAIN_ART_WORKING
-    return BRAIN_ART_IDLE
+        return ROBOT_ART_WORKING
+    return ROBOT_ART_IDLE
+
+
+# Aliases for backward compatibility
+brain_art = robot_art
+BRAIN_ART_IDLE = ROBOT_ART_IDLE
+BRAIN_ART_THINKING = ROBOT_ART_THINKING
+BRAIN_ART_WORKING = ROBOT_ART_WORKING
 
 
 @dataclass(frozen=True)
@@ -108,34 +125,27 @@ def cardiac_monitor_frame(
     pattern_len = len(BASE_PATTERN)
 
     if eff in {"low", "1", "min", "idle", "light"} or st == "idle":
-        # Low effort / Idle: gentle breathing ripples with ~ and _ and small | pulses
+        # Low effort / Idle: gentle breathing blips using only | and _
         for col in range(width):
-            phase = (col + frame) % 12
-            if phase in (2, 3):
-                rows[1][col] = "~"
-                rows[2][col] = "|" if phase == 2 else "~"
-            elif phase in (1, 4):
-                rows[2][col] = "~"
-            elif phase == 7:
+            phase = (col + frame) % 10
+            if phase in (3, 4):
                 rows[2][col] = "|"
             else:
                 rows[2][col] = "_"
     elif eff in {"medium", "med", "2", "normal"} or "think" in st:
-        # Medium effort / Thinking: undulating thought wave oscillations with ~ crests and | pulses (max height 2)
+        # Medium effort / Thinking: moderate thought wave pulses (max height 2) using | and _
         for col in range(width):
             idx = (col + frame) % pattern_len
             h = min(2, BASE_PATTERN[idx])
             if h == 2:
-                rows[1][col] = "~" if (col % 2 == 0) else "|"
+                rows[1][col] = "|"
                 rows[2][col] = "|"
             elif h == 1:
                 rows[2][col] = "|"
             else:
-                prev_h = min(2, BASE_PATTERN[(idx - 1) % pattern_len])
-                next_h = min(2, BASE_PATTERN[(idx + 1) % pattern_len])
-                rows[2][col] = "~" if (prev_h > 0 or next_h > 0) else "_"
+                rows[2][col] = "_"
     else:
-        # High effort / Working: full dynamic equalizer spectrum
+        # High effort / Working: full dynamic equalizer spectrum using | and _
         for col in range(width):
             idx = (col + frame) % pattern_len
             h = BASE_PATTERN[idx]
@@ -149,12 +159,7 @@ def cardiac_monitor_frame(
             elif h == 1:
                 rows[2][col] = "|"
             else:
-                prev_h = BASE_PATTERN[(idx - 1) % pattern_len]
-                next_h = BASE_PATTERN[(idx + 1) % pattern_len]
-                rows[2][col] = "~" if (prev_h > 0 or next_h > 0) else "_"
-            # Wave crest / harmonic accents on flanks of tall spikes
-            if h == 0 and (BASE_PATTERN[(idx - 1) % pattern_len] == 3 or BASE_PATTERN[(idx + 1) % pattern_len] == 3):
-                rows[1][col] = "~"
+                rows[2][col] = "_"
 
     return "\n".join("".join(row) for row in rows)
 
@@ -170,6 +175,13 @@ __all__ = [
     "MONITOR_IDLE",
     "cardiac_monitor_intensity",
     "cardiac_monitor_frame",
+    "ENTITY_FACE",
+    "entity_art",
+    "robot_art",
+    "ROBOT_ART_IDLE",
+    "ROBOT_ART_THINKING",
+    "ROBOT_ART_WORKING",
+    "ROBOT_ART_STOPPED",
     "brain_art",
     "BRAIN_ART_IDLE",
     "BRAIN_ART_THINKING",

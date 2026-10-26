@@ -6,7 +6,14 @@ from typing import Any, Callable
 
 from agent.body.container import ContainerMetrics
 from agent.session.coordinator import run_headless
-from agent.ui.cardiac_monitor import brain_art, cardiac_monitor_frame, cardiac_monitor_intensity
+from agent.ui.cardiac_monitor import (
+    ENTITY_FACE,
+    brain_art,
+    cardiac_monitor_frame,
+    cardiac_monitor_intensity,
+    entity_art,
+    robot_art,
+)
 from agent.ui.formatting.goals_panel import clamped_plan_height
 from agent.ui.tui.activity_log import drain_activity, queue_activity
 from agent.ui.tui.chat_pipeline import (
@@ -68,13 +75,12 @@ class SelfApp(App[None]):
     #conversation-pane { width: 2fr; border: solid $primary; }
     #work-pane { width: 1.5fr; border: solid $secondary; }
     #conversation-top { height: 6; }
-    #entity-art { width: 7; height: 6; color: $accent; content-align: center middle; text-style: dim; }
+    #entity-art { width: 9; height: 6; color: $accent; content-align: center middle; text-style: dim; }
+    #entity-art.monitor-thinking { color: $accent; }
+    #entity-art.monitor-working { color: $accent; text-style: bold; }
     #entity-monitor { width: 1fr; height: 6; color: $text-muted; content-align: left middle; text-style: dim; }
     #entity-monitor.monitor-thinking { color: $accent; }
     #entity-monitor.monitor-working { color: $accent; text-style: bold; }
-    #entity-brain { width: 13; height: 6; color: $accent; content-align: center middle; text-style: dim; }
-    #entity-brain.monitor-thinking { color: $accent; }
-    #entity-brain.monitor-working { color: $accent; text-style: bold; }
     #conversation { height: 1fr; padding: 0 1; scrollbar-gutter: stable; }
     #plan-scroll { height: 10; min-height: 5; padding: 1; scrollbar-gutter: stable; }
     #plan { width: 100%; }
@@ -127,9 +133,8 @@ class SelfApp(App[None]):
         with Horizontal(id="body"):
             with Vertical(id="conversation-pane"):
                 with Horizontal(id="conversation-top"):
-                    yield Static(" .-.\n(o o)\n /|\\", id="entity-art", markup=False)
+                    yield Static(robot_art(), id="entity-art", markup=False)
                     yield Static(cardiac_monitor_frame(0), id="entity-monitor", markup=False)
-                    yield Static(brain_art(), id="entity-brain", markup=False)
                 yield VerticalScroll(id="conversation")
             with Vertical(id="work-pane"):
                 with VerticalScroll(id="plan-scroll"):
@@ -187,9 +192,9 @@ class SelfApp(App[None]):
         except NoMatches:
             return
         try:
-            brain = self.query_one("#entity-brain", Static)
+            art = self.query_one("#entity-art", Static)
         except NoMatches:
-            brain = None
+            art = None
         stopped = (
             self.coordinator.stop_requested
             or self.coordinator.paused.is_set()
@@ -201,13 +206,13 @@ class SelfApp(App[None]):
         intensity = cardiac_monitor_intensity(state, stopped=stopped, effort_level=effort_level)
         for mode in ("stopped", "thinking", "working", "idle"):
             monitor.set_class(mode == intensity.name, f"monitor-{mode}")
-            if brain is not None:
-                brain.set_class(mode == intensity.name, f"monitor-{mode}")
-        if brain is not None:
-            new_brain = brain_art(intensity.name)
-            if getattr(self, "_last_brain_art", None) != new_brain:
-                brain.update(new_brain)
-                self._last_brain_art = new_brain
+            if art is not None:
+                art.set_class(mode == intensity.name, f"monitor-{mode}")
+        if art is not None:
+            new_art = robot_art(intensity.name)
+            if getattr(self, "_last_robot_art", None) != new_art:
+                art.update(new_art)
+                self._last_robot_art = new_art
         frame = (self._monitor_tick // intensity.tick_divisor) * intensity.tick_stride
         monitor_frame = cardiac_monitor_frame(
             frame,
@@ -357,17 +362,27 @@ class SelfApp(App[None]):
             if not (result is None and (self.coordinator.workspace / "STOP").exists()):
                 if getattr(result, "reason", "") == "broker_panic":
                     final_message = "I paused because the permission broker blocked repeated tool actions. Check the recent action_denied events; /restart resumes after the cause is resolved."
+                    restart_delay = -1.0
                 elif getattr(result, "reason", "") == "no_progress":
                     final_message = "I paused after repeating the same result with plan and map writes unavailable. Review config/permissions.json or choose another goal, then use /restart."
                     restart_delay = -1.0
-                elif (self.coordinator.workspace / "STOP").exists():
+                elif (
+                    (self.coordinator.workspace / "STOP").exists()
+                    or self.coordinator.stop_requested
+                    or getattr(result, "reason", "") in {"stop_file", "stop_watcher"}
+                ):
                     final_message = "I am paused because STOP was requested. Remove workspace/STOP or use /restart when you want me to continue."
+                    restart_delay = -1.0
                 elif self.coordinator.has_pending_human_request():
                     if hasattr(self.coordinator, "has_runnable_goals") and self.coordinator.has_runnable_goals():
                         final_message = "A human request is pending for a paused task; continuing autonomous work on other goals."
                         restart_delay = 0.8
                     else:
                         final_message = "I am waiting for your decision in HUMAN_REQUEST.md. Use /approve, /decline, or /resume; I will wake automatically."
+                        restart_delay = -1.0
+                elif getattr(result, "iterations", 0) == 0:
+                    final_message = f"Session completed 0 cycles with reason '{getattr(result, 'reason', 'unknown')}'. Use /restart when ready."
+                    restart_delay = -1.0
                 else:
                     final_message = "This session ended; I will start the next session automatically."
                     restart_delay = 0.8 if result is None or getattr(result, "reason", "") != "provider_error" else 3.0

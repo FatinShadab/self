@@ -82,6 +82,7 @@ class AgentLoop:
         self.broker = wired.broker
         self.audit_trail = wired.audit_trail
         self.watcher = wired.watcher
+        self.stop_watcher = wired.watcher
         self.stop_file = wired.stop_file
         self.human_request = wired.human_request
         self.harness_human_request = wired.harness_human_request

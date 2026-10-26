@@ -9,6 +9,20 @@ from agent.helper_models.model_outcomes import SELF_REPORTED_USEFULNESS
 from agent.infra.file_lock import locked_file
 
 
+USEFULNESS_ALIASES: dict[str, str] = {
+    "useful": "used",
+    "helpful": "used",
+    "success": "used",
+    "not_useful": "not_used",
+    "unhelpful": "not_used",
+    "fail": "not_used",
+    "failed": "wrong",
+    "incorrect": "wrong",
+    "partial": "partly_used",
+    "partially": "partly_used",
+}
+
+
 def record_delegation_outcome(
     decisions: Any,
     call_id: str,
@@ -16,8 +30,12 @@ def record_delegation_outcome(
     note: str,
 ) -> dict[str, Any]:
     """Persist the observed result of a helper-model delegation."""
-    if usefulness not in SELF_REPORTED_USEFULNESS:
-        raise ValueError("Invalid delegation usefulness")
+    norm_usefulness = USEFULNESS_ALIASES.get(str(usefulness).strip().lower(), str(usefulness).strip().lower())
+    if norm_usefulness not in SELF_REPORTED_USEFULNESS:
+        raise ValueError(
+            f"Invalid delegation usefulness '{usefulness}'. Expected one of: {sorted(SELF_REPORTED_USEFULNESS)}"
+        )
+    usefulness = norm_usefulness
     if not isinstance(note, str) or len(note) > 1_000:
         raise ValueError("Delegation note exceeds its size limit")
     target = next((row for row in decisions.last_decisions(limit=None) if row.get("call_id") == call_id), None)

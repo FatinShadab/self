@@ -12,7 +12,7 @@ from agent.infra.event_log import EventLogger
 from agent.identity.identity import IdentityStore
 from agent.llm.llm import LLMResult
 from agent.session.session import HumanInbox, SessionStore
-from agent.ui.wake import brain_art, build_archive_views, cardiac_monitor_frame, cardiac_monitor_intensity, escape_rich_markup, format_conversation_history_view, WakeCoordinator, clamped_plan_height, format_goals_panel, format_starting_plan, normalized_plan, visible_plan_items
+from agent.ui.wake import ENTITY_FACE, brain_art, build_archive_views, cardiac_monitor_frame, cardiac_monitor_intensity, entity_art, escape_rich_markup, format_conversation_history_view, robot_art, WakeCoordinator, clamped_plan_height, format_goals_panel, format_starting_plan, normalized_plan, visible_plan_items
 from agent.ui.tui.status_panels import build_activity_panel, build_identity_panel, build_session_panel
 from agent.ui.tui.app import SelfApp
 
@@ -74,10 +74,10 @@ class SessionTests(unittest.TestCase):
         self.assertEqual([len(row) for row in pulse.splitlines()], [6, 6, 6])
         self.assertEqual([len(row) for row in wide_pulse.splitlines()], [48, 48, 48])
         self.assertIn("|", pulse)
-        self.assertIn("~", pulse)
+        self.assertNotIn("~", pulse)
         self.assertIn("_", wide_pulse)
         self.assertIn("|", wide_pulse)
-        self.assertIn("~", wide_pulse)
+        self.assertNotIn("~", wide_pulse)
 
     def test_cardiac_monitor_intensity_tracks_agent_state(self) -> None:
         stopped = cardiac_monitor_intensity("WORKING", stopped=True)
@@ -103,22 +103,32 @@ class SessionTests(unittest.TestCase):
         low_frame = cardiac_monitor_frame(0, 48, effort_level="low")
 
         self.assertIn("|", high_frame)
-        self.assertIn("~", high_frame)
+        self.assertNotIn("~", high_frame)
         self.assertIn("_", high_frame)
-        self.assertIn("~", med_frame)
-        self.assertIn("~", low_frame)
+        self.assertNotIn("~", med_frame)
+        self.assertNotIn("~", low_frame)
 
-    def test_brain_art_shapes(self) -> None:
-        idle_brain = brain_art("idle")
-        thinking_brain = brain_art("thinking")
-        working_brain = brain_art("working")
+    def test_robot_art_shapes(self) -> None:
+        idle_robot = robot_art("idle")
+        thinking_robot = robot_art("thinking")
+        working_robot = robot_art("working")
 
-        self.assertEqual(len(idle_brain.splitlines()), 3)
-        self.assertEqual(len(thinking_brain.splitlines()), 3)
-        self.assertEqual(len(working_brain.splitlines()), 3)
-        self.assertIn("(_)", idle_brain)
-        self.assertIn("(~)", thinking_brain)
-        self.assertIn("(*)", working_brain)
+        self.assertEqual(len(idle_robot.splitlines()), 3)
+        self.assertEqual(len(thinking_robot.splitlines()), 3)
+        self.assertEqual(len(working_robot.splitlines()), 3)
+        self.assertIn("[o_o]", idle_robot)
+        self.assertIn("[o.o]", thinking_robot)
+        self.assertIn("[*_*]", working_robot)
+        self.assertNotIn("~", idle_robot)
+        self.assertNotIn("~", thinking_robot)
+        self.assertNotIn("~", working_robot)
+        # brain_art is backward-compatible alias
+        self.assertEqual(brain_art("idle"), idle_robot)
+
+    def test_entity_face(self) -> None:
+        self.assertEqual(len(ENTITY_FACE.splitlines()), 3)
+        self.assertIn("(o o)", ENTITY_FACE)
+        self.assertIn("(o o)", entity_art())
 
     def test_runtime_snapshot_tracks_current_activity(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
