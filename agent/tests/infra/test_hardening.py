@@ -73,6 +73,22 @@ class HardeningTests(unittest.TestCase):
             self.assertEqual(stalled_item["status"], "blocked")
             self.assertEqual(stalled_item["priority"], 3)
 
+            # Verify plan promote_approved_goal
+            plan.promote_approved_goal("Task A", reason="Approved by human")
+            self.assertEqual(plan.top_items()[0]["goal"], "Task A")
+            promoted_item = [it for it in plan.items if it["goal"] == "Task A"][0]
+            self.assertEqual(promoted_item["status"], "todo")
+            self.assertEqual(promoted_item["priority"], 1)
+
+            # Verify approve_pending_capability_request
+            cap.request("credential", "New key required", "Testing approve", "groq", ["GROQ_API_KEY"])
+            self.assertTrue((root / "HUMAN_REQUEST.md").exists())
+            from agent.infra.hardening import approve_pending_capability_request
+            app_res = approve_pending_capability_request(root, reason="Approved by admin", logger=logger)
+            self.assertIsNotNone(app_res)
+            self.assertFalse((root / "HUMAN_REQUEST.md").exists())
+            self.assertFalse(get_harness_request_path(root).exists())
+
     def test_daily_budget_reservation_and_settlement(self) -> None:
         with tempfile.TemporaryDirectory() as temp:
             root = Path(temp)

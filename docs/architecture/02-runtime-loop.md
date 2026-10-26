@@ -218,3 +218,19 @@ Every stop reason that can terminate an `AgentLoop` run or a `WakeCoordinator` s
 | `clean_shutdown` | `[read] agent/ui/wake.py:1449, 1492` | Session-level status recorded in `state/sessions.jsonl` upon normal completion or requested stop. |
 | `budget_exhausted` | `[read] agent/ui/wake.py:1449, 1492` | Session-level status recorded when loop stopped due to token or wall-clock budget. |
 | `crash` | `[read] agent/session/session.py:118` | Recorded in `state/sessions.jsonl` on subsequent wake when an `active_session.json` was left in running state. |
+
+---
+
+## 6. Stalled Task De-Escalation & Non-Blocking Capability Workflow
+
+### Permission Broker Panic Non-Halting Flow
+1. **Safety Trigger:** If repeated tool errors trip the permission broker threshold (`PermissionBroker._consecutive_failures`), broker panic is signaled.
+2. **De-Escalation Without Hard Stop:** Instead of writing `workspace/STOP` to disk, `StopWatcher.trigger_panic()` invokes emergency stop hooks on hardware/body while leaving the filesystem clean.
+3. **Plan Demotion:** The loop demotes the stalled goal to `status="blocked"` with `priority=3` and reports the incident with actionable guidance and Task ID to `report_human.md`.
+4. **Autonomous Continuation:** Panic is reset (`broker.reset_panic()`, `stop_watcher.reset_stop()`), and SELF immediately shifts focus to the next available goal in `PlanStore` rather than halting the session.
+
+### Capability Request Lifecycle & Approval Workflow
+1. **Request Creation:** When a new capability or external human action is requested (`request_capability`), a unique ID (`req-<id>`) is generated and tracked in `HUMAN_REQUEST.md` and `state/capability_requests.md`.
+2. **Non-Blocking Continuation:** If other runnable goals remain in the plan, SELF marks the requesting task paused and continues with subsequent goals without stalling the entire agent loop. If all remaining goals are blocked/paused, SELF pauses cleanly (`reason="human_request_pending"`).
+3. **Human Approval (`/approve [id]`):** Resolves the pending capability request or stalled task by ID, clears pause locks, sets the goal to `status="todo"` with `priority=1`, removes `report_human.md`, and wakes the loop to work on the approved task.
+4. **Human Decline (`/decline [id] [reason]`):** Records the denial in `state/declined_capabilities.json`, writes negative knowledge to `state/map.json` and human input memory, clears pause locks, and allows SELF to proceed without the declined capability.

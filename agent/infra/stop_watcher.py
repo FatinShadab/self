@@ -120,10 +120,6 @@ class StopWatcher:
     def trigger_panic(self, reason: str) -> None:
         """Broker panic triggered — immediately call Body.emergency_stop() and stop."""
         self._stop_event.set()
-        try:
-            self.stop_file.touch()
-        except OSError:
-            pass
         self._call_emergency_stop(reason=f"broker_panic:{reason}")
         if self.logger:
             self.logger.log("stop_watcher_panic_triggered", reason=reason)

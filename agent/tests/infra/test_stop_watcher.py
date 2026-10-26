@@ -123,6 +123,19 @@ class TestStopWatcher(unittest.TestCase):
         coord_decline.decline_human_request.assert_called_once_with(reason="docker prohibited")
         app_decline._start_agent.assert_called_once()
 
+        # Verify /approve handling in LifecycleCommandHandler
+        self.assertTrue(handler.matches("/approve"))
+        self.assertTrue(handler.matches("/approve req-123"))
+        self.assertTrue(handler.matches("/approve task-2"))
+        coord_approve = Mock(
+            workspace=self.workspace,
+            approve_human_request=Mock(return_value={"ok": True, "message": "Approved req-123"}),
+        )
+        app_approve = Mock(_agent_running=False)
+        self.assertTrue(handler.handle(app_approve, coord_approve, "/approve req-123"))
+        coord_approve.approve_human_request.assert_called_once_with(target_id="req-123")
+        app_approve._start_agent.assert_called_once()
+
     def test_pause_and_resume(self) -> None:
         watcher = StopWatcher(
             workspace=self.workspace,

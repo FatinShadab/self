@@ -118,12 +118,30 @@ class TypingCommandHandler:
 
 
 class LifecycleCommandHandler:
-    """Handles wake session lifecycle controls (/restart, /pause, /resume, /stop, /decline)."""
+    """Handles wake session lifecycle controls (/restart, /pause, /resume, /stop, /decline, /approve)."""
 
     def matches(self, text: str) -> bool:
-        return text in {"/restart", "/pause", "/resume", "/stop"} or text == "/decline" or text.startswith("/decline ")
+        return (
+            text in {"/restart", "/pause", "/resume", "/stop"}
+            or text == "/decline"
+            or text.startswith("/decline ")
+            or text == "/approve"
+            or text.startswith("/approve ")
+        )
 
     def handle(self, app: Any, coordinator: Any, text: str) -> bool:
+        if text == "/approve" or text.startswith("/approve "):
+            app._write_command(text)
+            target = text[9:].strip() if text.startswith("/approve ") else ""
+            if hasattr(coordinator, "approve_human_request"):
+                res = coordinator.approve_human_request(target_id=target)
+                msg = res.get("message", "Approved request. Resuming.") if isinstance(res, dict) else "Approved request. Resuming."
+                app._command_response(msg, "request")
+            else:
+                coordinator.resume()
+                app._command_response("Resuming.", "request")
+            app._start_agent()
+            return True
         if text == "/decline" or text.startswith("/decline "):
             app._write_command(text)
             reason = text[9:].strip() if text.startswith("/decline ") else ""
@@ -330,7 +348,8 @@ class StateInfoCommandHandler:
                 "  /pause                Pause autonomous cycles at next safe action boundary\n"
                 "  /resume               Resume paused cycles and clear human request wait\n"
                 "  /stop                 Immediately stop autonomous work (writes STOP file)\n"
-                "  /decline [reason]     Decline pending capability request and resume without it\n\n"
+                "  /approve [id]         Approve capability request or stalled task by ID and resume\n"
+                "  /decline [id] [reason] Decline pending capability request and resume without it\n\n"
                 "Goals & Planning:\n"
                 "  /plan, /targets       Display starting goals and session plan targets\n"
                 "  /goals                Display all active goals and priorities from plan store\n"

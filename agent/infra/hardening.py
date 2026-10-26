@@ -175,6 +175,65 @@ def decline_pending_capability_request(
     return record
 
 
+def approve_pending_capability_request(
+    workspace: Path | str,
+    reason: str = "",
+    logger: Any = None,
+) -> dict[str, Any] | None:
+    """Approve pending capability request, clear locks, and record decision."""
+    ws = Path(workspace).resolve()
+    payload = get_pending_request_payload(ws)
+    if not payload:
+        return None
+
+    req_id = str(payload.get("id") or "")
+    kind = str(payload.get("kind") or "other")
+    summary = str(payload.get("summary") or "external capability")
+    app_reason = reason.strip() or "Approved by human administrator"
+
+    cap_md = ws / "state" / "capability_requests.md"
+    try:
+        cap_md.parent.mkdir(parents=True, exist_ok=True)
+        with cap_md.open("a", encoding="utf-8") as handle:
+            handle.write(
+                f"\n## Capability request approved [{req_id}] — {now()}\n"
+                f"- Request ID: {req_id}\n"
+                f"- Kind: {kind}\n"
+                f"- Summary: {summary}\n"
+                f"- Reason: {app_reason}\n"
+                f"- Action: Capability approved and granted by human administrator.\n\n"
+            )
+    except OSError:
+        pass
+
+    try:
+        inbox_path = ws / "state" / "human_input.jsonl"
+        inbox_path.parent.mkdir(parents=True, exist_ok=True)
+        item = {
+            "timestamp": now(),
+            "text": f"Human approved capability request [{req_id}] '{summary}': {app_reason}",
+            "kind": "decision",
+            "decision": "accepted",
+        }
+        with inbox_path.open("a", encoding="utf-8") as handle:
+            handle.write(json.dumps(item, ensure_ascii=False) + "\n")
+    except OSError:
+        pass
+
+    clear_pending_human_request(ws)
+
+    if logger and hasattr(logger, "narrate"):
+        logger.narrate(f"Capability request approved [{req_id}] ({summary}): {app_reason}")
+
+    return {
+        "id": req_id,
+        "kind": kind,
+        "summary": summary,
+        "reason": app_reason,
+        "approved": True,
+    }
+
+
 class CapabilityRequests:
     """Record requests for capabilities outside the current environment."""
 
@@ -247,15 +306,18 @@ class CapabilityRequests:
                 ),
             }
 
+        import uuid
+        req_id = f"req-{uuid.uuid4().hex[:6]}"
         self.path.parent.mkdir(parents=True, exist_ok=True)
         lines = [
-            f"## Pending capability request — {now()}",
+            f"## Pending capability request [{req_id}] — {now()}",
+            f"- Request ID: {req_id}",
             f"- Kind: {kind}", f"- Summary: {self.logger.redactor.text(summary)[:500]}",
             f"- Reason: {self.logger.redactor.text(reason)[:1_000]}",
             f"- Provider/service: {provider or 'not specified'}",
             f"- Environment variable names: {', '.join(env_names or []) or 'none'}",
             f"- Official page: {signup_url or 'not specified'}",
-            "- Note for the human administrator (Human action required): Approve this request by editing host configuration or environment yourself, then restart or resume.",
+            f"- Note for the human administrator (Human action required): Approve this request by editing host configuration or environment yourself, then run /approve {req_id} (or /resume).",
             "- Notice for the human: SELF cannot create accounts, edit host configuration, open host ports, add mounts, send email, or make financial actions.", "",
         ]
         with self.path.open("a", encoding="utf-8") as handle:
@@ -265,7 +327,8 @@ class CapabilityRequests:
             hr_lines = [
                 "# Pending Human Action / Capability Request",
                 "",
-                "SELF has paused work because an external capability or human action is required:",
+                f"### Request ID: {req_id}",
+                f"- Task / Request ID: `{req_id}`",
                 f"- Kind: {kind}",
                 f"- Summary: {self.logger.redactor.text(summary)[:500]}",
                 f"- Reason: {self.logger.redactor.text(reason)[:1_000]}",
@@ -273,16 +336,26 @@ class CapabilityRequests:
                 f"- Environment variable names: {', '.join(env_names or []) or 'none'}",
                 f"- Official page: {signup_url or 'not specified'}",
                 "",
-                "## How to Resolve and Resume",
-                "1. Review the request above or in `state/capability_requests.md`.",
-                "2. If granting: perform the required action or update host configuration, then run `/resume`.",
-                "3. If declining: run `/decline` in the TUI, or delete this `HUMAN_REQUEST.md` file to resume without granting.",
+                "## How to Approve and Resume",
+                "1. Perform any required host action (e.g. host socket mount, setting environment variable, or reviewing patch).",
+                f"2. In the TUI chat box, approve this request by typing:",
+                f"   `/approve {req_id}`",
+                "   (or type `/resume`, or delete this `HUMAN_REQUEST.md` file).",
+                "   SELF will immediately unpause the task, recalculate priority, and execute it after finishing its current cycle.",
+                "",
+                "## How to Decline",
+                "If you do NOT want to grant this capability or wish SELF to proceed without it:",
+                f"1. In the TUI chat box, decline this request by typing:",
+                f"   `/decline {req_id}`",
+                "   (or type `/decline [reason]`).",
+                "   SELF will record this decision in state/declined_capabilities.json, never ask again, and continue with other goals.",
                 "",
             ]
             self.human_request.write_text("\n".join(hr_lines), encoding="utf-8")
             try:
                 self.harness_request.parent.mkdir(parents=True, exist_ok=True)
                 payload = {
+                    "id": req_id,
                     "kind": kind,
                     "summary": summary,
                     "reason": reason,
@@ -295,7 +368,7 @@ class CapabilityRequests:
                 self.harness_request.write_text(json.dumps(payload, indent=2), encoding="utf-8")
             except OSError:
                 pass
-        return {"ok": False, "status": "human_approval_required", "path": str(self.path), "halted": halt}
+        return {"ok": False, "status": "human_approval_required", "path": str(self.path), "halted": halt, "id": req_id}
 
 
 def _ledger_sleep(duration: float) -> None:

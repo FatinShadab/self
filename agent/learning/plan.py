@@ -329,6 +329,27 @@ class PlanStore:
             cycle=cycle,
         )
 
+    def promote_approved_goal(
+        self,
+        goal_or_id: str,
+        reason: str = "Approved by human",
+        priority: int = 1,
+        cycle: int = 0,
+    ) -> dict[str, Any]:
+        """Promote an approved or unblocked plan item back to top priority."""
+        res = self.update_plan(
+            action="edit",
+            id=goal_or_id,
+            status="todo",
+            priority=priority,
+            reason=reason,
+            evidence=f"Human approval: {reason}",
+            cycle=cycle,
+        )
+        if res.get("ok"):
+            self.logger.narrate(f"Goal '{goal_or_id}' approved and promoted to priority {priority}.")
+        return res
+
     def record_unchanged(self, cycle: int, reason: str, evidence: str = "", source: str = "harness_auto") -> None:
         """Log a plan_unchanged review event when no edits occurred in a cycle."""
         clean_reason = str(reason).strip() or "Plan remains valid; continuing execution of active goals."

@@ -138,6 +138,17 @@ class ConversationTests(unittest.TestCase):
             self.assertTrue(help_handler.handle(dummy_app, dummy_coord, "/help"))
             self.assertTrue(any("Available commands:" in str(c) for c in dummy_app.commands))
 
+            # Verify WakeCoordinator.approve_human_request
+            from agent.session.coordinator import WakeCoordinator
+            coord = WakeCoordinator(workspace=root)
+            coord.plan_store.update_plan(action="add", goal="Blocked Task", priority=3, status="blocked", reason="Initial")
+            approve_res = coord.approve_human_request("Blocked Task")
+            self.assertTrue(approve_res["ok"])
+            self.assertTrue(any("Blocked Task" in it or "plan_item" in it for it in approve_res["approved"]))
+            promoted = [it for it in coord.plan_store.items if it["goal"] == "Blocked Task"][0]
+            self.assertEqual(promoted["status"], "todo")
+            self.assertEqual(promoted["priority"], 1)
+
 
 if __name__ == "__main__":
     unittest.main()

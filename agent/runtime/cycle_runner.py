@@ -8,6 +8,7 @@ from difflib import SequenceMatcher
 from typing import Any
 
 from agent.infra.untrusted import wrap_untrusted
+from agent.learning.plan_statuses import ACTIVE_PLAN_STATUSES
 from agent.llm.llm import BudgetExceeded
 from agent.prompts.cycle import (
     RECORD_DELEGATION_OUTCOME_REMINDER,
@@ -95,10 +96,21 @@ def run_agent_loop(loop: Any) -> RunSummary:
             reason = "stop_file"
             break
         if loop.has_pending_human_request():
-            loop.logger.narrate("A human request is pending; waiting for it to be resolved.")
-            loop.logger.log("run_stopped", reason="human_request_pending")
-            reason = "human_request_pending"
-            break
+            runnable = [
+                it for it in loop.plan_store.items
+                if str(it.get("status", "todo")).strip().lower() not in {"blocked", "paused"}
+                and str(it.get("status", "todo")).strip().lower() in ACTIVE_PLAN_STATUSES
+                and it.get("goal") != primary_goal
+            ]
+            if runnable:
+                loop.logger.narrate(
+                    f"A human request is pending for current task; continuing with next runnable goal: {runnable[0]['goal']}"
+                )
+            else:
+                loop.logger.narrate("A human request is pending; waiting for it to be resolved.")
+                loop.logger.log("run_stopped", reason="human_request_pending")
+                reason = "human_request_pending"
+                break
 
         loop.tools.current_cycle = cycle
         if loop.plugins is not None:
@@ -354,9 +366,15 @@ def run_agent_loop(loop: Any) -> RunSummary:
                         last_tool = ca.get("name", "tool")
                         break
 
+                primary_goal_id = next(
+                    (it["id"] for it in loop.plan_store.items if it.get("goal") == primary_goal),
+                    "task-1",
+                )
                 loop.plan_store.demote_stalled_goal(
                     goal_or_id=primary_goal,
                     reason=f"Stalled: permission broker panic after failures in {last_tool}",
+                    status="blocked",
+                    priority=3,
                     cycle=cycle,
                 )
                 next_items = loop.plan_store.top_items(limit=3, active_plugins=active_plugins_set)
@@ -373,11 +391,22 @@ def run_agent_loop(loop: Any) -> RunSummary:
                         "The permission broker triggered panic to protect the environment."
                     ),
                     next_goal=next_goal,
+                    task_id=primary_goal_id,
                     logger=loop.logger,
                 )
 
                 if loop.broker is not None:
                     loop.broker.reset_panic()
+                stop_file = loop.config.workspace / "STOP"
+                if stop_file.exists():
+                    try:
+                        stop_file.unlink()
+                    except OSError:
+                        pass
+                if loop.stop_watcher is not None:
+                    loop.stop_watcher.reset_stop()
+                if hasattr(loop, "coordinator") and loop.coordinator and getattr(loop.coordinator, "stop_watcher", None):
+                    loop.coordinator.stop_watcher.reset_stop()
                 stop_reason = None
                 messages.append(
                     {
@@ -465,9 +494,20 @@ def run_agent_loop(loop: Any) -> RunSummary:
             loop.config.on_cycle(cycle, last_report, loop.llm.tokens_used)
 
         if loop.has_pending_human_request():
-            loop.logger.narrate("A human request was created; pausing further cycles.")
-            reason = "human_request_pending"
-            break
+            runnable = [
+                it for it in loop.plan_store.items
+                if str(it.get("status", "todo")).strip().lower() not in {"blocked", "paused"}
+                and str(it.get("status", "todo")).strip().lower() in ACTIVE_PLAN_STATUSES
+                and it.get("goal") != primary_goal
+            ]
+            if runnable:
+                loop.logger.narrate(
+                    f"A human request was created for current task; continuing with next runnable goal: {runnable[0]['goal']}"
+                )
+            else:
+                loop.logger.narrate("A human request was created; pausing further cycles.")
+                reason = "human_request_pending"
+                break
 
         if repeated_report_count >= 2:
             other_goals = [

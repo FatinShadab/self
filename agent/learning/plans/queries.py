@@ -21,7 +21,13 @@ def filter_top_items(
         if active_plugins is not None and plugin != "core" and plugin not in active_plugins:
             continue
         active.append(item)
-    return sorted(active, key=lambda it: int(it.get("priority", 2)))[:limit]
+    return sorted(
+        active,
+        key=lambda it: (
+            1 if str(it.get("status", "todo")).strip().lower() in {"blocked", "paused"} else 0,
+            int(it.get("priority", 2)),
+        ),
+    )[:limit]
 
 
 def build_retrieval_query(top_items: list[dict[str, Any]]) -> str:

@@ -341,6 +341,60 @@ class WakeCoordinator:
 
         return decline_pending_capability_request(self.workspace, reason=reason, logger=self.logger)
 
+    def approve_human_request(self, target_id: str = "") -> dict[str, Any]:
+        """Approve pending capability request or stalled task by ID, reprioritize, and resume."""
+        from agent.infra.hardening import approve_pending_capability_request, get_pending_request_payload
+
+        target = str(target_id).strip()
+        payload = get_pending_request_payload(self.workspace)
+        approved_items: list[str] = []
+
+        is_cap_req = False
+        if payload is not None:
+            req_id = str(payload.get("id", "")).strip()
+            if not target or target.lower() == req_id.lower() or target.lower().startswith("req-"):
+                res = approve_pending_capability_request(
+                    self.workspace,
+                    reason=f"Approved by human administrator (target={target or req_id})",
+                    logger=self.logger,
+                )
+                if res:
+                    approved_items.append(f"capability_request:{res.get('id', req_id)}")
+                    is_cap_req = True
+
+        if hasattr(self, "plan_store") and self.plan_store:
+            self.plan_store.load()
+            matched = False
+            if target and not is_cap_req:
+                promote_res = self.plan_store.promote_approved_goal(target, reason="Approved by human", priority=1)
+                if promote_res.get("ok"):
+                    matched = True
+                    approved_items.append(f"plan_item:{promote_res.get('item', {}).get('id', target)}")
+            if not matched and is_cap_req:
+                for it in self.plan_store.items:
+                    st = str(it.get("status", "")).strip().lower()
+                    if st in {"blocked", "paused"}:
+                        self.plan_store.promote_approved_goal(it.get("id", ""), reason="Capability request approved by human", priority=1)
+                        approved_items.append(f"plan_item:{it.get('id')}")
+                        break
+
+        report_file = self.workspace / "report_human.md"
+        if report_file.exists():
+            try:
+                content = report_file.read_text(encoding="utf-8")
+                if not target or target.lower() in content.lower():
+                    report_file.unlink()
+            except Exception:
+                pass
+
+        self.resume()
+
+        return {
+            "ok": True,
+            "approved": approved_items,
+            "message": f"Approved {', '.join(approved_items) if approved_items else 'request'}. Tasks reprioritized and resumed.",
+        }
+
     def resume(self) -> None:
         """Resume autonomous cycles."""
         self.paused.clear()
