@@ -97,6 +97,8 @@ class ConversationTests(unittest.TestCase):
                     self.commands.append(cmd)
                 def _command_response(self, resp, kind="info"):
                     self.commands.append((resp, kind))
+                def _queue_chat(self, role, message, kind):
+                    queue_chat(self, dummy_coord, role, message, kind)
                 def run_worker(self, coro, exclusive=False):
                     pass
 

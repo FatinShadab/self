@@ -101,7 +101,7 @@ def queue_chat(app: Any, coordinator: Any, role: str, message: str, kind: str) -
     """Queue a chat message, dropping late autonomous messages if stopped."""
     if (
         role == "agent"
-        and kind not in {"conversation", "error", "targets"}
+        and kind not in {"conversation", "error", "targets", "help"}
         and (coordinator.stop_requested or (coordinator.workspace / "STOP").exists())
     ):
         return
@@ -125,7 +125,7 @@ async def drain_chat(app: Any, coordinator: Any) -> None:
             role, message, kind = app._pending_chat.pop(0)
             if (
                 role == "agent"
-                and kind not in {"conversation", "error", "targets"}
+                and kind not in {"conversation", "error", "targets", "help"}
                 and (coordinator.stop_requested or (coordinator.workspace / "STOP").exists())
             ):
                 continue
@@ -155,7 +155,7 @@ async def drain_chat(app: Any, coordinator: Any) -> None:
                 step = max(1, (len(message) + 23) // 24)
                 for index in range(step, len(message) + step, step):
                     if (
-                        kind not in {"conversation", "error", "targets"}
+                        kind not in {"conversation", "error", "targets", "help"}
                         and (coordinator.stop_requested or (coordinator.workspace / "STOP").exists())
                     ):
                         break
